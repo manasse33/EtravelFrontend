@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Menu, X, Globe, Lightbulb, Target, Heart, Users, Award, Check, Calendar, Facebook, Instagram, Twitter, Linkedin, Phone, Mail, MapPin, ArrowRight } from 'lucide-react';
-
+import { Link } from 'react-router-dom';
 const AboutPage = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -33,13 +33,12 @@ const AboutPage = () => {
             </div>
 
             <nav className="hidden md:flex items-center space-x-10">
-                 <a href="/" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">Accueil</a>
-              <a href="/about" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">À propos</a>
-              <a href="/weekend" className="px-6 py-2 bg-yellow-400 text-gray-900 font-bold rounded-full hover:bg-yellow-500 transition-all hover:shadow-lg">
-                
-                OUIKENAC
-              </a>
-              <a href="/city-tour" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">CityTour</a>
+<Link to="/" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">Accueil</Link>
+    <Link to="/about" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">À propos</Link>
+    <Link to="/weekend" className="px-6 py-2 bg-yellow-400 text-gray-900 font-bold rounded-full hover:bg-yellow-500 transition-all hover:shadow-lg">
+        OUIKENAC
+    </Link>
+    <Link to="/city-tour" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">CityTour</Link>
               <a href="#contact" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">Contact</a>
             </nav>
 
@@ -52,10 +51,34 @@ const AboutPage = () => {
         {menuOpen && (
           <div className="md:hidden bg-white border-t border-gray-100 shadow-lg">
             <nav className="px-4 py-4 space-y-2">
-              <a href="/" className="block text-gray-700 hover:text-blue-600 py-3 text-base font-medium border-b border-gray-100" onClick={() => setMenuOpen(false)}>Accueil</a>
-              <a href="/about" className="block text-gray-700 hover:text-blue-600 py-3 text-base font-medium border-b border-gray-100" onClick={() => setMenuOpen(false)}>À propos de nous</a>
-              <a href="/weekend" className="block text-yellow-600 hover:text-yellow-700 py-3 text-base font-bold border-b border-gray-100" onClick={() => setMenuOpen(false)}>OUIKENAC</a>
-              <a href="/city-tour" className="block text-gray-700 hover:text-blue-600 py-3 text-base font-medium border-b border-gray-100" onClick={() => setMenuOpen(false)}>CityTour</a>
+   <Link 
+        to="/" 
+        className="block text-gray-700 hover:text-blue-600 py-3 text-base font-medium border-b border-gray-100" 
+        onClick={() => setMenuOpen(false)}
+      >
+        Accueil
+      </Link>
+                    <Link 
+        to="/about" 
+        className="block text-gray-700 hover:text-blue-600 py-3 text-base font-medium border-b border-gray-100" 
+        onClick={() => setMenuOpen(false)}
+      >
+        A propos
+      </Link>
+                     <Link 
+        to="/weekend" 
+        className="block text-gray-700 hover:text-blue-600 py-3 text-base font-medium border-b border-gray-100" 
+        onClick={() => setMenuOpen(false)}
+      >
+        Ouikenac
+      </Link>
+                 <Link 
+        to="/city-tour" 
+        className="block text-gray-700 hover:text-blue-600 py-3 text-base font-medium border-b border-gray-100" 
+        onClick={() => setMenuOpen(false)}
+      >
+        CityTour
+      </Link>
               <a href="#contact" className="block text-gray-700 hover:text-blue-600 py-3 text-base font-medium" onClick={() => setMenuOpen(false)}>Contactez-nous</a>
             </nav>
           </div>
