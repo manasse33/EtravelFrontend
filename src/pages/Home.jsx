@@ -177,7 +177,8 @@ const HomePage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-white">
+    // FIX RESPONSIVITY: Ajout de 'overflow-x-hidden' pour éviter le défilement horizontal sur mobile.
+    <div className="min-h-screen bg-white overflow-x-hidden">
       {/* Header */}
       <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled ? 'bg-white shadow-md' : 'bg-white/95'}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -191,12 +192,12 @@ const HomePage = () => {
             </div>
 
             <nav className="hidden md:flex items-center space-x-10">
-  <Link to="/" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">Accueil</Link>
-    <Link to="/about" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">À propos</Link>
-    <Link to="/weekend" className="px-6 py-2 bg-yellow-400 text-gray-900 font-bold rounded-full hover:bg-yellow-500 transition-all hover:shadow-lg">
-        OUIKENAC
-    </Link>
-    <Link to="/city-tour" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">CityTour</Link>
+              <Link to="/" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">Accueil</Link>
+              <Link to="/about" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">À propos</Link>
+              <Link to="/weekend" className="px-6 py-2 bg-yellow-400 text-gray-900 font-bold rounded-full hover:bg-yellow-500 transition-all hover:shadow-lg">
+                  OUIKENAC
+              </Link>
+              <Link to="/city-tour" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">CityTour</Link>
               <a href="#contact" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">Contact</a>
             </nav>
 
@@ -209,34 +210,34 @@ const HomePage = () => {
         {menuOpen && (
           <div className="md:hidden bg-white border-t border-gray-100 shadow-lg">
             <nav className="px-4 py-4 space-y-2">
-<Link 
-        to="/" 
-        className="block text-gray-700 hover:text-blue-600 py-3 text-base font-medium border-b border-gray-100" 
-        onClick={() => setMenuOpen(false)}
-      >
-        Accueil
-      </Link>
-                    <Link 
-        to="/about" 
-        className="block text-gray-700 hover:text-blue-600 py-3 text-base font-medium border-b border-gray-100" 
-        onClick={() => setMenuOpen(false)}
-      >
-        A propos
-      </Link>
-                     <Link 
-        to="/weekend" 
-        className="block text-gray-700 hover:text-blue-600 py-3 text-base font-medium border-b border-gray-100" 
-        onClick={() => setMenuOpen(false)}
-      >
-        Ouikenac
-      </Link>
-                 <Link 
-        to="/city-tour" 
-        className="block text-gray-700 hover:text-blue-600 py-3 text-base font-medium border-b border-gray-100" 
-        onClick={() => setMenuOpen(false)}
-      >
-        CityTour
-      </Link>
+              <Link 
+                  to="/" 
+                  className="block text-gray-700 hover:text-blue-600 py-3 text-base font-medium border-b border-gray-100" 
+                  onClick={() => setMenuOpen(false)}
+                >
+                  Accueil
+                </Link>
+              <Link 
+                  to="/about" 
+                  className="block text-gray-700 hover:text-blue-600 py-3 text-base font-medium border-b border-gray-100" 
+                  onClick={() => setMenuOpen(false)}
+                >
+                  A propos
+                </Link>
+              <Link 
+                  to="/weekend" 
+                  className="block text-gray-700 hover:text-blue-600 py-3 text-base font-medium border-b border-gray-100" 
+                  onClick={() => setMenuOpen(false)}
+                >
+                  Ouikenac
+                </Link>
+              <Link 
+                  to="/city-tour" 
+                  className="block text-gray-700 hover:text-blue-600 py-3 text-base font-medium border-b border-gray-100" 
+                  onClick={() => setMenuOpen(false)}
+                >
+                  CityTour
+                </Link>
               <a href="#contact" className="block text-gray-700 hover:text-blue-600 py-3 text-base font-medium" onClick={() => setMenuOpen(false)}>Contactez-nous</a>
             </nav>
           </div>
@@ -360,9 +361,10 @@ const HomePage = () => {
                 </div>
               </div>
 
-              <button className="px-8 py-4 bg-blue-600 text-white font-bold rounded-full hover:bg-blue-700 transition-all hover:shadow-xl hover:scale-105 inline-flex items-center gap-2">
+              {/* FIX ROUTING: Remplacé <a> par Link vers /about pour la page dédiée */}
+              <Link to="/about" className="px-8 py-4 bg-blue-600 text-white font-bold rounded-full hover:bg-blue-700 transition-all hover:shadow-xl hover:scale-105 inline-flex items-center gap-2">
                 En savoir plus <ArrowRight size={20} />
-              </button>
+              </Link>
             </div>
           </div>
         </div>
@@ -462,14 +464,15 @@ const HomePage = () => {
           )}
 
           <div className="text-center mt-12">
-            <button className="px-10 py-4 bg-white border-2 border-gray-900 text-gray-900 font-bold rounded-full hover:bg-gray-900 hover:text-white transition-all hover:shadow-xl">
+            {/* FIX ROUTING: Remplacé <a> par Link (supposant que c'est une page d'archive) */}
+            <Link to="/destinations" className="px-10 py-4 bg-white border-2 border-gray-900 text-gray-900 font-bold rounded-full hover:bg-gray-900 hover:text-white transition-all hover:shadow-xl">
               Voir toutes les destinations
-            </button>
+            </Link>
           </div>
         </div>
       </section>
 
-      {/* Booking Form */}
+      {/* Booking Form (Contact Section) */}
       <section id="contact" className="py-24 px-4 bg-white">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-12">
@@ -607,7 +610,7 @@ const HomePage = () => {
         </div>
       </section>
 
-      {/* City Tour */}
+      {/* City Tour / OUIKENAC */}
       <section id="ouikenac" className="py-24 px-4 bg-white">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
@@ -707,10 +710,11 @@ const HomePage = () => {
             <div>
               <h3 className="text-lg font-bold mb-6">Navigation</h3>
               <div className="space-y-3">
-                <a href="/" className="block text-gray-400 hover:text-white transition-colors">Accueil</a>
-                <a href="/about" className="block text-gray-400 hover:text-white transition-colors">À propos</a>
-                <a href="/city-tour" className="block text-gray-400 hover:text-white transition-colors">City Tours</a>
-                <a href="/weekend" className="block text-gray-400 hover:text-white transition-colors">OUIKENAC</a>
+                {/* FIX ROUTING: Remplacé <a> par Link */}
+                <Link to="/" className="block text-gray-400 hover:text-white transition-colors">Accueil</Link>
+                <Link to="/about" className="block text-gray-400 hover:text-white transition-colors">À propos</Link>
+                <Link to="/city-tour" className="block text-gray-400 hover:text-white transition-colors">City Tours</Link>
+                <Link to="/weekend" className="block text-gray-400 hover:text-white transition-colors">OUIKENAC</Link>
                 <a href="#contact" className="block text-gray-400 hover:text-white transition-colors">Contact</a>
               </div>
             </div>
