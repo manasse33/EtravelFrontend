@@ -26,7 +26,7 @@ const CityTour = () => {
 
   // Configuration de l'API
   const api = axios.create({
-    baseURL: 'http://127.0.0.1:8000/api',
+    baseURL: 'https://etravelbackend-production.up.railway.app/api',
     headers: {
       'Content-Type': 'application/json',
     },
@@ -786,7 +786,7 @@ const CityTour = () => {
           <div className="border-t border-gray-800 pt-8">
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
               <p className="text-gray-400 text-sm text-center md:text-left">
-                © 2024 e-TRAVEL WORLD AGENCY. Tous droits réservés.
+                © 2025 e-TRAVEL WORLD AGENCY. Tous droits réservés.
               </p>
               <p className="text-gray-500 text-sm">
                 Créé avec passion par <span className="font-bold text-white">ELBO</span>

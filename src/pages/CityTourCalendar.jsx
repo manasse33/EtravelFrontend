@@ -11,7 +11,7 @@ const CityTourCalendar = () => {
   const events = [
     {
       month: 'NOVEMBRE',
-      year: '2024',
+      year: '2025',
       tours: [
         {
           date: 'Samedi 08',
@@ -48,7 +48,7 @@ const CityTourCalendar = () => {
     },
     {
       month: 'DÉCEMBRE',
-      year: '2024',
+      year: '2025',
       tours: [
         {
           date: 'Samedi 06',
@@ -163,7 +163,7 @@ const CityTourCalendar = () => {
                 OUIKENAC CITY TOUR
               </h2>
               <p className="text-2xl sm:text-3xl text-white mb-6 font-light">
-                Calendrier 2024-2025
+                Calendrier 2025-2025
               </p>
               <p className="text-white text-lg max-w-2xl mx-auto">
                 Explorez le patrimoine culturel et naturel de Brazzaville avec nos visites guidées
@@ -471,7 +471,7 @@ const CityTourCalendar = () => {
           <div className="border-t border-gray-800 pt-8">
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
               <p className="text-gray-400 text-sm text-center md:text-left">
-                © 2024 e-TRAVEL WORLD AGENCY. Tous droits réservés.
+                © 2025 e-TRAVEL WORLD AGENCY. Tous droits réservés.
               </p>
               <p className="text-gray-500 text-sm">
                 Créé avec passion par <span className="font-bold text-white">ELBO</span>
