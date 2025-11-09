@@ -13,7 +13,7 @@ import ForfaitLibota from "./pages/ForfaitLibota";
 import ForfaitLisanga from "./pages/ForfaitLisanga";
 import ForfaitElite from "./pages/ForfaitPremium";
 import OuikenacPage from "./pages/Weekend";
-import AdminPanel from "./pages/Admin";
+import AdminDashboard from "./pages/Admin";
 import AdminLogin from "./pages/Auth";
 
 
@@ -55,8 +55,8 @@ const AppContent = () => {
              <Route path="/forfait-lisanga" element={<ForfaitLisanga />} />
               <Route path="/forfait-premium" element={<ForfaitElite />} />
                <Route path="/weekend" element={<OuikenacPage />} />
-                <Route path="/admin" element={<AdminPanel />} />
-                <Route path="/auth" element={<AdminLogin />} />
+                <Route path="/admin" element={<AdminDashboard />} />
+              AdminDashboardent={<AdminLogin />} />
           {/* <Route path="/auth" element={<AuthPage />} />
           <Route path="/verify-email" element={<VerifyEmailPage />} />
           <Route
