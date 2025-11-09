@@ -56,7 +56,6 @@ const AppContent = () => {
               <Route path="/forfait-premium" element={<ForfaitElite />} />
                <Route path="/weekend" element={<OuikenacPage />} />
                 <Route path="/admin" element={<AdminDashboard />} />
-              AdminDashboardent={<AdminLogin />} />
           {/* <Route path="/auth" element={<AuthPage />} />
           <Route path="/verify-email" element={<VerifyEmailPage />} />
           <Route
