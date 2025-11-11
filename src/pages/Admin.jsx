@@ -1,8 +1,107 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Users, Package, MapPin, TrendingUp, DollarSign, Calendar, Settings, Home, Globe, Building, Plane, Compass, Navigation, Menu, X, Upload } from 'lucide-react';
+import { Users, Package, MapPin, TrendingUp, DollarSign, Calendar, Settings, Home, Globe, Building, Plane, Compass, Navigation, Menu, X, Upload, Loader2, CheckCircle, AlertCircle, XCircle } from 'lucide-react';
 
-const API_BASE = 'https://etravelbackend-production.up.railway.app/api';
+const API_BASE = 'http://127.0.0.1:8000/api';
+
+// Composant de notification moderne
+const Notification = ({ show, message, type, onClose }) => {
+  if (!show) return null;
+
+  const icons = {
+    success: <CheckCircle size={24} />,
+    error: <XCircle size={24} />,
+    warning: <AlertCircle size={24} />
+  };
+
+  const colors = {
+    success: 'bg-green-50 border-green-500 text-green-800',
+    error: 'bg-red-50 border-red-500 text-red-800',
+    warning: 'bg-yellow-50 border-yellow-500 text-yellow-800'
+  };
+
+  const iconColors = {
+    success: 'text-green-500',
+    error: 'text-red-500',
+    warning: 'text-yellow-500'
+  };
+
+  return (
+    <div className={`fixed top-4 right-4 z-50 max-w-md w-full ${colors[type]} border-l-4 rounded-r-xl p-4 shadow-2xl animate-slide-in`}>
+      <div className="flex items-start gap-3">
+        <div className={iconColors[type]}>
+          {icons[type]}
+        </div>
+        <div className="flex-1">
+          <p className="font-semibold mb-1">
+            {type === 'success' ? 'Succès' : type === 'error' ? 'Erreur' : 'Attention'}
+          </p>
+          <p className="text-sm">{message}</p>
+        </div>
+        <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+          <X size={18} />
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// Composant de chargement moderne
+const LoadingOverlay = ({ message = 'Chargement...' }) => (
+  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+    <div className="bg-white rounded-2xl p-8 shadow-2xl max-w-sm w-full mx-4">
+      <div className="flex flex-col items-center">
+        <div className="relative">
+          <Loader2 className="animate-spin h-16 w-16 text-blue-600" />
+          <div className="absolute inset-0 h-16 w-16 border-4 border-blue-200 rounded-full"></div>
+        </div>
+        <p className="text-gray-700 font-semibold text-lg mt-6">{message}</p>
+        <div className="w-full bg-gray-200 rounded-full h-1 mt-4 overflow-hidden">
+          <div className="h-full bg-blue-600 rounded-full animate-progress"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
+// Composant de confirmation moderne
+const ConfirmDialog = ({ show, title, message, onConfirm, onCancel, type = 'warning' }) => {
+  if (!show) return null;
+
+  const colors = {
+    danger: 'bg-red-600 hover:bg-red-700',
+    warning: 'bg-yellow-600 hover:bg-yellow-700',
+    info: 'bg-blue-600 hover:bg-blue-700'
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl p-6 shadow-2xl max-w-md w-full animate-scale-in">
+        <div className="flex items-center gap-3 mb-4">
+          <div className={`p-2 rounded-full ${type === 'danger' ? 'bg-red-100' : 'bg-yellow-100'}`}>
+            <AlertCircle className={type === 'danger' ? 'text-red-600' : 'text-yellow-600'} size={24} />
+          </div>
+          <h3 className="text-xl font-bold text-gray-900">{title}</h3>
+        </div>
+        <p className="text-gray-600 mb-6">{message}</p>
+        <div className="flex gap-3">
+          <button
+            onClick={onCancel}
+            className="flex-1 px-4 py-3 bg-gray-200 text-gray-800 font-semibold rounded-lg hover:bg-gray-300 transition-all"
+          >
+            Annuler
+          </button>
+          <button
+            onClick={onConfirm}
+            className={`flex-1 px-4 py-3 text-white font-semibold rounded-lg transition-all ${colors[type] || colors.warning}`}
+          >
+            Confirmer
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -13,7 +112,10 @@ const AdminDashboard = () => {
   const [cityTours, setCityTours] = useState([]);
   const [reservations, setReservations] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [notification, setNotification] = useState({ show: false, message: '', type: '' });
+  const [confirmDialog, setConfirmDialog] = useState({ show: false, title: '', message: '', onConfirm: null });
 
   const [countryForm, setCountryForm] = useState({ name: '', code: '' });
   const [cityForm, setCityForm] = useState({ name: '', country_id: '' });
@@ -24,34 +126,80 @@ const AdminDashboard = () => {
     image: null, 
     departure_country_id: '',
     arrival_country_id: '',
-    prices: [{ people_count: '', price: '' }],
-    services: []
+    prices: [{ people_count: '', price: '' }]
   });
 
   const [ouikenacForm, setOuikenacForm] = useState({
-    nom: '', description: '', image: null, country_depart_id: '', country_arrivee_id: '',
-    city_depart_id: '', city_arrivee_id: '', prix: '', places_min: 1, places_max: 10,
-    programme: '', repas: false, transport: false, hebergement: false
+    title: '',
+    description: '',
+    image: null,
+    departure_country_id: '',
+    arrival_country_id: '',
+    departure_city_id: '',
+    arrival_city_id: '',
+    min_people: 1,
+    max_people: 10,
+    price: '',
+    active: true
   });
 
   const [cityTourForm, setCityTourForm] = useState({
-    nom: '', description: '', country_id: '', date: '',
-    prix: '', places_min: 1, places_max: 10
+    nom: '',
+    description: '',
+    country_id: '',
+    city_id: '',
+    date: '',
+    places_min: 1,
+    places_max: 10,
+    price: ''
   });
 
   useEffect(() => {
     loadData();
   }, []);
 
+  const showNotification = (message, type = 'success') => {
+    setNotification({ show: true, message, type });
+    setTimeout(() => setNotification({ show: false, message: '', type: '' }), 5000);
+  };
+
+  const showConfirmDialog = (title, message, onConfirm, type = 'warning') => {
+    setConfirmDialog({
+      show: true,
+      title,
+      message,
+      type,
+      onConfirm: () => {
+        onConfirm();
+        setConfirmDialog({ show: false, title: '', message: '', onConfirm: null });
+      }
+    });
+  };
+
   const loadData = async () => {
     setLoading(true);
     try {
       const [countriesRes, destinationsRes, ouikenacsRes, toursRes, reservationsRes] = await Promise.all([
-        fetch(`${API_BASE}/countries`).then(r => r.json()),
-        fetch(`${API_BASE}/destinations`).then(r => r.json()),
-        fetch(`${API_BASE}/ouikenac`).then(r => r.json()),
-        fetch(`${API_BASE}/city-tours`).then(r => r.json()),
-        fetch(`${API_BASE}/reservations`).then(r => r.json())
+        fetch(`${API_BASE}/countries`).then(r => {
+          if (!r.ok) throw new Error('Erreur lors du chargement des pays');
+          return r.json();
+        }),
+        fetch(`${API_BASE}/destinations`).then(r => {
+          if (!r.ok) throw new Error('Erreur lors du chargement des destinations');
+          return r.json();
+        }),
+        fetch(`${API_BASE}/ouikenac`).then(r => {
+          if (!r.ok) throw new Error('Erreur lors du chargement des packages Ouikenac');
+          return r.json();
+        }),
+        fetch(`${API_BASE}/city-tours`).then(r => {
+          if (!r.ok) throw new Error('Erreur lors du chargement des city tours');
+          return r.json();
+        }),
+        fetch(`${API_BASE}/reservations`).then(r => {
+          if (!r.ok) throw new Error('Erreur lors du chargement des réservations');
+          return r.json();
+        })
       ]);
       
       setCountries(countriesRes);
@@ -64,6 +212,7 @@ const AdminDashboard = () => {
       setCities(allCities);
     } catch (error) {
       console.error('Erreur chargement:', error);
+      showNotification(error.message || 'Erreur lors du chargement des données', 'error');
     }
     setLoading(false);
   };
@@ -71,38 +220,79 @@ const AdminDashboard = () => {
   const handleFileChange = (e, formSetter, formData) => {
     const file = e.target.files[0];
     if (file) {
+      // Vérifier la taille du fichier (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        showNotification('Le fichier est trop volumineux. Taille maximale : 5MB', 'error');
+        return;
+      }
+      // Vérifier le type de fichier
+      if (!file.type.startsWith('image/')) {
+        showNotification('Veuillez sélectionner une image valide', 'error');
+        return;
+      }
       formSetter({ ...formData, image: file });
     }
   };
 
   const handleAddCountry = async () => {
-    if (!countryForm.name || !countryForm.code) return;
+    if (!countryForm.name || !countryForm.code) {
+      showNotification('Veuillez remplir tous les champs obligatoires', 'warning');
+      return;
+    }
+    
+    if (countryForm.code.length !== 2) {
+      showNotification('Le code pays doit contenir exactement 2 caractères', 'warning');
+      return;
+    }
+
+    setSubmitting(true);
     try {
-      await fetch(`${API_BASE}/countries`, {
+      const response = await fetch(`${API_BASE}/countries`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(countryForm)
       });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Erreur lors de l\'ajout du pays');
+      }
+      
       setCountryForm({ name: '', code: '' });
-      loadData();
+      await loadData();
+      showNotification('Pays ajouté avec succès', 'success');
     } catch (error) {
-      console.error('Erreur ajout pays:', error);
+      showNotification(error.message, 'error');
     }
+    setSubmitting(false);
   };
 
   const handleAddCity = async () => {
-    if (!cityForm.name || !cityForm.country_id) return;
+    if (!cityForm.name || !cityForm.country_id) {
+      showNotification('Veuillez remplir tous les champs obligatoires', 'warning');
+      return;
+    }
+    
+    setSubmitting(true);
     try {
-      await fetch(`${API_BASE}/cities`, {
+      const response = await fetch(`${API_BASE}/cities`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(cityForm)
       });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Erreur lors de l\'ajout de la ville');
+      }
+      
       setCityForm({ name: '', country_id: '' });
-      loadData();
+      await loadData();
+      showNotification('Ville ajoutée avec succès', 'success');
     } catch (error) {
-      console.error('Erreur ajout ville:', error);
+      showNotification(error.message, 'error');
     }
+    setSubmitting(false);
   };
 
   const addPriceField = () => {
@@ -124,24 +314,40 @@ const AdminDashboard = () => {
   };
 
   const handleAddDestination = async () => {
-    if (!destinationForm.title || !destinationForm.departure_country_id || !destinationForm.arrival_country_id) return;
+    if (!destinationForm.title || !destinationForm.departure_country_id || !destinationForm.arrival_country_id) {
+      showNotification('Veuillez remplir tous les champs obligatoires (titre, pays de départ et d\'arrivée)', 'warning');
+      return;
+    }
     
+    const validPrices = destinationForm.prices.filter(p => p.people_count && p.price);
+    if (validPrices.length === 0) {
+      showNotification('Veuillez ajouter au moins un tarif valide', 'warning');
+      return;
+    }
+
+    setSubmitting(true);
     try {
-      const payload = {
-        title: destinationForm.title,
-        description: destinationForm.description,
-        image: destinationForm.image ? URL.createObjectURL(destinationForm.image) : '',
-        departure_country_id: destinationForm.departure_country_id,
-        arrival_country_id: destinationForm.arrival_country_id,
-        prices: destinationForm.prices.filter(p => p.people_count && p.price),
-        services: destinationForm.services
-      };
+      const formData = new FormData();
+      formData.append('title', destinationForm.title);
+      formData.append('description', destinationForm.description);
+      formData.append('departure_country_id', destinationForm.departure_country_id);
+      formData.append('arrival_country_id', destinationForm.arrival_country_id);
       
-      await fetch(`${API_BASE}/destinations`, {
+      if (destinationForm.image) {
+        formData.append('image', destinationForm.image);
+      }
+      
+      formData.append('prices', JSON.stringify(validPrices));
+      
+      const response = await fetch(`${API_BASE}/destinations`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: formData
       });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || errorData.message || 'Erreur lors de l\'ajout de la destination');
+      }
       
       setDestinationForm({
         title: '', 
@@ -149,78 +355,184 @@ const AdminDashboard = () => {
         image: null, 
         departure_country_id: '',
         arrival_country_id: '',
-        prices: [{ people_count: '', price: '' }],
-        services: []
+        prices: [{ people_count: '', price: '' }]
       });
-      loadData();
+      
+      const fileInput = document.getElementById('dest-image');
+      if (fileInput) fileInput.value = '';
+      
+      await loadData();
+      showNotification('Destination ajoutée avec succès', 'success');
     } catch (error) {
-      console.error('Erreur ajout destination:', error);
+      showNotification(error.message, 'error');
     }
+    setSubmitting(false);
   };
 
   const handleAddOuikenac = async () => {
-    if (!ouikenacForm.nom || !ouikenacForm.city_depart_id || !ouikenacForm.city_arrivee_id || !ouikenacForm.prix) return;
+    if (!ouikenacForm.title || !ouikenacForm.departure_city_id || !ouikenacForm.arrival_city_id || !ouikenacForm.price) {
+      showNotification('Veuillez remplir tous les champs obligatoires', 'warning');
+      return;
+    }
+    
+    if (parseInt(ouikenacForm.min_people) > parseInt(ouikenacForm.max_people)) {
+      showNotification('Le nombre minimum de personnes ne peut pas être supérieur au maximum', 'warning');
+      return;
+    }
+
+    setSubmitting(true);
     try {
       const formData = new FormData();
-      Object.keys(ouikenacForm).forEach(key => {
-        if (ouikenacForm[key] !== null) {
-          formData.append(key, ouikenacForm[key]);
-        }
-      });
+      formData.append('title', ouikenacForm.title);
+      formData.append('description', ouikenacForm.description);
+      formData.append('departure_country_id', ouikenacForm.departure_country_id);
+      formData.append('arrival_country_id', ouikenacForm.arrival_country_id);
+      formData.append('departure_city_id', ouikenacForm.departure_city_id);
+      formData.append('arrival_city_id', ouikenacForm.arrival_city_id);
+      formData.append('min_people', ouikenacForm.min_people);
+      formData.append('max_people', ouikenacForm.max_people);
+      formData.append('price', ouikenacForm.price);
+      formData.append('active', ouikenacForm.active ? '1' : '0');
       
-      await fetch(`${API_BASE}/ouikenac`, {
+      if (ouikenacForm.image) {
+        formData.append('image', ouikenacForm.image);
+      }
+      
+      const response = await fetch(`${API_BASE}/ouikenac`, {
         method: 'POST',
         body: formData
       });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || errorData.message || 'Erreur lors de l\'ajout du package Ouikenac');
+      }
+      
       setOuikenacForm({
-        nom: '', description: '', image: null, country_depart_id: '', country_arrivee_id: '',
-        city_depart_id: '', city_arrivee_id: '', prix: '', places_min: 1, places_max: 10,
-        programme: '', repas: false, transport: false, hebergement: false
+        title: '',
+        description: '',
+        image: null,
+        departure_country_id: '',
+        arrival_country_id: '',
+        departure_city_id: '',
+        arrival_city_id: '',
+        min_people: 1,
+        max_people: 10,
+        price: '',
+        active: true
       });
-      loadData();
+      
+      const fileInput = document.getElementById('ouik-image');
+      if (fileInput) fileInput.value = '';
+      
+      await loadData();
+      showNotification('Package Ouikenac ajouté avec succès', 'success');
     } catch (error) {
-      console.error('Erreur ajout Ouikenac:', error);
+      showNotification(error.message, 'error');
     }
+    setSubmitting(false);
   };
 
   const handleAddCityTour = async () => {
-    if (!cityTourForm.nom || !cityTourForm.country_id || !cityTourForm.date || !cityTourForm.prix) return;
+    if (!cityTourForm.nom || !cityTourForm.country_id || !cityTourForm.city_id || !cityTourForm.date || !cityTourForm.price) {
+      showNotification('Veuillez remplir tous les champs obligatoires', 'warning');
+      return;
+    }
+    
+    if (parseInt(cityTourForm.places_min) > parseInt(cityTourForm.places_max)) {
+      showNotification('Le nombre minimum de places ne peut pas être supérieur au maximum', 'warning');
+      return;
+    }
+
+    setSubmitting(true);
     try {
-      await fetch(`${API_BASE}/city-tours`, {
+      const response = await fetch(`${API_BASE}/city-tours`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(cityTourForm)
       });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Erreur lors de l\'ajout du City Tour');
+      }
+      
       setCityTourForm({
-        nom: '', description: '', country_id: '', date: '',
-        prix: '', places_min: 1, places_max: 10
+        nom: '',
+        description: '',
+        country_id: '',
+        city_id: '',
+        date: '',
+        places_min: 1,
+        places_max: 10,
+        price: ''
       });
-      loadData();
+      
+      await loadData();
+      showNotification('City Tour ajouté avec succès', 'success');
     } catch (error) {
-      console.error('Erreur ajout City Tour:', error);
+      showNotification(error.message, 'error');
     }
+    setSubmitting(false);
   };
 
   const handleDeleteItem = async (type, id) => {
-    try {
-      await fetch(`${API_BASE}/${type}/${id}`, { method: 'DELETE' });
-      loadData();
-    } catch (error) {
-      console.error('Erreur suppression:', error);
-    }
+    showConfirmDialog(
+      'Confirmer la suppression',
+      'Êtes-vous sûr de vouloir supprimer cet élément ? Cette action est irréversible.',
+      async () => {
+        setSubmitting(true);
+        try {
+          const response = await fetch(`${API_BASE}/${type}/${id}`, { method: 'DELETE' });
+          
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Erreur lors de la suppression');
+          }
+          
+          await loadData();
+          showNotification('Élément supprimé avec succès', 'success');
+        } catch (error) {
+          showNotification(error.message, 'error');
+        }
+        setSubmitting(false);
+      },
+      'danger'
+    );
   };
 
   const handleUpdateReservationStatus = async (id, status) => {
-    try {
-      await fetch(`${API_BASE}/reservations/${id}/status`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status })
-      });
-      loadData();
-    } catch (error) {
-      console.error('Erreur mise à jour:', error);
-    }
+    const statusMessages = {
+      approved: 'approuver',
+      rejected: 'rejeter',
+      cancelled: 'annuler'
+    };
+
+    showConfirmDialog(
+      `Confirmer l'action`,
+      `Êtes-vous sûr de vouloir ${statusMessages[status]} cette réservation ?`,
+      async () => {
+        setSubmitting(true);
+        try {
+          const response = await fetch(`${API_BASE}/reservations/${id}/status`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status })
+          });
+          
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Erreur lors de la mise à jour du statut');
+          }
+          
+          await loadData();
+          showNotification('Statut mis à jour avec succès', 'success');
+        } catch (error) {
+          showNotification(error.message, 'error');
+        }
+        setSubmitting(false);
+      }
+    );
   };
 
   const stats = {
@@ -269,6 +581,24 @@ const AdminDashboard = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Notification */}
+      <Notification
+        show={notification.show}
+        message={notification.message}
+        type={notification.type}
+        onClose={() => setNotification({ show: false, message: '', type: '' })}
+      />
+
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        show={confirmDialog.show}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        type={confirmDialog.type}
+        onConfirm={confirmDialog.onConfirm}
+        onCancel={() => setConfirmDialog({ show: false, title: '', message: '', onConfirm: null })}
+      />
+
       {/* Mobile Header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 bg-white shadow-md z-50 flex items-center justify-between p-4">
         <h1 className="text-xl font-bold" style={{ color: '#1b5e8e' }}>eTravel Admin</h1>
@@ -304,7 +634,7 @@ const AdminDashboard = () => {
         </nav>
       </div>
 
-      {/* Overlay for mobile */}
+      {/* Overlay */}
       {sidebarOpen && (
         <div 
           className="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden"
@@ -313,13 +643,9 @@ const AdminDashboard = () => {
       )}
 
       <div className="lg:ml-64 p-4 sm:p-6 lg:p-8 mt-16 lg:mt-0">
-        {loading && (
-          <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6">
-              <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mx-auto"></div>
-              <p className="mt-4 text-gray-600">Chargement...</p>
-            </div>
-          </div>
+        {/* Loading Overlay */}
+        {(loading || submitting) && (
+          <LoadingOverlay message={loading ? 'Chargement des données...' : 'Traitement en cours...'} />
         )}
 
         {activeTab === 'dashboard' && (
@@ -327,7 +653,7 @@ const AdminDashboard = () => {
             <h2 className="text-2xl sm:text-3xl font-bold mb-6 sm:mb-8 text-gray-800">Tableau de bord</h2>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
-              <div className="bg-white rounded-xl p-4 sm:p-6 shadow-md border-l-4" style={{ borderLeftColor: '#1b5e8e' }}>
+              <div className="bg-white rounded-xl p-4 sm:p-6 shadow-md border-l-4 transform hover:scale-105 transition-transform" style={{ borderLeftColor: '#1b5e8e' }}>
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-gray-600 text-xs sm:text-sm">Réservations</p>
@@ -339,7 +665,7 @@ const AdminDashboard = () => {
                 </div>
               </div>
 
-              <div className="bg-white rounded-xl p-4 sm:p-6 shadow-md border-l-4" style={{ borderLeftColor: '#3fa535' }}>
+              <div className="bg-white rounded-xl p-4 sm:p-6 shadow-md border-l-4 transform hover:scale-105 transition-transform" style={{ borderLeftColor: '#3fa535' }}>
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-gray-600 text-xs sm:text-sm">Revenus</p>
@@ -351,7 +677,7 @@ const AdminDashboard = () => {
                 </div>
               </div>
 
-              <div className="bg-white rounded-xl p-4 sm:p-6 shadow-md border-l-4" style={{ borderLeftColor: '#f18f13' }}>
+              <div className="bg-white rounded-xl p-4 sm:p-6 shadow-md border-l-4 transform hover:scale-105 transition-transform" style={{ borderLeftColor: '#f18f13' }}>
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-gray-600 text-xs sm:text-sm">Offres Totales</p>
@@ -363,7 +689,7 @@ const AdminDashboard = () => {
                 </div>
               </div>
 
-              <div className="bg-white rounded-xl p-4 sm:p-6 shadow-md border-l-4" style={{ borderLeftColor: '#f7d617' }}>
+              <div className="bg-white rounded-xl p-4 sm:p-6 shadow-md border-l-4 transform hover:scale-105 transition-transform" style={{ borderLeftColor: '#f7d617' }}>
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-gray-600 text-xs sm:text-sm">En attente</p>
@@ -457,15 +783,17 @@ const AdminDashboard = () => {
                     type="text"
                     placeholder="Code (ex: CG, FR)"
                     value={countryForm.code}
-                    onChange={e => setCountryForm({ ...countryForm, code: e.target.value })}
+                    onChange={e => setCountryForm({ ...countryForm, code: e.target.value.toUpperCase() })}
+                    maxLength={2}
                     className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
                   />
                   <button
                     onClick={handleAddCountry}
-                    className="w-full text-white py-2 sm:py-3 rounded-lg font-medium hover:opacity-90 transition text-sm sm:text-base"
+                    disabled={submitting}
+                    className="w-full text-white py-2 sm:py-3 rounded-lg font-medium hover:opacity-90 transition text-sm sm:text-base disabled:opacity-50"
                     style={{ backgroundColor: '#1b5e8e' }}
                   >
-                    Ajouter le pays
+                    {submitting ? 'Ajout...' : 'Ajouter le pays'}
                   </button>
                 </div>
               </div>
@@ -495,10 +823,11 @@ const AdminDashboard = () => {
                   />
                   <button
                     onClick={handleAddCity}
-                    className="w-full text-white py-2 sm:py-3 rounded-lg font-medium hover:opacity-90 transition text-sm sm:text-base"
+                    disabled={submitting}
+                    className="w-full text-white py-2 sm:py-3 rounded-lg font-medium hover:opacity-90 transition text-sm sm:text-base disabled:opacity-50"
                     style={{ backgroundColor: '#f18f13' }}
                   >
-                    Ajouter la ville
+                    {submitting ? 'Ajout...' : 'Ajouter la ville'}
                   </button>
                 </div>
               </div>
@@ -508,7 +837,7 @@ const AdminDashboard = () => {
               <h3 className="text-lg sm:text-xl font-bold mb-4 text-gray-800">Pays et villes configurés</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {countries.map(country => (
-                  <div key={country.id} className="border border-gray-200 rounded-lg p-4">
+                  <div key={country.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition">
                     <div className="flex items-center gap-2 mb-2">
                       <Globe size={18} style={{ color: '#1b5e8e' }} />
                       <h4 className="font-bold text-base sm:text-lg">{country.name} ({country.code})</h4>
@@ -541,10 +870,11 @@ const AdminDashboard = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <input
                     type="text"
-                    placeholder="Titre"
+                    placeholder="Titre *"
                     value={destinationForm.title}
                     onChange={e => setDestinationForm({ ...destinationForm, title: e.target.value })}
                     className="px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm sm:text-base"
+                    required
                   />
                   <div className="relative">
                     <input
@@ -566,8 +896,9 @@ const AdminDashboard = () => {
                     value={destinationForm.departure_country_id}
                     onChange={e => setDestinationForm({ ...destinationForm, departure_country_id: e.target.value })}
                     className="px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm sm:text-base"
+                    required
                   >
-                    <option value="">Pays de départ</option>
+                    <option value="">Pays de départ *</option>
                     {countries.map(c => (
                       <option key={c.id} value={c.id}>{c.name}</option>
                     ))}
@@ -576,8 +907,9 @@ const AdminDashboard = () => {
                     value={destinationForm.arrival_country_id}
                     onChange={e => setDestinationForm({ ...destinationForm, arrival_country_id: e.target.value })}
                     className="px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm sm:text-base"
+                    required
                   >
-                    <option value="">Pays d'arrivée</option>
+                    <option value="">Pays d'arrivée *</option>
                     {countries.map(c => (
                       <option key={c.id} value={c.id}>{c.name}</option>
                     ))}
@@ -597,6 +929,7 @@ const AdminDashboard = () => {
                     <h4 className="font-bold text-sm sm:text-base" style={{ color: '#1b5e8e' }}>Tarifs par nombre de personnes</h4>
                     <button
                       onClick={addPriceField}
+                      type="button"
                       className="px-3 py-1 text-white rounded text-xs sm:text-sm hover:opacity-90"
                       style={{ backgroundColor: '#1b5e8e' }}
                     >
@@ -624,6 +957,7 @@ const AdminDashboard = () => {
                         {destinationForm.prices.length > 1 && (
                           <button
                             onClick={() => removePriceField(index)}
+                            type="button"
                             className="px-3 py-2 bg-red-500 text-white rounded-lg text-sm hover:opacity-90"
                           >
                             ✕
@@ -636,10 +970,11 @@ const AdminDashboard = () => {
 
                 <button
                   onClick={handleAddDestination}
-                  className="w-full text-white py-2 sm:py-3 rounded-lg font-medium hover:opacity-90 transition text-sm sm:text-base"
+                  disabled={submitting}
+                  className="w-full text-white py-2 sm:py-3 rounded-lg font-medium hover:opacity-90 transition text-sm sm:text-base disabled:opacity-50"
                   style={{ backgroundColor: '#1b5e8e' }}
                 >
-                  Ajouter la destination
+                  {submitting ? 'Ajout en cours...' : 'Ajouter la destination'}
                 </button>
               </div>
             </div>
@@ -668,7 +1003,8 @@ const AdminDashboard = () => {
                     
                     <button
                       onClick={() => handleDeleteItem('destinations', dest.id)}
-                      className="w-full text-white py-2 rounded-lg text-xs sm:text-sm hover:opacity-90"
+                      disabled={submitting}
+                      className="w-full text-white py-2 rounded-lg text-xs sm:text-sm hover:opacity-90 disabled:opacity-50"
                       style={{ backgroundColor: '#cd1422' }}
                     >
                       Supprimer
@@ -689,10 +1025,11 @@ const AdminDashboard = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <input
                   type="text"
-                  placeholder="Nom"
-                  value={ouikenacForm.nom}
-                  onChange={e => setOuikenacForm({ ...ouikenacForm, nom: e.target.value })}
+                  placeholder="Titre *"
+                  value={ouikenacForm.title}
+                  onChange={e => setOuikenacForm({ ...ouikenacForm, title: e.target.value })}
                   className="px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm sm:text-base"
+                  required
                 />
                 <div className="relative">
                   <input
@@ -711,18 +1048,19 @@ const AdminDashboard = () => {
                   </label>
                 </div>
                 <select
-                  value={ouikenacForm.country_depart_id}
-                  onChange={e => setOuikenacForm({ ...ouikenacForm, country_depart_id: e.target.value })}
+                  value={ouikenacForm.departure_country_id}
+                  onChange={e => setOuikenacForm({ ...ouikenacForm, departure_country_id: e.target.value })}
                   className="px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm sm:text-base"
+                  required
                 >
-                  <option value="">Pays de départ</option>
+                  <option value="">Pays de départ *</option>
                   {countries.map(c => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
                 </select>
                 <select
-                  value={ouikenacForm.country_arrivee_id}
-                  onChange={e => setOuikenacForm({ ...ouikenacForm, country_arrivee_id: e.target.value })}
+                  value={ouikenacForm.arrival_country_id}
+                  onChange={e => setOuikenacForm({ ...ouikenacForm, arrival_country_id: e.target.value })}
                   className="px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm sm:text-base"
                 >
                   <option value="">Pays d'arrivée</option>
@@ -731,76 +1069,50 @@ const AdminDashboard = () => {
                   ))}
                 </select>
                 <select
-                  value={ouikenacForm.city_depart_id}
-                  onChange={e => setOuikenacForm({ ...ouikenacForm, city_depart_id: e.target.value })}
+                  value={ouikenacForm.departure_city_id}
+                  onChange={e => setOuikenacForm({ ...ouikenacForm, departure_city_id: e.target.value })}
                   className="px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm sm:text-base"
+                  required
                 >
-                  <option value="">Ville de départ</option>
+                  <option value="">Ville de départ *</option>
                   {cities.map(c => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
                 </select>
                 <select
-                  value={ouikenacForm.city_arrivee_id}
-                  onChange={e => setOuikenacForm({ ...ouikenacForm, city_arrivee_id: e.target.value })}
+                  value={ouikenacForm.arrival_city_id}
+                  onChange={e => setOuikenacForm({ ...ouikenacForm, arrival_city_id: e.target.value })}
                   className="px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm sm:text-base"
+                  required
                 >
-                  <option value="">Ville d'arrivée</option>
+                  <option value="">Ville d'arrivée *</option>
                   {cities.map(c => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
                 </select>
                 <input
                   type="number"
-                  placeholder="Prix"
-                  value={ouikenacForm.prix}
-                  onChange={e => setOuikenacForm({ ...ouikenacForm, prix: e.target.value })}
+                  placeholder="Prix *"
+                  value={ouikenacForm.price}
+                  onChange={e => setOuikenacForm({ ...ouikenacForm, price: e.target.value })}
                   className="px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm sm:text-base"
+                  required
                 />
                 <div className="flex gap-2 sm:gap-4">
                   <input
                     type="number"
-                    placeholder="Min"
-                    value={ouikenacForm.places_min}
-                    onChange={e => setOuikenacForm({ ...ouikenacForm, places_min: e.target.value })}
+                    placeholder="Min *"
+                    value={ouikenacForm.min_people}
+                    onChange={e => setOuikenacForm({ ...ouikenacForm, min_people: e.target.value })}
                     className="w-1/2 px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm sm:text-base"
                   />
                   <input
                     type="number"
-                    placeholder="Max"
-                    value={ouikenacForm.places_max}
-                    onChange={e => setOuikenacForm({ ...ouikenacForm, places_max: e.target.value })}
+                    placeholder="Max *"
+                    value={ouikenacForm.max_people}
+                    onChange={e => setOuikenacForm({ ...ouikenacForm, max_people: e.target.value })}
                     className="w-1/2 px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm sm:text-base"
                   />
-                </div>
-                <div className="col-span-1 md:col-span-2 flex flex-wrap gap-4 sm:gap-6">
-                  <label className="flex items-center gap-2 cursor-pointer text-sm sm:text-base">
-                    <input
-                      type="checkbox"
-                      checked={ouikenacForm.repas}
-                      onChange={e => setOuikenacForm({ ...ouikenacForm, repas: e.target.checked })}
-                      className="w-4 h-4 sm:w-5 sm:h-5"
-                    />
-                    <span>Repas inclus</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer text-sm sm:text-base">
-                    <input
-                      type="checkbox"
-                      checked={ouikenacForm.transport}
-                      onChange={e => setOuikenacForm({ ...ouikenacForm, transport: e.target.checked })}
-                      className="w-4 h-4 sm:w-5 sm:h-5"
-                    />
-                    <span>Transport</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer text-sm sm:text-base">
-                    <input
-                      type="checkbox"
-                      checked={ouikenacForm.hebergement}
-                      onChange={e => setOuikenacForm({ ...ouikenacForm, hebergement: e.target.checked })}
-                      className="w-4 h-4 sm:w-5 sm:h-5"
-                    />
-                    <span>Hébergement</span>
-                  </label>
                 </div>
                 <textarea
                   placeholder="Description"
@@ -809,19 +1121,13 @@ const AdminDashboard = () => {
                   className="col-span-1 md:col-span-2 px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm sm:text-base"
                   rows="3"
                 />
-                <textarea
-                  placeholder="Programme"
-                  value={ouikenacForm.programme}
-                  onChange={e => setOuikenacForm({ ...ouikenacForm, programme: e.target.value })}
-                  className="col-span-1 md:col-span-2 px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm sm:text-base"
-                  rows="3"
-                />
                 <button
                   onClick={handleAddOuikenac}
-                  className="col-span-1 md:col-span-2 text-white py-2 sm:py-3 rounded-lg font-medium hover:opacity-90 transition text-sm sm:text-base"
+                  disabled={submitting}
+                  className="col-span-1 md:col-span-2 text-white py-2 sm:py-3 rounded-lg font-medium hover:opacity-90 transition text-sm sm:text-base disabled:opacity-50"
                   style={{ backgroundColor: '#f18f13' }}
                 >
-                  Ajouter le package Ouikenac
+                  {submitting ? 'Ajout en cours...' : 'Ajouter le package Ouikenac'}
                 </button>
               </div>
             </div>
@@ -830,23 +1136,21 @@ const AdminDashboard = () => {
               {ouikenacs.map(ouik => (
                 <div key={ouik.id} className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition">
                   {ouik.image && (
-                    <img src={ouik.image} alt={ouik.nom} className="w-full h-40 sm:h-48 object-cover" />
+                    <img src={ouik.image} alt={ouik.title} className="w-full h-40 sm:h-48 object-cover" />
                   )}
                   <div className="p-4">
-                    <h4 className="font-bold text-base sm:text-lg mb-2">{ouik.nom}</h4>
+                    <h4 className="font-bold text-base sm:text-lg mb-2">{ouik.title}</h4>
                     <p className="text-xs sm:text-sm text-gray-600 mb-2 line-clamp-2">{ouik.description}</p>
-                    <div className="flex flex-wrap gap-2 mb-3">
-                      {ouik.repas && <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded">Repas</span>}
-                      {ouik.transport && <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">Transport</span>}
-                      {ouik.hebergement && <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded">Hébergement</span>}
-                    </div>
                     <div className="flex justify-between items-center mb-3">
-                      <span className="font-bold text-sm sm:text-base" style={{ color: '#f18f13' }}>{ouik.prix} FCFA</span>
-                      <span className="text-xs sm:text-sm text-gray-500">{ouik.places_min}-{ouik.places_max} pers.</span>
+                      <span className="font-bold text-sm sm:text-base" style={{ color: '#f18f13' }}>
+                        {ouik.prices && ouik.prices[0] ? ouik.prices[0].price : ouik.price} FCFA
+                      </span>
+                      <span className="text-xs sm:text-sm text-gray-500">{ouik.min_people}-{ouik.max_people} pers.</span>
                     </div>
                     <button
                       onClick={() => handleDeleteItem('ouikenac', ouik.id)}
-                      className="w-full text-white py-2 rounded-lg text-xs sm:text-sm hover:opacity-90"
+                      disabled={submitting}
+                      className="w-full text-white py-2 rounded-lg text-xs sm:text-sm hover:opacity-90 disabled:opacity-50"
                       style={{ backgroundColor: '#cd1422' }}
                     >
                       Supprimer
@@ -867,18 +1171,31 @@ const AdminDashboard = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <input
                   type="text"
-                  placeholder="Nom du tour"
+                  placeholder="Nom du tour *"
                   value={cityTourForm.nom}
                   onChange={e => setCityTourForm({ ...cityTourForm, nom: e.target.value })}
                   className="px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 text-sm sm:text-base"
+                  required
                 />
                 <select
                   value={cityTourForm.country_id}
                   onChange={e => setCityTourForm({ ...cityTourForm, country_id: e.target.value })}
                   className="px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 text-sm sm:text-base"
+                  required
                 >
-                  <option value="">Sélectionner un pays</option>
+                  <option value="">Sélectionner un pays *</option>
                   {countries.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+                <select
+                  value={cityTourForm.city_id}
+                  onChange={e => setCityTourForm({ ...cityTourForm, city_id: e.target.value })}
+                  className="px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 text-sm sm:text-base"
+                  required
+                >
+                  <option value="">Sélectionner une ville *</option>
+                  {cities.map(c => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
                 </select>
@@ -887,25 +1204,27 @@ const AdminDashboard = () => {
                   value={cityTourForm.date}
                   onChange={e => setCityTourForm({ ...cityTourForm, date: e.target.value })}
                   className="px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 text-sm sm:text-base"
+                  required
                 />
                 <input
                   type="number"
-                  placeholder="Prix"
-                  value={cityTourForm.prix}
-                  onChange={e => setCityTourForm({ ...cityTourForm, prix: e.target.value })}
+                  placeholder="Prix *"
+                  value={cityTourForm.price}
+                  onChange={e => setCityTourForm({ ...cityTourForm, price: e.target.value })}
                   className="px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 text-sm sm:text-base"
+                  required
                 />
                 <div className="flex gap-2 sm:gap-4">
                   <input
                     type="number"
-                    placeholder="Min personnes"
+                    placeholder="Min personnes *"
                     value={cityTourForm.places_min}
                     onChange={e => setCityTourForm({ ...cityTourForm, places_min: e.target.value })}
                     className="w-1/2 px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 text-sm sm:text-base"
                   />
                   <input
                     type="number"
-                    placeholder="Max personnes"
+                    placeholder="Max personnes *"
                     value={cityTourForm.places_max}
                     onChange={e => setCityTourForm({ ...cityTourForm, places_max: e.target.value })}
                     className="w-1/2 px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 text-sm sm:text-base"
@@ -920,10 +1239,11 @@ const AdminDashboard = () => {
                 />
                 <button
                   onClick={handleAddCityTour}
-                  className="col-span-1 md:col-span-2 text-white py-2 sm:py-3 rounded-lg font-medium hover:opacity-90 transition text-sm sm:text-base"
+                  disabled={submitting}
+                  className="col-span-1 md:col-span-2 text-white py-2 sm:py-3 rounded-lg font-medium hover:opacity-90 transition text-sm sm:text-base disabled:opacity-50"
                   style={{ backgroundColor: '#40bcd5' }}
                 >
-                  Ajouter le City Tour
+                  {submitting ? 'Ajout en cours...' : 'Ajouter le City Tour'}
                 </button>
               </div>
             </div>
@@ -932,19 +1252,22 @@ const AdminDashboard = () => {
               {cityTours.map(tour => (
                 <div key={tour.id} className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition">
                   <div className="p-4">
-                    <h4 className="font-bold text-base sm:text-lg mb-2">{tour.nom}</h4>
+                    <h4 className="font-bold text-base sm:text-lg mb-2">{tour.title || tour.nom}</h4>
                     <p className="text-xs sm:text-sm text-gray-600 mb-2 line-clamp-2">{tour.description}</p>
                     <div className="flex items-center gap-2 mb-2">
                       <Calendar size={14} className="text-gray-500 sm:w-4 sm:h-4" />
-                      <span className="text-xs sm:text-sm text-gray-600">{tour.date}</span>
+                      <span className="text-xs sm:text-sm text-gray-600">{tour.scheduled_date || tour.date}</span>
                     </div>
                     <div className="flex justify-between items-center mb-3">
-                      <span className="font-bold text-sm sm:text-base" style={{ color: '#40bcd5' }}>{tour.prix} FCFA</span>
-                      <span className="text-xs sm:text-sm text-gray-500">{tour.places_min}-{tour.places_max} pers.</span>
+                      <span className="font-bold text-sm sm:text-base" style={{ color: '#40bcd5' }}>
+                        {tour.prices && tour.prices[0] ? tour.prices[0].price : tour.price} FCFA
+                      </span>
+                      <span className="text-xs sm:text-sm text-gray-500">{tour.places_min || tour.min_people}-{tour.places_max || tour.max_people} pers.</span>
                     </div>
                     <button
                       onClick={() => handleDeleteItem('city-tours', tour.id)}
-                      className="w-full text-white py-2 rounded-lg text-xs sm:text-sm hover:opacity-90"
+                      disabled={submitting}
+                      className="w-full text-white py-2 rounded-lg text-xs sm:text-sm hover:opacity-90 disabled:opacity-50"
                       style={{ backgroundColor: '#cd1422' }}
                     >
                       Supprimer
@@ -1005,14 +1328,16 @@ const AdminDashboard = () => {
                             <div className="flex flex-col sm:flex-row gap-2">
                               <button
                                 onClick={() => handleUpdateReservationStatus(res.id, 'approved')}
-                                className="px-2 sm:px-3 py-1 text-white rounded text-xs hover:opacity-90 whitespace-nowrap"
+                                disabled={submitting}
+                                className="px-2 sm:px-3 py-1 text-white rounded text-xs hover:opacity-90 whitespace-nowrap disabled:opacity-50"
                                 style={{ backgroundColor: '#3fa535' }}
                               >
                                 Approuver
                               </button>
                               <button
                                 onClick={() => handleUpdateReservationStatus(res.id, 'rejected')}
-                                className="px-2 sm:px-3 py-1 text-white rounded text-xs hover:opacity-90 whitespace-nowrap"
+                                disabled={submitting}
+                                className="px-2 sm:px-3 py-1 text-white rounded text-xs hover:opacity-90 whitespace-nowrap disabled:opacity-50"
                                 style={{ backgroundColor: '#cd1422' }}
                               >
                                 Rejeter
@@ -1029,6 +1354,51 @@ const AdminDashboard = () => {
           </div>
         )}
       </div>
+
+      <style jsx>{`
+        @keyframes slide-in {
+          from {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+
+        @keyframes scale-in {
+          from {
+            transform: scale(0.9);
+            opacity: 0;
+          }
+          to {
+            transform: scale(1);
+            opacity: 1;
+          }
+        }
+
+        @keyframes progress {
+          0% {
+            width: 0%;
+          }
+          100% {
+            width: 100%;
+          }
+        }
+
+        .animate-slide-in {
+          animation: slide-in 0.3s ease-out;
+        }
+
+        .animate-scale-in {
+          animation: scale-in 0.2s ease-out;
+        }
+
+        .animate-progress {
+          animation: progress 2s ease-in-out infinite;
+        }
+      `}</style>
     </div>
   );
 };

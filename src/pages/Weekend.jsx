@@ -1,7 +1,68 @@
 import React, { useState, useEffect } from 'react';
-import { Globe, Menu, X, ArrowRight, Phone, Mail, MapPin, Facebook, Instagram, Twitter, Linkedin, Calendar, Loader, AlertCircle, CheckCircle, Eye, Users, Clock, DollarSign, Info } from 'lucide-react';
+import { Globe, Menu, X, ArrowRight, Phone, Mail, MapPin, Facebook, Instagram, Twitter, Linkedin, Calendar, Loader, AlertCircle, CheckCircle, Eye, Users, Clock, DollarSign, Info, XCircle } from 'lucide-react';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
+
+// Composant de notification moderne
+const Notification = ({ show, message, type, onClose }) => {
+  if (!show) return null;
+
+  const icons = {
+    success: <CheckCircle size={24} />,
+    error: <XCircle size={24} />,
+    warning: <AlertCircle size={24} />
+  };
+
+  const colors = {
+    success: 'bg-green-50 border-green-500 text-green-800',
+    error: 'bg-red-50 border-red-500 text-red-800',
+    warning: 'bg-yellow-50 border-yellow-500 text-yellow-800'
+  };
+
+  const iconColors = {
+    success: 'text-green-500',
+    error: 'text-red-500',
+    warning: 'text-yellow-500'
+  };
+
+  return (
+    <div className={`fixed top-20 right-4 z-50 max-w-md w-full ${colors[type]} border-l-4 rounded-r-xl p-4 shadow-2xl animate-slide-in`}>
+      <div className="flex items-start gap-3">
+        <div className={iconColors[type]}>
+          {icons[type]}
+        </div>
+        <div className="flex-1">
+          <p className="font-semibold mb-1">
+            {type === 'success' ? 'Succès' : type === 'error' ? 'Erreur' : 'Attention'}
+          </p>
+          <p className="text-sm">{message}</p>
+        </div>
+        <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+          <X size={18} />
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// Composant de chargement moderne
+const LoadingOverlay = ({ message = 'Chargement...' }) => (
+  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+    <div className="bg-white rounded-2xl p-8 shadow-2xl max-w-sm w-full mx-4">
+      <div className="flex flex-col items-center">
+        <div className="relative">
+          <Loader className="animate-spin h-16 w-16 text-blue-600" />
+          <div className="absolute inset-0 h-16 w-16 border-4 border-blue-200 rounded-full"></div>
+        </div>
+        <p className="text-gray-700 font-semibold text-lg mt-6">{message}</p>
+        <div className="w-full bg-gray-200 rounded-full h-1 mt-4 overflow-hidden">
+          <div className="h-full bg-blue-600 rounded-full animate-progress"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
 const OuikenacPage = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [selectedCountry, setSelectedCountry] = useState('RC');
@@ -15,18 +76,21 @@ const OuikenacPage = () => {
   const [loadingDetails, setLoadingDetails] = useState(false);
   
   const [formData, setFormData] = useState({
-    package_id: '',
+    reservable_id: '',
+    type: 'ouikenac-package',
     full_name: '',
     email: '',
     phone: '',
-    date_reservation: '',
-    travelers: '',
+    // date_from: '',
+    // date_to: '',
+    // travelers: '',
+    currency: 'CFA',
     message: ''
   });
 
   // Configuration de l'API
   const api = axios.create({
-    baseURL: 'https://etravelbackend-production.up.railway.app/api',
+    baseURL: 'http://127.0.0.1:8000/api',
     headers: {
       'Content-Type': 'application/json',
     },
@@ -34,7 +98,15 @@ const OuikenacPage = () => {
 
   // Fonction pour formater le prix
   const formatPrice = (price) => {
-    return price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+    return parseFloat(price).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  };
+
+  // Notification
+  const [notification, setNotification] = useState({ show: false, message: '', type: '' });
+  
+  const showNotification = (message, type = 'success') => {
+    setNotification({ show: true, message, type });
+    setTimeout(() => setNotification({ show: false, message: '', type: '' }), 5000);
   };
 
   // Récupérer les packages au chargement
@@ -46,19 +118,28 @@ const OuikenacPage = () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await api.get('/packages');
+      const response = await api.get('/ouikenac');
       console.log('Packages récupérés:', response.data);
-      setPackages(response.data.data || response.data);
+      const packagesData = Array.isArray(response.data) ? response.data : (response.data.data || []);
+      setPackages(packagesData);
       setLoading(false);
     } catch (err) {
       console.error('Erreur lors de la récupération des packages:', err);
       setError('Impossible de charger les packages. Veuillez réessayer plus tard.');
+      showNotification('Impossible de charger les packages. Veuillez réessayer plus tard.', 'error');
       setLoading(false);
     }
   };
 
-  // Filtrer les packages par pays
-  const currentPackages = packages.filter(pkg => pkg.country === selectedCountry);
+  // Filtrer les packages par pays de départ
+  const currentPackages = packages.filter(pkg => {
+    if (selectedCountry === 'RC') {
+      return pkg.departure_country?.code === 'RC';
+    } else if (selectedCountry === 'RDC') {
+      return pkg.departure_country?.code === 'rdc' || pkg.departure_country?.code === 'RDC';
+    }
+    return false;
+  });
 
   const handleInputChange = (e) => {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -68,22 +149,35 @@ const OuikenacPage = () => {
     e.preventDefault();
     
     // Validation basique
-    if (!formData.package_id) {
-      alert('Veuillez sélectionner un package avant de réserver.');
+    if (!formData.reservable_id) {
+      showNotification('Veuillez sélectionner un package avant de réserver.', 'warning');
       return;
     }
+
+    // if (!formData.full_name || !formData.email || !formData.travelers) {
+    //   showNotification('Veuillez remplir tous les champs obligatoires.', 'warning');
+    //   return;
+    // }
+
+    // if (parseInt(formData.travelers) < 1) {
+    //   showNotification('Le nombre de voyageurs doit être au moins 1.', 'warning');
+    //   return;
+    // }
 
     try {
       setSubmitting(true);
       setError(null);
       
       const reservationData = {
-        package_id: parseInt(formData.package_id),
+        reservable_id: parseInt(formData.reservable_id),
+        type: formData.type,
         full_name: formData.full_name,
         email: formData.email,
         phone: formData.phone,
-        date_reservation: formData.date_reservation,
-        travelers: parseInt(formData.travelers),
+        // date_from: formData.date_from || null,
+        // date_to: formData.date_to || null,
+        // travelers: parseInt(formData.travelers),
+        currency: formData.currency,
         message: formData.message
       };
 
@@ -94,15 +188,19 @@ const OuikenacPage = () => {
       console.log('Réservation créée:', response.data);
       
       setSubmitSuccess(true);
+      showNotification('Réservation envoyée avec succès ! Nous vous contacterons très bientôt.', 'success');
       
       // Réinitialiser le formulaire
       setFormData({
-        package_id: '',
+        reservable_id: '',
+        type: 'ouikenac-package',
         full_name: '',
         email: '',
         phone: '',
-        date_reservation: '',
-        travelers: '',
+        // date_from: '',
+        // date_to: '',
+        // travelers: '',
+        currency: 'CFA',
         message: ''
       });
 
@@ -113,6 +211,16 @@ const OuikenacPage = () => {
 
     } catch (err) {
       console.error('Erreur lors de la réservation:', err);
+      
+      if (err.response?.data?.errors) {
+        const errors = Object.values(err.response.data.errors).flat();
+        showNotification(errors[0] || 'Erreur de validation', 'error');
+      } else {
+        showNotification(
+          err.response?.data?.message || 'Erreur lors de l\'envoi de la réservation. Veuillez réessayer.', 
+          'error'
+        );
+      }
       setError(err.response?.data?.message || 'Erreur lors de l\'envoi de la réservation. Veuillez réessayer.');
     } finally {
       setSubmitting(false);
@@ -120,22 +228,24 @@ const OuikenacPage = () => {
   };
 
   const handlePackageSelect = (packageId) => {
-    setFormData(prev => ({ ...prev, package_id: packageId }));
+    setFormData(prev => ({ 
+      ...prev, 
+      reservable_id: packageId,
+      type: 'ouikenac-package'
+    }));
     // Scroll vers le formulaire
     document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' });
   };
 
   // Fonction pour voir les détails d'un package
-  const handleViewDetails = async (packageId) => {
+  const handleViewDetails = async (pkg) => {
     try {
       setLoadingDetails(true);
-      const response = await api.get(`/packages/${packageId}`);
-      console.log('Détails du package:', response.data);
-      setSelectedPackage(response.data.data || response.data);
+      setSelectedPackage(pkg);
       setShowModal(true);
     } catch (err) {
       console.error('Erreur lors de la récupération des détails:', err);
-      alert('Impossible de charger les détails du package.');
+      showNotification('Impossible de charger les détails du package.', 'error');
     } finally {
       setLoadingDetails(false);
     }
@@ -147,7 +257,18 @@ const OuikenacPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white overflow-x-hidden">
+      {/* Notification */}
+      <Notification
+        show={notification.show}
+        message={notification.message}
+        type={notification.type}
+        onClose={() => setNotification({ show: false, message: '', type: '' })}
+      />
+
+      {/* Loading Overlay */}
+      {submitting && <LoadingOverlay message="Envoi de votre réservation..." />}
+
       {/* Header */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-white shadow-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -161,12 +282,12 @@ const OuikenacPage = () => {
             </div>
 
             <nav className="hidden md:flex items-center space-x-10">
-<Link to="/" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">Accueil</Link>
-    <Link to="/about" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">À propos</Link>
-    <Link to="/weekend" className="px-6 py-2 bg-yellow-400 text-gray-900 font-bold rounded-full hover:bg-yellow-500 transition-all hover:shadow-lg">
-        OUIKENAC
-    </Link>
-    <Link to="/city-tour" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">CityTour</Link>
+              <Link to="/" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">Accueil</Link>
+              <Link to="/about" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">À propos</Link>
+              <Link to="/weekend" className="px-6 py-2 bg-yellow-400 text-gray-900 font-bold rounded-full hover:bg-yellow-500 transition-all hover:shadow-lg">
+                  OUIKENAC
+              </Link>
+              <Link to="/city-tour" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">CityTour</Link>
               <a href="#contact" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">Contact</a>
             </nav>
 
@@ -179,34 +300,34 @@ const OuikenacPage = () => {
         {menuOpen && (
           <div className="md:hidden bg-white border-t border-gray-100 shadow-lg">
             <nav className="px-4 py-4 space-y-2">
-      <Link 
-        to="/" 
-        className="block text-gray-700 hover:text-blue-600 py-3 text-base font-medium border-b border-gray-100" 
-        onClick={() => setMenuOpen(false)}
-      >
-        Accueil
-      </Link>
-                    <Link 
-        to="/about" 
-        className="block text-gray-700 hover:text-blue-600 py-3 text-base font-medium border-b border-gray-100" 
-        onClick={() => setMenuOpen(false)}
-      >
-        A propos
-      </Link>
-                     <Link 
-        to="/weekend" 
-        className="block text-gray-700 hover:text-blue-600 py-3 text-base font-medium border-b border-gray-100" 
-        onClick={() => setMenuOpen(false)}
-      >
-        Ouikenac
-      </Link>
-                 <Link 
-        to="/city-tour" 
-        className="block text-gray-700 hover:text-blue-600 py-3 text-base font-medium border-b border-gray-100" 
-        onClick={() => setMenuOpen(false)}
-      >
-        CityTour
-      </Link>
+              <Link 
+                to="/" 
+                className="block text-gray-700 hover:text-blue-600 py-3 text-base font-medium border-b border-gray-100" 
+                onClick={() => setMenuOpen(false)}
+              >
+                Accueil
+              </Link>
+              <Link 
+                to="/about" 
+                className="block text-gray-700 hover:text-blue-600 py-3 text-base font-medium border-b border-gray-100" 
+                onClick={() => setMenuOpen(false)}
+              >
+                A propos
+              </Link>
+              <Link 
+                to="/weekend" 
+                className="block text-gray-700 hover:text-blue-600 py-3 text-base font-medium border-b border-gray-100" 
+                onClick={() => setMenuOpen(false)}
+              >
+                Ouikenac
+              </Link>
+              <Link 
+                to="/city-tour" 
+                className="block text-gray-700 hover:text-blue-600 py-3 text-base font-medium border-b border-gray-100" 
+                onClick={() => setMenuOpen(false)}
+              >
+                CityTour
+              </Link>
               <a href="#contact" className="block text-gray-700 hover:text-blue-600 py-3 text-base font-medium" onClick={() => setMenuOpen(false)}>Contactez-nous</a>
             </nav>
           </div>
@@ -360,8 +481,11 @@ const OuikenacPage = () => {
           {/* Loading State */}
           {loading && (
             <div className="flex flex-col items-center justify-center py-20">
-              <Loader className="animate-spin text-blue-600 mb-4" size={48} />
-              <p className="text-gray-600 text-lg">Chargement des packages...</p>
+              <div className="relative">
+                <Loader className="animate-spin h-16 w-16 text-blue-600" />
+                <div className="absolute inset-0 h-16 w-16 border-4 border-blue-200 rounded-full"></div>
+              </div>
+              <p className="text-gray-600 text-lg mt-6">Chargement des packages...</p>
             </div>
           )}
 
@@ -392,8 +516,15 @@ const OuikenacPage = () => {
               </h3>
               
               {currentPackages.length === 0 ? (
-                <div className="text-center py-12">
+                <div className="text-center py-12 bg-white rounded-2xl border border-gray-200">
+                  <MapPin className="mx-auto text-gray-400 mb-4" size={48} />
                   <p className="text-gray-600 text-lg">Aucun package disponible pour cette destination pour le moment.</p>
+                  <button 
+                    onClick={fetchPackages}
+                    className="mt-4 px-6 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition-all"
+                  >
+                    Réessayer
+                  </button>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -401,44 +532,77 @@ const OuikenacPage = () => {
                     <div key={pkg.id} className="bg-white rounded-2xl overflow-hidden border border-gray-200 hover:shadow-2xl transition-all hover:-translate-y-2">
                       <div className="relative h-48 overflow-hidden">
                         <img 
-                          src={pkg.image || 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=600'} 
+                          src={pkg.image ? `http://127.0.0.1:8000/storage/${pkg.image}` : 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=600'} 
                           alt={pkg.title} 
-                          className="w-full h-full object-cover hover:scale-110 transition-transform duration-700" 
+                          className="w-full h-full object-cover hover:scale-110 transition-transform duration-700"
+                          onError={(e) => {
+                            e.target.src = 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=600';
+                          }}
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
                         <div className="absolute top-4 left-4">
                           <span className={`px-3 py-1 text-xs font-bold rounded-full ${selectedCountry === 'RC' ? 'bg-blue-600 text-white' : 'bg-green-600 text-white'}`}>
-                            {selectedCountry === 'RC' ? 'Brazzaville' : 'Kinshasa'}
+                            {pkg.departure_country?.name || selectedCountry}
+                          </span>
+                        </div>
+                        <div className="absolute top-4 right-4">
+                          <span className={`px-3 py-1 text-xs font-bold rounded-full ${pkg.active ? 'bg-green-500 text-white' : 'bg-gray-500 text-white'}`}>
+                            {pkg.active ? 'Disponible' : 'Indisponible'}
                           </span>
                         </div>
                       </div>
                       <div className="p-6">
                         <h4 className="text-2xl font-black text-gray-900 mb-3">{pkg.title}</h4>
-                        <p className="text-gray-600 mb-4">{pkg.description}</p>
+                        <p className="text-gray-600 mb-4 line-clamp-2">{pkg.description || 'Découvrez ce package unique'}</p>
+                        
+                        {/* Informations du trajet */}
+                        {pkg.departure_country && pkg.arrival_country && (
+                          <div className="flex items-center gap-2 mb-4 text-sm text-gray-600">
+                            <MapPin size={16} className="text-blue-600" />
+                            <span>
+                              {pkg.departure_country.name} → {pkg.arrival_country.name}
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Nombre de personnes */}
+                        {pkg.min_people && (
+                          <div className="flex items-center gap-2 mb-4 text-sm text-gray-600">
+                            <Users size={16} className="text-blue-600" />
+                            <span>
+                              {pkg.min_people} - {pkg.max_people || '+'} personnes
+                            </span>
+                          </div>
+                        )}
                         
                         {/* Affichage des prix */}
                         {pkg.prices && pkg.prices.length > 0 && (
                           <div className="space-y-2 mb-4">
                             {pkg.prices.map((price, idx) => (
-                              <div key={idx} className="flex items-center justify-between text-sm text-gray-700">
-                                <span>{price.min_people} {price.max_people ? `- ${price.max_people}` : '+'} pers.</span>
-                                <span className="font-bold">{formatPrice(price.price)} {price.currency}</span>
+                              <div key={idx} className="flex items-center justify-between text-sm bg-gray-50 p-3 rounded-lg">
+                                <span className="text-gray-700">
+                                  {price.min_people} {price.max_people ? `- ${price.max_people}` : '+'} pers.
+                                </span>
+                                <span className="font-bold text-gray-900">{formatPrice(price.price)} {price.currency}</span>
                               </div>
                             ))}
                           </div>
                         )}
                         
-                        <div className="flex items-center justify-between mt-4 border-t pt-4">
+                        <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
                           <div>
                             {pkg.prices && pkg.prices[0] && (
-                              <p className="text-2xl font-black text-blue-600">
-                                {formatPrice(pkg.prices[0].price)} <span className="text-sm font-bold">{pkg.prices[0].currency}</span>
-                              </p>
+                              <div>
+                                <p className="text-sm text-gray-500">À partir de</p>
+                                <p className="text-2xl font-black text-blue-600">
+                                  {formatPrice(pkg.prices[0].price)} <span className="text-sm font-bold">{pkg.prices[0].currency}</span>
+                                </p>
+                              </div>
                             )}
                           </div>
                           <div className="flex items-center gap-2">
                             <button 
-                              onClick={() => handleViewDetails(pkg.id)}
+                              onClick={() => handleViewDetails(pkg)}
                               disabled={loadingDetails}
                               className="px-3 py-2 bg-gray-100 text-gray-700 font-bold rounded-full text-sm hover:bg-gray-200 transition-all flex items-center gap-1"
                               title="Voir les détails"
@@ -447,9 +611,10 @@ const OuikenacPage = () => {
                             </button>
                             <button 
                               onClick={() => handlePackageSelect(pkg.id)}
-                              className="px-4 py-2 bg-yellow-400 text-gray-900 font-bold rounded-full text-sm hover:bg-yellow-500 transition-all"
+                              disabled={!pkg.active}
+                              className={`px-4 py-2 ${pkg.active ? 'bg-yellow-400 hover:bg-yellow-500' : 'bg-gray-300 cursor-not-allowed'} text-gray-900 font-bold rounded-full text-sm transition-all`}
                             >
-                              Réserver
+                              {pkg.active ? 'Réserver' : 'Indisponible'}
                             </button>
                           </div>
                         </div>
@@ -478,19 +643,6 @@ const OuikenacPage = () => {
                 <div>
                   <h3 className="font-bold text-green-800 mb-1">Réservation envoyée avec succès !</h3>
                   <p className="text-green-700">Nous vous contacterons très bientôt pour confirmer votre réservation.</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Error Message */}
-          {error && !loading && (
-            <div className="bg-red-50 border-l-4 border-red-500 p-6 rounded-r-xl mb-8">
-              <div className="flex items-center gap-3">
-                <AlertCircle className="text-red-500" size={24} />
-                <div>
-                  <h3 className="font-bold text-red-800 mb-1">Erreur</h3>
-                  <p className="text-red-700">{error}</p>
                 </div>
               </div>
             </div>
@@ -580,40 +732,55 @@ const OuikenacPage = () => {
                   />
                 </div>
                 <div>
-                  <label htmlFor="package_id" className="block text-sm font-medium text-gray-700 mb-1">Package *</label>
+                  <label htmlFor="reservable_id" className="block text-sm font-medium text-gray-700 mb-1">Package *</label>
                   <select 
-                    name="package_id" 
-                    id="package_id" 
+                    name="reservable_id" 
+                    id="reservable_id" 
                     required 
-                    value={formData.package_id} 
+                    value={formData.reservable_id} 
                     onChange={handleInputChange}
                     className="block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-blue-500 focus:border-blue-500 bg-white"
                   >
                     <option value="">Sélectionnez un package</option>
                     {packages.map(pkg => (
-                      <option key={pkg.id} value={pkg.id}>
-                        {pkg.title} - {pkg.country}
+                      <option key={pkg.id} value={pkg.id} disabled={!pkg.active}>
+                        {pkg.title} - {pkg.departure_country?.name} → {pkg.arrival_country?.name}
+                        {pkg.prices && pkg.prices[0] && ` (${formatPrice(pkg.prices[0].price)} ${pkg.prices[0].currency})`}
                       </option>
                     ))}
                   </select>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label htmlFor="date_reservation" className="block text-sm font-medium text-gray-700 mb-1">Date souhaitée *</label>
+                  <label htmlFor="date_from" className="block text-sm font-medium text-gray-700 mb-1">Date de départ</label>
                   <input 
                     type="date" 
-                    name="date_reservation" 
-                    id="date_reservation" 
-                    required
-                    value={formData.date_reservation} 
+                    name="date_from" 
+                    id="date_from" 
+                    value={formData.date_from} 
                     onChange={handleInputChange} 
                     min={new Date().toISOString().split('T')[0]}
                     className="block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-blue-500 focus:border-blue-500" 
                   />
                 </div>
                 <div>
+                  <label htmlFor="date_to" className="block text-sm font-medium text-gray-700 mb-1">Date de retour</label>
+                  <input 
+                    type="date" 
+                    name="date_to" 
+                    id="date_to" 
+                    value={formData.date_to} 
+                    onChange={handleInputChange} 
+                    min={formData.date_from || new Date().toISOString().split('T')[0]}
+                    className="block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-blue-500 focus:border-blue-500" 
+                  />
+                </div>
+              </div> */}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* <div>
                   <label htmlFor="travelers" className="block text-sm font-medium text-gray-700 mb-1">Nombre de Voyageurs *</label>
                   <input 
                     type="number" 
@@ -625,6 +792,20 @@ const OuikenacPage = () => {
                     onChange={handleInputChange} 
                     className="block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-blue-500 focus:border-blue-500" 
                   />
+                </div> */}
+                <div>
+                  <label htmlFor="currency" className="block text-sm font-medium text-gray-700 mb-1">Devise</label>
+                  <select 
+                    name="currency" 
+                    id="currency" 
+                    value={formData.currency} 
+                    onChange={handleInputChange}
+                    className="block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                  >
+                    <option value="CFA">CFA</option>
+                    <option value="USD">USD</option>
+                    <option value="EUR">EUR</option>
+                  </select>
                 </div>
               </div>
 
@@ -685,9 +866,12 @@ const OuikenacPage = () => {
             {/* Header Modal */}
             <div className="relative h-64 overflow-hidden rounded-t-2xl">
               <img 
-                src={selectedPackage.image || 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=800'} 
+                src={selectedPackage.image ? `http://127.0.0.1:8000/storage/${selectedPackage.image}` : 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=800'} 
                 alt={selectedPackage.title}
                 className="w-full h-full object-cover"
+                onError={(e) => {
+                  e.target.src = 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=800';
+                }}
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
               <button 
@@ -698,11 +882,14 @@ const OuikenacPage = () => {
               </button>
               <div className="absolute bottom-0 left-0 right-0 p-6">
                 <div className="flex items-center gap-3 mb-2">
-                  <span className={`px-3 py-1 text-xs font-bold rounded-full ${selectedPackage.country === 'RC' ? 'bg-blue-600 text-white' : 'bg-green-600 text-white'}`}>
-                    {selectedPackage.country === 'RC' ? 'Brazzaville' : 'Kinshasa'}
+                  <span className={`px-3 py-1 text-xs font-bold rounded-full ${selectedPackage.departure_country?.code === 'RC' ? 'bg-blue-600 text-white' : 'bg-green-600 text-white'}`}>
+                    {selectedPackage.departure_country?.name || 'Départ'}
                   </span>
                   <span className="px-3 py-1 text-xs font-bold rounded-full bg-yellow-400 text-gray-900">
-                    {selectedPackage.package_type}
+                    {selectedPackage.arrival_country?.name || 'Arrivée'}
+                  </span>
+                  <span className={`px-3 py-1 text-xs font-bold rounded-full ${selectedPackage.active ? 'bg-green-500 text-white' : 'bg-gray-500 text-white'}`}>
+                    {selectedPackage.active ? 'Disponible' : 'Indisponible'}
                   </span>
                 </div>
                 <h2 className="text-4xl font-black text-white mb-2">{selectedPackage.title}</h2>
@@ -717,8 +904,51 @@ const OuikenacPage = () => {
                   <Info className="text-blue-600" size={20} />
                   <h3 className="text-xl font-bold text-gray-900">Description</h3>
                 </div>
-                <p className="text-gray-700 leading-relaxed">{selectedPackage.description}</p>
+                <p className="text-gray-700 leading-relaxed">{selectedPackage.description || 'Découvrez ce package unique qui vous permettra de vivre une expérience inoubliable au Congo.'}</p>
               </div>
+
+              {/* Itinéraire */}
+              <div className="mb-8">
+                <div className="flex items-center gap-2 mb-3">
+                  <MapPin className="text-blue-600" size={20} />
+                  <h3 className="text-xl font-bold text-gray-900">Itinéraire</h3>
+                </div>
+                <div className="bg-gray-50 p-4 rounded-xl">
+                  <div className="flex items-center justify-between">
+                    <div className="text-center flex-1">
+                      <p className="text-sm text-gray-500 mb-1">Départ</p>
+                      <p className="font-bold text-gray-900">{selectedPackage.departure_country?.name}</p>
+                      <p className="text-sm text-gray-600">{selectedPackage.departure_city_id ? `Ville ID: ${selectedPackage.departure_city_id}` : ''}</p>
+                    </div>
+                    <ArrowRight className="text-blue-600 mx-4" size={24} />
+                    <div className="text-center flex-1">
+                      <p className="text-sm text-gray-500 mb-1">Arrivée</p>
+                      <p className="font-bold text-gray-900">{selectedPackage.arrival_country?.name}</p>
+                      <p className="text-sm text-gray-600">{selectedPackage.arrival_city_id ? `Ville ID: ${selectedPackage.arrival_city_id}` : ''}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Capacité */}
+              {selectedPackage.min_people && (
+                <div className="mb-8">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Users className="text-blue-600" size={20} />
+                    <h3 className="text-xl font-bold text-gray-900">Capacité</h3>
+                  </div>
+                  <div className="bg-blue-50 p-4 rounded-xl border border-blue-200">
+                    <p className="text-gray-900">
+                      <span className="font-bold text-blue-600 text-2xl">{selectedPackage.min_people}</span> 
+                      {selectedPackage.max_people && (
+                        <> à <span className="font-bold text-blue-600 text-2xl">{selectedPackage.max_people}</span></>
+                      )}
+                      {!selectedPackage.max_people && '+'}
+                      <span className="text-gray-700"> personnes</span>
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {/* Tarifs */}
               {selectedPackage.prices && selectedPackage.prices.length > 0 && (
@@ -762,6 +992,7 @@ const OuikenacPage = () => {
                       <li>• Annulation gratuite jusqu'à 24h avant le départ</li>
                       <li>• Guides professionnels certifiés</li>
                       <li>• Transport inclus depuis/vers votre hôtel</li>
+                      <li>• Assurance voyage recommandée</li>
                     </ul>
                   </div>
                 </div>
@@ -780,9 +1011,16 @@ const OuikenacPage = () => {
                     handlePackageSelect(selectedPackage.id);
                     closeModal();
                   }}
-                  className="flex-1 py-3 bg-yellow-400 text-gray-900 font-bold rounded-lg hover:bg-yellow-500 transition-all flex items-center justify-center gap-2"
+                  disabled={!selectedPackage.active}
+                  className={`flex-1 py-3 ${selectedPackage.active ? 'bg-yellow-400 hover:bg-yellow-500' : 'bg-gray-300 cursor-not-allowed'} text-gray-900 font-bold rounded-lg transition-all flex items-center justify-center gap-2`}
                 >
-                  Réserver ce package <ArrowRight size={20} />
+                  {selectedPackage.active ? (
+                    <>
+                      Réserver ce package <ArrowRight size={20} />
+                    </>
+                  ) : (
+                    'Package indisponible'
+                  )}
                 </button>
               </div>
             </div>
@@ -822,8 +1060,8 @@ const OuikenacPage = () => {
             <div>
               <h3 className="text-lg font-bold mb-6">Navigation</h3>
               <div className="space-y-3">
-                <a href="/" className="block text-gray-400 hover:text-white transition-colors">Accueil</a>
-                <a href="#apropos" className="block text-gray-400 hover:text-white transition-colors">À propos</a>
+                <Link to="/" className="block text-gray-400 hover:text-white transition-colors">Accueil</Link>
+                <Link to="/about" className="block text-gray-400 hover:text-white transition-colors">À propos</Link>
                 <a href="#packages" className="block text-gray-400 hover:text-white transition-colors">Packages</a>
                 <a href="#contact" className="block text-gray-400 hover:text-white transition-colors">Contact</a>
               </div>
@@ -874,6 +1112,43 @@ const OuikenacPage = () => {
           </div>
         </div>
       </footer>
+
+      <style jsx>{`
+        @keyframes slide-in {
+          from {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+
+        @keyframes progress {
+          0% {
+            width: 0%;
+          }
+          100% {
+            width: 100%;
+          }
+        }
+
+        .animate-slide-in {
+          animation: slide-in 0.3s ease-out;
+        }
+
+        .animate-progress {
+          animation: progress 2s ease-in-out infinite;
+        }
+
+        .line-clamp-2 {
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
+      `}</style>
     </div>
   );
 };

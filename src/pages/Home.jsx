@@ -1,7 +1,67 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, X, Plane, Ship, Hotel, MapPin, Shield, Calendar, Facebook, Instagram, Twitter, Linkedin, Phone, Mail, ChevronLeft, ChevronRight, ArrowRight, Globe, Star, Award, Users, Check, Loader, AlertCircle, CheckCircle } from 'lucide-react';
+import { Menu, X, Plane, Ship, Hotel, MapPin, Shield, Calendar, Facebook, Instagram, Twitter, Linkedin, Phone, Mail, ChevronLeft, ChevronRight, ArrowRight, Globe, Star, Award, Users, Check, Loader, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
+
+// Composant de notification moderne
+const Notification = ({ show, message, type, onClose }) => {
+  if (!show) return null;
+
+  const icons = {
+    success: <CheckCircle size={24} />,
+    error: <XCircle size={24} />,
+    warning: <AlertCircle size={24} />
+  };
+
+  const colors = {
+    success: 'bg-green-50 border-green-500 text-green-800',
+    error: 'bg-red-50 border-red-500 text-red-800',
+    warning: 'bg-yellow-50 border-yellow-500 text-yellow-800'
+  };
+
+  const iconColors = {
+    success: 'text-green-500',
+    error: 'text-red-500',
+    warning: 'text-yellow-500'
+  };
+
+  return (
+    <div className={`fixed top-20 right-4 z-50 max-w-md w-full ${colors[type]} border-l-4 rounded-r-xl p-4 shadow-2xl animate-slide-in`}>
+      <div className="flex items-start gap-3">
+        <div className={iconColors[type]}>
+          {icons[type]}
+        </div>
+        <div className="flex-1">
+          <p className="font-semibold mb-1">
+            {type === 'success' ? 'Succès' : type === 'error' ? 'Erreur' : 'Attention'}
+          </p>
+          <p className="text-sm">{message}</p>
+        </div>
+        <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+          <X size={18} />
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// Composant de chargement moderne
+const LoadingOverlay = ({ message = 'Chargement...' }) => (
+  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+    <div className="bg-white rounded-2xl p-8 shadow-2xl max-w-sm w-full mx-4">
+      <div className="flex flex-col items-center">
+        <div className="relative">
+          <Loader className="animate-spin h-16 w-16 text-blue-600" />
+          <div className="absolute inset-0 h-16 w-16 border-4 border-blue-200 rounded-full"></div>
+        </div>
+        <p className="text-gray-700 font-semibold text-lg mt-6">{message}</p>
+        <div className="w-full bg-gray-200 rounded-full h-1 mt-4 overflow-hidden">
+          <div className="h-full bg-blue-600 rounded-full animate-progress"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+);
 
 const HomePage = () => {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -10,25 +70,26 @@ const HomePage = () => {
   
   // États pour les données du backend
   const [destinations, setDestinations] = useState([]);
-  const [allPackages, setAllPackages] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
-  const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [notification, setNotification] = useState({ show: false, message: '', type: '' });
   
   const [formData, setFormData] = useState({
-    package_id: '',
+    reservable_id: '',
+    type: 'destination-package',
     full_name: '',
     email: '',
     phone: '',
-    date_reservation: '',
+    date_from: '',
+    date_to: '',
     travelers: '',
+    currency: 'CFA',
     message: ''
   });
 
   // Configuration de l'API
   const api = axios.create({
-    baseURL: 'https://etravelbackend-production.up.railway.app/api',
+    baseURL: 'http://127.0.0.1:8000/api',
     headers: {
       'Content-Type': 'application/json',
     },
@@ -69,32 +130,35 @@ const HomePage = () => {
     { icon: Shield, title: 'Assurance Voyage', desc: 'Voyagez en toute sécurité' }
   ];
 
+  const showNotification = (message, type = 'success') => {
+    setNotification({ show: true, message, type });
+    setTimeout(() => setNotification({ show: false, message: '', type: '' }), 5000);
+  };
+
   // Fonction pour formater le prix
   const formatPrice = (price) => {
-    return price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    return parseFloat(price).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
   };
 
   // Récupérer les packages au chargement
   useEffect(() => {
-    fetchPackages();
+    fetchDestinations();
   }, []);
 
-  const fetchPackages = async () => {
+  const fetchDestinations = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-      setError(null);
-      const response = await api.get('/packages');
-      const packagesData = response.data.data || response.data;
+      const response = await api.get('/destinations');
+      const destinationsData = response.data;
       
-      // Filtrer les packages de type "destination"
-      const destinationPackages = packagesData.filter(pkg => pkg.package_type === 'destination');
+      // Si la réponse est un tableau, l'utiliser directement, sinon extraire .data
+      const destinations = Array.isArray(destinationsData) ? destinationsData : (destinationsData.data || []);
       
-      setDestinations(destinationPackages);
-      setAllPackages(packagesData);
-      setLoading(false);
+      setDestinations(destinations);
     } catch (err) {
-      console.error('Erreur lors de la récupération des packages:', err);
-      setError('Impossible de charger les destinations. Veuillez réessayer plus tard.');
+      console.error('Erreur lors de la récupération des destinations:', err);
+      showNotification('Impossible de charger les destinations. Veuillez réessayer plus tard.', 'error');
+    } finally {
       setLoading(false);
     }
   };
@@ -119,66 +183,101 @@ const HomePage = () => {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  const handlePackageSelect = (packageId) => {
-    setFormData(prev => ({ ...prev, package_id: packageId }));
+  const handlePackageSelect = (destinationId) => {
+    setFormData(prev => ({ 
+      ...prev, 
+      reservable_id: destinationId,
+      type: 'destination-package'
+    }));
     document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!formData.package_id) {
-      alert('Veuillez sélectionner un package avant de réserver.');
+    // Validation
+    if (!formData.reservable_id) {
+      showNotification('Veuillez sélectionner une destination avant de réserver.', 'warning');
       return;
     }
 
+    if (!formData.full_name || !formData.email || !formData.travelers) {
+      showNotification('Veuillez remplir tous les champs obligatoires.', 'warning');
+      return;
+    }
+
+    if (parseInt(formData.travelers) < 1) {
+      showNotification('Le nombre de voyageurs doit être au moins 1.', 'warning');
+      return;
+    }
+
+    setSubmitting(true);
     try {
-      setSubmitting(true);
-      setError(null);
-      
       const reservationData = {
-        package_id: parseInt(formData.package_id),
+        reservable_id: parseInt(formData.reservable_id),
+        type: formData.type,
         full_name: formData.full_name,
         email: formData.email,
         phone: formData.phone,
-        date_reservation: formData.date_reservation,
+        date_from: formData.date_from || null,
+        date_to: formData.date_to || null,
         travelers: parseInt(formData.travelers),
+        currency: formData.currency,
         message: formData.message
       };
 
       console.log('Envoi de la réservation:', reservationData);
       
-      await api.post('/reservations', reservationData);
+      const response = await api.post('/reservations', reservationData);
       
-      setSubmitSuccess(true);
+      console.log('Réservation créée:', response.data);
+      
+      showNotification('Réservation envoyée avec succès ! Nous vous contacterons très bientôt.', 'success');
       
       // Réinitialiser le formulaire
       setFormData({
-        package_id: '',
+        reservable_id: '',
+        type: 'destination-package',
         full_name: '',
         email: '',
         phone: '',
-        date_reservation: '',
+        date_from: '',
+        date_to: '',
         travelers: '',
+        currency: 'CFA',
         message: ''
       });
 
-      // Masquer le message de succès après 5 secondes
-      setTimeout(() => {
-        setSubmitSuccess(false);
-      }, 5000);
-
     } catch (err) {
       console.error('Erreur lors de la réservation:', err);
-      setError(err.response?.data?.message || 'Erreur lors de l\'envoi de la réservation. Veuillez réessayer.');
+      
+      if (err.response?.data?.errors) {
+        const errors = Object.values(err.response.data.errors).flat();
+        showNotification(errors[0] || 'Erreur de validation', 'error');
+      } else {
+        showNotification(
+          err.response?.data?.message || 'Erreur lors de l\'envoi de la réservation. Veuillez réessayer.', 
+          'error'
+        );
+      }
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    // FIX RESPONSIVITY: Ajout de 'overflow-x-hidden' pour éviter le défilement horizontal sur mobile.
     <div className="min-h-screen bg-white overflow-x-hidden">
+      {/* Notification */}
+      <Notification
+        show={notification.show}
+        message={notification.message}
+        type={notification.type}
+        onClose={() => setNotification({ show: false, message: '', type: '' })}
+      />
+
+      {/* Loading Overlay */}
+      {submitting && <LoadingOverlay message="Envoi de votre réservation..." />}
+
       {/* Header */}
       <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled ? 'bg-white shadow-md' : 'bg-white/95'}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -361,7 +460,6 @@ const HomePage = () => {
                 </div>
               </div>
 
-              {/* FIX ROUTING: Remplacé <a> par Link vers /about pour la page dédiée */}
               <Link to="/about" className="px-8 py-4 bg-blue-600 text-white font-bold rounded-full hover:bg-blue-700 transition-all hover:shadow-xl hover:scale-105 inline-flex items-center gap-2">
                 En savoir plus <ArrowRight size={20} />
               </Link>
@@ -381,32 +479,16 @@ const HomePage = () => {
           {/* Loading State */}
           {loading && (
             <div className="flex flex-col items-center justify-center py-20">
-              <Loader className="animate-spin text-blue-600 mb-4" size={48} />
-              <p className="text-gray-600 text-lg">Chargement des destinations...</p>
-            </div>
-          )}
-
-          {/* Error State */}
-          {error && !loading && (
-            <div className="bg-red-50 border-l-4 border-red-500 p-6 rounded-r-xl mb-8">
-              <div className="flex items-center gap-3">
-                <AlertCircle className="text-red-500" size={24} />
-                <div>
-                  <h3 className="font-bold text-red-800 mb-1">Erreur</h3>
-                  <p className="text-red-700">{error}</p>
-                </div>
+              <div className="relative">
+                <Loader className="animate-spin h-16 w-16 text-blue-600" />
+                <div className="absolute inset-0 h-16 w-16 border-4 border-blue-200 rounded-full"></div>
               </div>
-              <button 
-                onClick={fetchPackages}
-                className="mt-4 px-6 py-2 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 transition-all"
-              >
-                Réessayer
-              </button>
+              <p className="text-gray-600 text-lg mt-6">Chargement des destinations...</p>
             </div>
           )}
 
           {/* Destinations Display */}
-          {!loading && !error && destinations.length > 0 && (
+          {!loading && destinations.length > 0 && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
               {destinations.map((dest) => (
                 <div
@@ -418,16 +500,27 @@ const HomePage = () => {
                       src={dest.image || 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=800'} 
                       alt={dest.title} 
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                      onError={(e) => {
+                        e.target.src = 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=800';
+                      }}
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
                     <div className="absolute top-4 right-4 px-4 py-1 bg-white rounded-full text-gray-900 text-sm font-bold">
-                      Destination
+                      {dest.active ? 'Disponible' : 'Indisponible'}
                     </div>
                   </div>
 
                   <div className="p-6">
                     <h3 className="text-2xl font-black text-gray-900 mb-3">{dest.title}</h3>
-                    <p className="text-gray-600 mb-6 leading-relaxed line-clamp-2">{dest.description}</p>
+                    <p className="text-gray-600 mb-4 leading-relaxed line-clamp-2">{dest.description || 'Découvrez cette destination exceptionnelle'}</p>
+                    
+                    {/* Affichage des pays */}
+                    <div className="flex items-center gap-2 mb-4 text-sm text-gray-600">
+                      <MapPin size={16} className="text-blue-600" />
+                      <span>
+                        {dest.departure_country?.name || 'Départ'} → {dest.arrival_country?.name || 'Arrivée'}
+                      </span>
+                    </div>
                     
                     <div className="flex items-center justify-between mb-6 pb-6 border-b border-gray-100">
                       <div>
@@ -435,6 +528,11 @@ const HomePage = () => {
                         {dest.prices && dest.prices[0] && (
                           <p className="text-2xl font-black text-gray-900">
                             {formatPrice(dest.prices[0].price)} <span className="text-sm font-normal">{dest.prices[0].currency}</span>
+                          </p>
+                        )}
+                        {dest.prices && dest.prices[0] && dest.prices[0].min_people && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            Min. {dest.prices[0].min_people} pers.
                           </p>
                         )}
                       </div>
@@ -447,9 +545,10 @@ const HomePage = () => {
 
                     <button 
                       onClick={() => handlePackageSelect(dest.id)}
-                      className="w-full py-3 bg-gray-900 text-white font-bold rounded-full hover:bg-blue-600 transition-all"
+                      disabled={!dest.active}
+                      className={`w-full py-3 ${dest.active ? 'bg-gray-900 hover:bg-blue-600' : 'bg-gray-400 cursor-not-allowed'} text-white font-bold rounded-full transition-all`}
                     >
-                      Réserver maintenant
+                      {dest.active ? 'Réserver maintenant' : 'Indisponible'}
                     </button>
                   </div>
                 </div>
@@ -457,14 +556,20 @@ const HomePage = () => {
             </div>
           )}
 
-          {!loading && !error && destinations.length === 0 && (
-            <div className="text-center py-12">
+          {!loading && destinations.length === 0 && (
+            <div className="text-center py-12 bg-white rounded-2xl border border-gray-200">
+              <MapPin className="mx-auto text-gray-400 mb-4" size={48} />
               <p className="text-gray-600 text-lg">Aucune destination disponible pour le moment.</p>
+              <button 
+                onClick={fetchDestinations}
+                className="mt-4 px-6 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition-all"
+              >
+                Réessayer
+              </button>
             </div>
           )}
 
           <div className="text-center mt-12">
-            {/* FIX ROUTING: Remplacé <a> par Link (supposant que c'est une page d'archive) */}
             <Link to="/destinations" className="px-10 py-4 bg-white border-2 border-gray-900 text-gray-900 font-bold rounded-full hover:bg-gray-900 hover:text-white transition-all hover:shadow-xl">
               Voir toutes les destinations
             </Link>
@@ -480,34 +585,8 @@ const HomePage = () => {
             <p className="text-xl text-gray-600">Remplissez le formulaire et nous vous contacterons rapidement</p>
           </div>
 
-          {/* Success Message */}
-          {submitSuccess && (
-            <div className="bg-green-50 border-l-4 border-green-500 p-6 rounded-r-xl mb-8">
-              <div className="flex items-center gap-3">
-                <CheckCircle className="text-green-500" size={24} />
-                <div>
-                  <h3 className="font-bold text-green-800 mb-1">Réservation envoyée avec succès !</h3>
-                  <p className="text-green-700">Nous vous contacterons très bientôt pour confirmer votre réservation.</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Error Message */}
-          {error && !loading && (
-            <div className="bg-red-50 border-l-4 border-red-500 p-6 rounded-r-xl mb-8">
-              <div className="flex items-center gap-3">
-                <AlertCircle className="text-red-500" size={24} />
-                <div>
-                  <h3 className="font-bold text-red-800 mb-1">Erreur</h3>
-                  <p className="text-red-700">{error}</p>
-                </div>
-              </div>
-            </div>
-          )}
-
           <div className="bg-gray-50 rounded-2xl p-8 md:p-12 border border-gray-200">
-            <div className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid md:grid-cols-2 gap-6">
                 <input 
                   type="text" 
@@ -536,26 +615,36 @@ const HomePage = () => {
                   className="px-6 py-4 bg-white border-2 border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:border-blue-600 focus:outline-none transition-all"
                 />
                 <select 
-                  name="package_id"
-                  value={formData.package_id}
+                  name="reservable_id"
+                  value={formData.reservable_id}
                   onChange={handleInputChange}
                   required
                   className="px-6 py-4 bg-white border-2 border-gray-200 rounded-xl text-gray-900 focus:border-blue-600 focus:outline-none transition-all"
                 >
                   <option value="">Sélectionner une destination *</option>
-                  {allPackages.map(pkg => (
-                    <option key={pkg.id} value={pkg.id}>
-                      {pkg.title} {pkg.country ? `- ${pkg.country}` : ''}
+                  {destinations.map(dest => (
+                    <option key={dest.id} value={dest.id} disabled={!dest.active}>
+                      {dest.title} - {dest.departure_country?.name} → {dest.arrival_country?.name}
+                      {dest.prices && dest.prices[0] && ` (${formatPrice(dest.prices[0].price)} ${dest.prices[0].currency})`}
                     </option>
                   ))}
                 </select>
                 <input 
                   type="date" 
-                  name="date_reservation"
-                  value={formData.date_reservation}
+                  name="date_from"
+                  value={formData.date_from}
                   onChange={handleInputChange}
-                  required
+                  placeholder="Date de départ"
                   min={new Date().toISOString().split('T')[0]}
+                  className="px-6 py-4 bg-white border-2 border-gray-200 rounded-xl text-gray-900 focus:border-blue-600 focus:outline-none transition-all"
+                />
+                <input 
+                  type="date" 
+                  name="date_to"
+                  value={formData.date_to}
+                  onChange={handleInputChange}
+                  placeholder="Date de retour"
+                  min={formData.date_from || new Date().toISOString().split('T')[0]}
                   className="px-6 py-4 bg-white border-2 border-gray-200 rounded-xl text-gray-900 focus:border-blue-600 focus:outline-none transition-all"
                 />
                 <input 
@@ -568,6 +657,16 @@ const HomePage = () => {
                   min="1"
                   className="px-6 py-4 bg-white border-2 border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:border-blue-600 focus:outline-none transition-all"
                 />
+                <select 
+                  name="currency"
+                  value={formData.currency}
+                  onChange={handleInputChange}
+                  className="px-6 py-4 bg-white border-2 border-gray-200 rounded-xl text-gray-900 focus:border-blue-600 focus:outline-none transition-all"
+                >
+                  <option value="CFA">CFA</option>
+                  <option value="USD">USD</option>
+                  <option value="EUR">EUR</option>
+                </select>
               </div>
               <textarea 
                 rows={4}
@@ -578,7 +677,7 @@ const HomePage = () => {
                 className="w-full px-6 py-4 bg-white border-2 border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:border-blue-600 focus:outline-none transition-all resize-none"
               />
               <button 
-                onClick={handleSubmit}
+                type="submit"
                 disabled={submitting}
                 className="w-full py-5 bg-gray-900 text-white font-bold text-lg rounded-full hover:bg-blue-600 transition-all hover:shadow-xl hover:scale-105 flex items-center justify-center gap-3 disabled:bg-gray-400 disabled:cursor-not-allowed"
               >
@@ -593,7 +692,7 @@ const HomePage = () => {
                   </>
                 )}
               </button>
-            </div>
+            </form>
           </div>
         </div>
       </section>
@@ -652,13 +751,13 @@ const HomePage = () => {
                   </div>
                 </div>
 
-              <Link 
-                to='/city-tour-calendar' 
-                className="px-8 py-4 bg-yellow-400 text-gray-900 font-bold rounded-full hover:bg-yellow-500 transition-all hover:shadow-xl hover:scale-105 inline-flex items-center gap-3"
-              >
-                <Calendar size={24} />
-                Voir le calendrier
-              </Link>
+                <Link 
+                  to='/city-tour-calendar' 
+                  className="px-8 py-4 bg-yellow-400 text-gray-900 font-bold rounded-full hover:bg-yellow-500 transition-all hover:shadow-xl hover:scale-105 inline-flex items-center gap-3"
+                >
+                  <Calendar size={24} />
+                  Voir le calendrier
+                </Link>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -710,7 +809,6 @@ const HomePage = () => {
             <div>
               <h3 className="text-lg font-bold mb-6">Navigation</h3>
               <div className="space-y-3">
-                {/* FIX ROUTING: Remplacé <a> par Link */}
                 <Link to="/" className="block text-gray-400 hover:text-white transition-colors">Accueil</Link>
                 <Link to="/about" className="block text-gray-400 hover:text-white transition-colors">À propos</Link>
                 <Link to="/city-tour" className="block text-gray-400 hover:text-white transition-colors">City Tours</Link>
@@ -764,6 +862,36 @@ const HomePage = () => {
           </div>
         </div>
       </footer>
+
+      <style jsx>{`
+        @keyframes slide-in {
+          from {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+
+        @keyframes progress {
+          0% {
+            width: 0%;
+          }
+          100% {
+            width: 100%;
+          }
+        }
+
+        .animate-slide-in {
+          animation: slide-in 0.3s ease-out;
+        }
+
+        .animate-progress {
+          animation: progress 2s ease-in-out infinite;
+        }
+      `}</style>
     </div>
   );
 };

@@ -1,32 +1,94 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, X, Globe, Calendar, MapPin, Clock, Users, Award, Star, Facebook, Instagram, Twitter, Linkedin, Phone, Mail, ArrowRight, Building2, Landmark, Navigation, Loader, AlertCircle, CheckCircle } from 'lucide-react';
+import { Menu, X, Globe, Calendar, MapPin, Clock, Users, Award, Star, Facebook, Instagram, Twitter, Linkedin, Phone, Mail, ArrowRight, Building2, Landmark, Navigation, Loader, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
+
+// Composant de notification moderne
+const Notification = ({ show, message, type, onClose }) => {
+  if (!show) return null;
+
+  const icons = {
+    success: <CheckCircle size={24} />,
+    error: <XCircle size={24} />,
+    warning: <AlertCircle size={24} />
+  };
+
+  const colors = {
+    success: 'bg-green-50 border-green-500 text-green-800',
+    error: 'bg-red-50 border-red-500 text-red-800',
+    warning: 'bg-yellow-50 border-yellow-500 text-yellow-800'
+  };
+
+  const iconColors = {
+    success: 'text-green-500',
+    error: 'text-red-500',
+    warning: 'text-yellow-500'
+  };
+
+  return (
+    <div className={`fixed top-20 right-4 z-50 max-w-md w-full ${colors[type]} border-l-4 rounded-r-xl p-4 shadow-2xl animate-slide-in`}>
+      <div className="flex items-start gap-3">
+        <div className={iconColors[type]}>
+          {icons[type]}
+        </div>
+        <div className="flex-1">
+          <p className="font-semibold mb-1">
+            {type === 'success' ? 'Succès' : type === 'error' ? 'Erreur' : 'Attention'}
+          </p>
+          <p className="text-sm">{message}</p>
+        </div>
+        <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+          <X size={18} />
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// Composant de chargement moderne
+const LoadingOverlay = ({ message = 'Chargement...' }) => (
+  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+    <div className="bg-white rounded-2xl p-8 shadow-2xl max-w-sm w-full mx-4">
+      <div className="flex flex-col items-center">
+        <div className="relative">
+          <Loader className="animate-spin h-16 w-16 text-blue-600" />
+          <div className="absolute inset-0 h-16 w-16 border-4 border-blue-200 rounded-full"></div>
+        </div>
+        <p className="text-gray-700 font-semibold text-lg mt-6">{message}</p>
+        <div className="w-full bg-gray-200 rounded-full h-1 mt-4 overflow-hidden">
+          <div className="h-full bg-blue-600 rounded-full animate-progress"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
 const CityTour = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   
   // États pour les données du backend
   const [cityTourPackages, setCityTourPackages] = useState([]);
-  const [allPackages, setAllPackages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   
   const [formData, setFormData] = useState({
-    package_id: '',
+    reservable_id: '',
+    type: 'city-tour',
     full_name: '',
     email: '',
     phone: '',
     date_reservation: '',
     travelers: '',
+    currency: 'CFA',
     message: ''
   });
 
   // Configuration de l'API
   const api = axios.create({
-    baseURL: 'https://etravelbackend-production.up.railway.app/api',
+    baseURL: 'http://127.0.0.1:8000/api',
     headers: {
       'Content-Type': 'application/json',
     },
@@ -34,7 +96,15 @@ const CityTour = () => {
 
   // Fonction pour formater le prix
   const formatPrice = (price) => {
-    return price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    return parseFloat(price).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  };
+
+  // Notification
+  const [notification, setNotification] = useState({ show: false, message: '', type: '' });
+  
+  const showNotification = (message, type = 'success') => {
+    setNotification({ show: true, message, type });
+    setTimeout(() => setNotification({ show: false, message: '', type: '' }), 5000);
   };
 
   // Récupérer les packages au chargement
@@ -46,18 +116,15 @@ const CityTour = () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await api.get('/packages');
-      const packagesData = response.data.data || response.data;
-      
-      // Filtrer les packages de type "city_tour"
-      const cityTours = packagesData.filter(pkg => pkg.package_type === 'city_tour');
-      
-      setCityTourPackages(cityTours);
-      setAllPackages(packagesData);
+      const response = await api.get('/city-tours');
+      console.log('City tours récupérés:', response.data);
+      const toursData = Array.isArray(response.data) ? response.data : (response.data.data || []);
+      setCityTourPackages(toursData);
       setLoading(false);
     } catch (err) {
-      console.error('Erreur lors de la récupération des packages:', err);
+      console.error('Erreur lors de la récupération des city tours:', err);
       setError('Impossible de charger les city tours. Veuillez réessayer plus tard.');
+      showNotification('Impossible de charger les city tours. Veuillez réessayer plus tard.', 'error');
       setLoading(false);
     }
   };
@@ -73,15 +140,29 @@ const CityTour = () => {
   };
 
   const handlePackageSelect = (packageId) => {
-    setFormData(prev => ({ ...prev, package_id: packageId }));
+    setFormData(prev => ({ 
+      ...prev, 
+      reservable_id: packageId,
+      type: 'city-tour'
+    }));
     document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!formData.package_id) {
-      alert('Veuillez sélectionner un city tour avant de réserver.');
+    if (!formData.reservable_id) {
+      showNotification('Veuillez sélectionner un city tour avant de réserver.', 'warning');
+      return;
+    }
+
+    if (!formData.full_name || !formData.email || !formData.travelers) {
+      showNotification('Veuillez remplir tous les champs obligatoires.', 'warning');
+      return;
+    }
+
+    if (parseInt(formData.travelers) < 1) {
+      showNotification('Le nombre de participants doit être au moins 1.', 'warning');
       return;
     }
 
@@ -90,39 +171,54 @@ const CityTour = () => {
       setError(null);
       
       const reservationData = {
-        package_id: parseInt(formData.package_id),
+        reservable_id: parseInt(formData.reservable_id),
+        type: formData.type,
         full_name: formData.full_name,
         email: formData.email,
         phone: formData.phone,
-        date_reservation: formData.date_reservation,
         travelers: parseInt(formData.travelers),
+        currency: formData.currency,
         message: formData.message
       };
 
       console.log('Envoi de la réservation:', reservationData);
       
-      await api.post('/reservations', reservationData);
+      const response = await api.post('/reservations', reservationData);
+      
+      console.log('Réservation créée:', response.data);
       
       setSubmitSuccess(true);
+      showNotification('Réservation envoyée avec succès ! Nous vous contacterons très bientôt.', 'success');
       
       // Réinitialiser le formulaire
       setFormData({
-        package_id: '',
+        reservable_id: '',
+        type: 'city-tour',
         full_name: '',
         email: '',
         phone: '',
         date_reservation: '',
         travelers: '',
+        currency: 'CFA',
         message: ''
       });
 
-      // Masquer le message de succès après 5 secondes
       setTimeout(() => {
         setSubmitSuccess(false);
       }, 5000);
 
     } catch (err) {
       console.error('Erreur lors de la réservation:', err);
+      
+      if (err.response?.data?.errors) {
+        const errors = Object.values(err.response.data.errors).flat();
+        showNotification(errors[0] || 'Erreur de validation', 'error');
+      } else {
+        showNotification(
+          err.response?.data?.message || 'Erreur lors de l\'envoi de la réservation. Veuillez réessayer.', 
+          'error'
+        );
+      }
       setError(err.response?.data?.message || 'Erreur lors de l\'envoi de la réservation. Veuillez réessayer.');
     } finally {
       setSubmitting(false);
@@ -171,11 +267,22 @@ const CityTour = () => {
   ];
 
   // Filtrer les city tours par pays
-  const brazzavilleTours = cityTourPackages.filter(pkg => pkg.country === 'RC');
-  const kinshasaTours = cityTourPackages.filter(pkg => pkg.country === 'RDC');
+  const brazzavilleTours = cityTourPackages.filter(pkg => pkg.country?.code === 'RC');
+  const kinshasaTours = cityTourPackages.filter(pkg => pkg.country?.code === 'rdc' || pkg.country?.code === 'RDC');
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white overflow-x-hidden">
+      {/* Notification */}
+      <Notification
+        show={notification.show}
+        message={notification.message}
+        type={notification.type}
+        onClose={() => setNotification({ show: false, message: '', type: '' })}
+      />
+
+      {/* Loading Overlay */}
+      {submitting && <LoadingOverlay message="Envoi de votre réservation..." />}
+
       {/* Header */}
       <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled ? 'bg-white shadow-md' : 'bg-white/95'}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -189,12 +296,12 @@ const CityTour = () => {
             </div>
 
             <nav className="hidden md:flex items-center space-x-10">
-      <Link to="/" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">Accueil</Link>
-      <Link to="/about" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">À propos</Link>
-      <Link to="/weekend" className="px-6 py-2 bg-yellow-400 text-gray-900 font-bold rounded-full hover:bg-yellow-500 transition-all hover:shadow-lg">
-        OUIKENAC
-    </Link>
-    <Link to="/city-tour" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">CityTour</Link>
+              <Link to="/" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">Accueil</Link>
+              <Link to="/about" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">À propos</Link>
+              <Link to="/weekend" className="px-6 py-2 bg-yellow-400 text-gray-900 font-bold rounded-full hover:bg-yellow-500 transition-all hover:shadow-lg">
+                OUIKENAC
+              </Link>
+              <Link to="/city-tour" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">CityTour</Link>
               <a href="#contact" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">Contact</a>
             </nav>
 
@@ -207,27 +314,34 @@ const CityTour = () => {
         {menuOpen && (
           <div className="md:hidden bg-white border-t border-gray-100 shadow-lg">
             <nav className="px-4 py-4 space-y-2">
-             <Link 
-        to="/" 
-        className="block text-gray-700 hover:text-blue-600 py-3 text-base font-medium border-b border-gray-100" 
-        onClick={() => setMenuOpen(false)}
-      >
-        Accueil
-      </Link>
-                    <Link 
-        to="/about" 
-        className="block text-gray-700 hover:text-blue-600 py-3 text-base font-medium border-b border-gray-100" 
-        onClick={() => setMenuOpen(false)}
-      >
-        A propos
-      </Link>
-                     <Link 
-        to="/weekend" 
-        className="block text-gray-700 hover:text-blue-600 py-3 text-base font-medium border-b border-gray-100" 
-        onClick={() => setMenuOpen(false)}
-      >
-        Accueil
-      </Link>
+              <Link 
+                to="/" 
+                className="block text-gray-700 hover:text-blue-600 py-3 text-base font-medium border-b border-gray-100" 
+                onClick={() => setMenuOpen(false)}
+              >
+                Accueil
+              </Link>
+              <Link 
+                to="/about" 
+                className="block text-gray-700 hover:text-blue-600 py-3 text-base font-medium border-b border-gray-100" 
+                onClick={() => setMenuOpen(false)}
+              >
+                A propos
+              </Link>
+              <Link 
+                to="/weekend" 
+                className="block text-gray-700 hover:text-blue-600 py-3 text-base font-medium border-b border-gray-100" 
+                onClick={() => setMenuOpen(false)}
+              >
+                Ouikenac
+              </Link>
+              <Link 
+                to="/city-tour" 
+                className="block text-gray-700 hover:text-blue-600 py-3 text-base font-medium border-b border-gray-100" 
+                onClick={() => setMenuOpen(false)}
+              >
+                CityTour
+              </Link>
               <a href="#contact" className="block text-gray-700 hover:text-blue-600 py-3 text-base font-medium" onClick={() => setMenuOpen(false)}>Contactez-nous</a>
             </nav>
           </div>
@@ -309,8 +423,11 @@ const CityTour = () => {
           {/* Loading State */}
           {loading && (
             <div className="flex flex-col items-center justify-center py-20">
-              <Loader className="animate-spin text-blue-600 mb-4" size={48} />
-              <p className="text-gray-600 text-lg">Chargement des city tours...</p>
+              <div className="relative">
+                <Loader className="animate-spin h-16 w-16 text-blue-600" />
+                <div className="absolute inset-0 h-16 w-16 border-4 border-blue-200 rounded-full"></div>
+              </div>
+              <p className="text-gray-600 text-lg mt-6">Chargement des city tours...</p>
             </div>
           )}
 
@@ -340,30 +457,61 @@ const CityTour = () => {
                 <div
                   key={tour.id}
                   className={`bg-white rounded-2xl overflow-hidden border-2 transition-all duration-500 hover:shadow-2xl hover:-translate-y-2 ${
-                    tour.country === 'RC' ? 'border-green-600' : 'border-blue-600'
+                    tour.country?.code === 'RC' ? 'border-green-600' : 'border-blue-600'
                   }`}
                 >
                   <div className="relative h-64">
                     <img 
-                      src={tour.image || 'https://images.unsplash.com/photo-1523805009345-7448845a9e53?w=800'} 
+                      src={tour.image ? `http://127.0.0.1:8000/storage/${tour.image}` : 'https://images.unsplash.com/photo-1523805009345-7448845a9e53?w=800'} 
                       alt={tour.title} 
                       className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.target.src = 'https://images.unsplash.com/photo-1523805009345-7448845a9e53?w=800';
+                      }}
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent"></div>
-                    <div className="absolute top-4 left-4">
+                    <div className="absolute top-4 left-4 flex gap-2">
                       <span className={`px-4 py-2 text-sm font-bold rounded-full ${
-                        tour.country === 'RC' ? 'bg-green-600 text-white' : 'bg-blue-600 text-white'
+                        tour.country?.code === 'RC' ? 'bg-green-600 text-white' : 'bg-blue-600 text-white'
                       }`}>
-                        {tour.country === 'RC' ? 'Brazzaville' : 'Kinshasa'}
+                        {tour.city?.name || (tour.country?.code === 'RC' ? 'Brazzaville' : 'Kinshasa')}
                       </span>
+                      {tour.active && (
+                        <span className="px-3 py-1 text-xs font-bold rounded-full bg-yellow-400 text-gray-900">
+                          Disponible
+                        </span>
+                      )}
                     </div>
                     <div className="absolute bottom-4 left-4 right-4">
                       <h3 className="text-white text-3xl font-black">{tour.title}</h3>
+                      {tour.scheduled_date && (
+                        <div className="flex items-center gap-2 mt-2">
+                          <Calendar className="text-white" size={16} />
+                          <p className="text-white text-sm">
+                            {new Date(tour.scheduled_date).toLocaleDateString('fr-FR', { 
+                              weekday: 'long', 
+                              year: 'numeric', 
+                              month: 'long', 
+                              day: 'numeric' 
+                            })}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
 
                   <div className="p-6">
-                    <p className="text-gray-700 mb-6 leading-relaxed">{tour.description}</p>
+                    <p className="text-gray-700 mb-6 leading-relaxed">{tour.description || 'Découvrez cette magnifique ville avec nos guides experts.'}</p>
+
+                    {/* Capacité */}
+                    {tour.min_people && (
+                      <div className="flex items-center gap-2 mb-4 text-sm text-gray-600">
+                        <Users size={16} className="text-blue-600" />
+                        <span>
+                          {tour.min_people} - {tour.max_people || '+'} personnes
+                        </span>
+                      </div>
+                    )}
 
                     {/* Prix */}
                     {tour.prices && tour.prices.length > 0 && (
@@ -383,14 +531,17 @@ const CityTour = () => {
 
                     <button 
                       onClick={() => handlePackageSelect(tour.id)}
+                      disabled={!tour.active}
                       className={`w-full py-4 font-bold rounded-full transition-all hover:shadow-xl flex items-center justify-center gap-2 ${
-                        tour.country === 'RC' 
-                          ? 'bg-green-600 text-white hover:bg-green-700' 
-                          : 'bg-blue-600 text-white hover:bg-blue-700'
+                        tour.active 
+                          ? tour.country?.code === 'RC' 
+                            ? 'bg-green-600 text-white hover:bg-green-700' 
+                            : 'bg-blue-600 text-white hover:bg-blue-700'
+                          : 'bg-gray-300 text-gray-600 cursor-not-allowed'
                       }`}
                     >
                       <Calendar size={20} />
-                      Réserver ce tour
+                      {tour.active ? 'Réserver ce tour' : 'Indisponible'}
                     </button>
                   </div>
                 </div>
@@ -399,8 +550,15 @@ const CityTour = () => {
           )}
 
           {!loading && !error && cityTourPackages.length === 0 && (
-            <div className="text-center py-12">
+            <div className="text-center py-12 bg-white rounded-2xl border border-gray-200">
+              <MapPin className="mx-auto text-gray-400 mb-4" size={48} />
               <p className="text-gray-600 text-lg">Aucun city tour disponible pour le moment.</p>
+              <button 
+                onClick={fetchPackages}
+                className="mt-4 px-6 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition-all"
+              >
+                Réessayer
+              </button>
             </div>
           )}
         </div>
@@ -458,7 +616,7 @@ const CityTour = () => {
             <div className="relative">
               <div className="grid grid-cols-2 gap-4">
                 <img 
-                  src="https://images.unsplash.com/photo-5238050093457448845a9e53?w=600" 
+                  src="https://images.unsplash.com/photo-1523805009345-7448845a9e53?w=600" 
                   alt="Brazzaville architecture" 
                   className="rounded-2xl w-full h-72 object-cover shadow-lg hover:scale-105 transition-transform duration-500"
                 />
@@ -556,7 +714,7 @@ const CityTour = () => {
 
           {/* Success Message */}
           {submitSuccess && (
-            <div className="bg-green-50 border-l-4 border-green-500 p-6 rounded-r-xl mb-8">
+            <div className="bg-green-50 border-l-4 border-green-500 p-6 rounded-r-xl mb-8 animate-pulse">
               <div className="flex items-center gap-3">
                 <CheckCircle className="text-green-500" size={24} />
                 <div>
@@ -567,21 +725,8 @@ const CityTour = () => {
             </div>
           )}
 
-          {/* Error Message */}
-          {error && !loading && (
-            <div className="bg-red-50 border-l-4 border-red-500 p-6 rounded-r-xl mb-8">
-              <div className="flex items-center gap-3">
-                <AlertCircle className="text-red-500" size={24} />
-                <div>
-                  <h3 className="font-bold text-red-800 mb-1">Erreur</h3>
-                  <p className="text-red-700">{error}</p>
-                </div>
-              </div>
-            </div>
-          )}
-
           <div className="bg-gray-50 rounded-2xl p-8 md:p-12 border border-gray-200">
-            <div className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid md:grid-cols-2 gap-6">
                 <input 
                   type="text" 
@@ -610,16 +755,17 @@ const CityTour = () => {
                   className="px-6 py-4 bg-white border-2 border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:border-blue-600 focus:outline-none transition-all"
                 />
                 <select 
-                  name="package_id"
-                  value={formData.package_id}
+                  name="reservable_id"
+                  value={formData.reservable_id}
                   onChange={handleInputChange}
                   required
                   className="px-6 py-4 bg-white border-2 border-gray-200 rounded-xl text-gray-900 focus:border-blue-600 focus:outline-none transition-all"
                 >
                   <option value="">Sélectionner un city tour *</option>
                   {cityTourPackages.map(pkg => (
-                    <option key={pkg.id} value={pkg.id}>
-                      {pkg.title} - {pkg.country === 'RC' ? 'Brazzaville' : 'Kinshasa'}
+                    <option key={pkg.id} value={pkg.id} disabled={!pkg.active}>
+                      {pkg.title} - {pkg.city?.name || (pkg.country?.code === 'RC' ? 'Brazzaville' : 'Kinshasa')}
+                      {pkg.prices && pkg.prices[0] && ` (${formatPrice(pkg.prices[0].price)} ${pkg.prices[0].currency})`}
                     </option>
                   ))}
                 </select>
@@ -628,7 +774,6 @@ const CityTour = () => {
                   name="date_reservation"
                   value={formData.date_reservation}
                   onChange={handleInputChange}
-                  required
                   min={new Date().toISOString().split('T')[0]}
                   className="px-6 py-4 bg-white border-2 border-gray-200 rounded-xl text-gray-900 focus:border-blue-600 focus:outline-none transition-all"
                 />
@@ -643,6 +788,18 @@ const CityTour = () => {
                   className="px-6 py-4 bg-white border-2 border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:border-blue-600 focus:outline-none transition-all"
                 />
               </div>
+              
+              <select 
+                name="currency"
+                value={formData.currency}
+                onChange={handleInputChange}
+                className="w-full px-6 py-4 bg-white border-2 border-gray-200 rounded-xl text-gray-900 focus:border-blue-600 focus:outline-none transition-all"
+              >
+                <option value="CFA">CFA</option>
+                <option value="USD">USD</option>
+                <option value="EUR">EUR</option>
+              </select>
+
               <textarea 
                 rows={4}
                 name="message"
@@ -651,8 +808,9 @@ const CityTour = () => {
                 placeholder="Message ou demande spécifique..." 
                 className="w-full px-6 py-4 bg-white border-2 border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:border-blue-600 focus:outline-none transition-all resize-none"
               />
+              
               <button 
-                onClick={handleSubmit}
+                type="submit"
                 disabled={submitting}
                 className="w-full py-5 bg-gray-900 text-white font-bold text-lg rounded-full hover:bg-blue-600 transition-all hover:shadow-xl hover:scale-105 flex items-center justify-center gap-3 disabled:bg-gray-400 disabled:cursor-not-allowed"
               >
@@ -667,7 +825,7 @@ const CityTour = () => {
                   </>
                 )}
               </button>
-            </div>
+            </form>
           </div>
         </div>
       </section>
@@ -742,10 +900,10 @@ const CityTour = () => {
             <div>
               <h3 className="text-lg font-bold mb-6">Navigation</h3>
               <div className="space-y-3">
-                <a href="/" className="block text-gray-400 hover:text-white transition-colors">Accueil</a>
-                <a href="/about" className="block text-gray-400 hover:text-white transition-colors">À propos</a>
-                <a href="/city-tour" className="block text-gray-400 hover:text-white transition-colors">City Tours</a>
-                <a href="/weekend" className="block text-gray-400 hover:text-white transition-colors">OUIKENAC</a>
+                <Link to="/" className="block text-gray-400 hover:text-white transition-colors">Accueil</Link>
+                <Link to="/about" className="block text-gray-400 hover:text-white transition-colors">À propos</Link>
+                <Link to="/city-tour" className="block text-gray-400 hover:text-white transition-colors">City Tours</Link>
+                <Link to="/weekend" className="block text-gray-400 hover:text-white transition-colors">OUIKENAC</Link>
                 <a href="#contact" className="block text-gray-400 hover:text-white transition-colors">Contact</a>
               </div>
             </div>
@@ -795,6 +953,36 @@ const CityTour = () => {
           </div>
         </div>
       </footer>
+
+      <style jsx>{`
+        @keyframes slide-in {
+          from {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+
+        @keyframes progress {
+          0% {
+            width: 0%;
+          }
+          100% {
+            width: 100%;
+          }
+        }
+
+        .animate-slide-in {
+          animation: slide-in 0.3s ease-out;
+        }
+
+        .animate-progress {
+          animation: progress 2s ease-in-out infinite;
+        }
+      `}</style>
     </div>
   );
 };
