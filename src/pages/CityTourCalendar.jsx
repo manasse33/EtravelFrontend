@@ -64,7 +64,7 @@ const CityTourCalendar = () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch('http://127.0.0.1:8000/api/city-tours');
+      const response = await fetch('https://etravelbackend-production.up.railway.app/api/city-tours');
       if (!response.ok) throw new Error('Erreur de chargement');
       const data = await response.json();
       console.log('City tours récupérés:', data);
