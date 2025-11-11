@@ -1,1044 +1,1036 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Check, X, LogOut, Package, Calendar, Users, Search, DollarSign, TrendingUp, Globe, Award, Clock, Eye, AlertCircle, CheckCircle, Loader } from 'lucide-react';
+import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { Users, Package, MapPin, TrendingUp, DollarSign, Calendar, Settings, Home, Globe, Building, Plane, Compass, Navigation, Menu, X, Upload } from 'lucide-react';
 
-const API_BASE_URL = 'https://etravelbackend-production.up.railway.app/api';
+const API_BASE = 'https://etravelbackend-production.up.railway.app/api';
 
-const AdminPanel = () => {
-  const [token, setToken] = useState('');
+const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [packages, setPackages] = useState([]);
+  const [countries, setCountries] = useState([]);
+  const [cities, setCities] = useState([]);
+  const [destinations, setDestinations] = useState([]);
+  const [ouikenacs, setOuikenacs] = useState([]);
+  const [cityTours, setCityTours] = useState([]);
   const [reservations, setReservations] = useState([]);
-  const [showModal, setShowModal] = useState(false);
-  const [editingPackage, setEditingPackage] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState({ type: '', text: '' });
-  const [loginData, setLoginData] = useState({ email: '', password: '' });
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    package_type: 'destination',
-    sub_type: '',
-    country: 'RC',
-    image: null,
-    prices: []
+  const [countryForm, setCountryForm] = useState({ name: '', code: '' });
+  const [cityForm, setCityForm] = useState({ name: '', country_id: '' });
+  
+  const [destinationForm, setDestinationForm] = useState({
+    title: '', 
+    description: '', 
+    image: null, 
+    departure_country_id: '',
+    arrival_country_id: '',
+    prices: [{ people_count: '', price: '' }],
+    services: []
   });
 
-  // Statistiques calculées
-  const stats = {
-    totalPackages: packages.length,
-    totalReservations: reservations.length,
-    pendingReservations: reservations.filter(r => r.status === 'pending').length,
-    approvedReservations: reservations.filter(r => r.status === 'approved').length,
-    totalRevenue: reservations
-      .filter(r => r.status === 'approved')
-      .reduce((sum, r) => sum + (r.amount || 0), 0),
-  };
+  const [ouikenacForm, setOuikenacForm] = useState({
+    nom: '', description: '', image: null, country_depart_id: '', country_arrivee_id: '',
+    city_depart_id: '', city_arrivee_id: '', prix: '', places_min: 1, places_max: 10,
+    programme: '', repas: false, transport: false, hebergement: false
+  });
 
-  // Réservations récentes
-  const recentReservations = reservations.slice(0, 5);
+  const [cityTourForm, setCityTourForm] = useState({
+    nom: '', description: '', country_id: '', date: '',
+    prix: '', places_min: 1, places_max: 10
+  });
 
   useEffect(() => {
-    if (token) {
-      if (activeTab === 'dashboard') {
-        loadAllData(token);
-      } else {
-        loadData(token);
-      }
-    }
-  }, [activeTab, token]);
+    loadData();
+  }, []);
 
-  const showMessage = (type, text) => {
-    setMessage({ type, text });
-    setTimeout(() => setMessage({ type: '', text: '' }), 4000);
-  };
-
-  const apiCall = async (endpoint, method = 'GET', body = null, isFormData = false) => {
-    const headers = {
-      'Authorization': `Bearer ${token}`,
-      'Accept': 'application/json'
-    };
-
-    if (!isFormData) {
-      headers['Content-Type'] = 'application/json';
-    }
-
-    const options = {
-      method,
-      headers,
-    };
-
-    if (body) {
-      options.body = isFormData ? body : JSON.stringify(body);
-    }
-
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
-    
-    if (response.status === 401) {
-      handleLogout();
-      throw new Error('Session expirée');
-    }
-
-    return response.json();
-  };
-
-  const loadAllData = async (authToken) => {
+  const loadData = async () => {
     setLoading(true);
     try {
-      const [packagesData, reservationsData] = await Promise.all([
-        apiCall('/packages', 'GET'),
-        apiCall('/admin/reservations', 'GET')
+      const [countriesRes, destinationsRes, ouikenacsRes, toursRes, reservationsRes] = await Promise.all([
+        fetch(`${API_BASE}/countries`).then(r => r.json()),
+        fetch(`${API_BASE}/destinations`).then(r => r.json()),
+        fetch(`${API_BASE}/ouikenac`).then(r => r.json()),
+        fetch(`${API_BASE}/city-tours`).then(r => r.json()),
+        fetch(`${API_BASE}/reservations`).then(r => r.json())
       ]);
       
-      setPackages(packagesData.data || packagesData);
-      setReservations(reservationsData.data || reservationsData);
+      setCountries(countriesRes);
+      setDestinations(destinationsRes);
+      setOuikenacs(ouikenacsRes);
+      setCityTours(toursRes);
+      setReservations(reservationsRes);
+      
+      const allCities = countriesRes.flatMap(c => c.cities || []);
+      setCities(allCities);
     } catch (error) {
-      showMessage('error', 'Erreur de chargement: ' + error.message);
+      console.error('Erreur chargement:', error);
     }
     setLoading(false);
   };
 
-  const loadData = async (authToken) => {
-    setLoading(true);
-    try {
-      if (activeTab === 'packages') {
-        const data = await apiCall('/packages', 'GET');
-        setPackages(data.data || data);
-      } else {
-        const data = await apiCall('/admin/reservations', 'GET');
-        setReservations(data.data || data);
-      }
-    } catch (error) {
-      showMessage('error', 'Erreur de chargement: ' + error.message);
+  const handleFileChange = (e, formSetter, formData) => {
+    const file = e.target.files[0];
+    if (file) {
+      formSetter({ ...formData, image: file });
     }
-    setLoading(false);
   };
 
-  const handleLogin = async () => {
+  const handleAddCountry = async () => {
+    if (!countryForm.name || !countryForm.code) return;
     try {
-      setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/login`, {
+      await fetch(`${API_BASE}/countries`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(loginData)
+        body: JSON.stringify(countryForm)
       });
-
-      const data = await response.json();
-      
-      if (data.token) {
-        setToken(data.token);
-        setActiveTab('dashboard');
-        showMessage('success', 'Connexion réussie');
-        // Le useEffect va charger les données automatiquement
-      } else {
-        showMessage('error', 'Identifiants incorrects');
-      }
+      setCountryForm({ name: '', code: '' });
+      loadData();
     } catch (error) {
-      showMessage('error', 'Erreur de connexion');
-    } finally {
-      setLoading(false);
+      console.error('Erreur ajout pays:', error);
     }
   };
 
-  const handleLogout = async () => {
+  const handleAddCity = async () => {
+    if (!cityForm.name || !cityForm.country_id) return;
     try {
-      await apiCall('/admin/logout', 'POST');
-    } catch (error) {
-      console.error('Logout error:', error);
-    }
-    setToken('');
-    showMessage('success', 'Déconnexion réussie');
-  };
-
-  const handleSubmitPackage = async () => {
-    setLoading(true);
-
-    try {
-      const formDataToSend = new FormData();
-      formDataToSend.append('title', formData.title);
-      formDataToSend.append('description', formData.description);
-      formDataToSend.append('package_type', formData.package_type);
-      formDataToSend.append('sub_type', formData.sub_type);
-      formDataToSend.append('country', formData.country);
-      
-      if (formData.image) {
-        formDataToSend.append('image', formData.image);
-      }
-
-      formData.prices.forEach((price, index) => {
-        formDataToSend.append(`prices[${index}][country]`, price.country);
-        formDataToSend.append(`prices[${index}][min_people]`, price.min_people);
-        formDataToSend.append(`prices[${index}][max_people]`, price.max_people);
-        formDataToSend.append(`prices[${index}][price]`, price.price);
-        formDataToSend.append(`prices[${index}][currency]`, price.currency);
+      await fetch(`${API_BASE}/cities`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(cityForm)
       });
-
-      if (editingPackage) {
-        formDataToSend.append('_method', 'PUT');
-        await apiCall(`/admin/packages/${editingPackage.id}`, 'POST', formDataToSend, true);
-        showMessage('success', 'Package modifié avec succès');
-      } else {
-        await apiCall('/admin/packages', 'POST', formDataToSend, true);
-        showMessage('success', 'Package créé avec succès');
-      }
-
-      setShowModal(false);
-      resetForm();
-      loadData(token);
+      setCityForm({ name: '', country_id: '' });
+      loadData();
     } catch (error) {
-      showMessage('error', 'Erreur: ' + error.message);
-    }
-    setLoading(false);
-  };
-
-  const handleDeletePackage = async (id) => {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer ce package ?')) return;
-
-    try {
-      await apiCall(`/admin/packages/${id}`, 'DELETE');
-      showMessage('success', 'Package supprimé');
-      loadData(token);
-    } catch (error) {
-      showMessage('error', 'Erreur de suppression');
+      console.error('Erreur ajout ville:', error);
     }
   };
 
-  const handleValidateReservation = async (id) => {
-    try {
-      await apiCall(`/admin/reservations/${id}/validate`, 'PUT');
-      showMessage('success', 'Réservation approuvée');
-      loadData(token);
-    } catch (error) {
-      showMessage('error', 'Erreur de validation');
-    }
-  };
-
-  const handleCancelReservation = async (id) => {
-    try {
-      await apiCall(`/admin/reservations/${id}/cancel`, 'PUT');
-      showMessage('success', 'Réservation annulée');
-      loadData(token);
-    } catch (error) {
-      showMessage('error', 'Erreur d\'annulation');
-    }
-  };
-
-  const openEditModal = (pkg) => {
-    setEditingPackage(pkg);
-    setFormData({
-      title: pkg.title,
-      description: pkg.description || '',
-      package_type: pkg.package_type,
-      sub_type: pkg.sub_type || '',
-      country: pkg.country || 'RC',
-      image: null,
-      prices: pkg.prices || []
-    });
-    setShowModal(true);
-  };
-
-  const addPrice = () => {
-    setFormData({
-      ...formData,
-      prices: [...formData.prices, {
-        country: 'RC',
-        min_people: 1,
-        max_people: 1,
-        price: '',
-        currency: 'XAF'
-      }]
+  const addPriceField = () => {
+    setDestinationForm({
+      ...destinationForm,
+      prices: [...destinationForm.prices, { people_count: '', price: '' }]
     });
   };
 
-  const updatePrice = (index, field, value) => {
-    const newPrices = [...formData.prices];
+  const updatePriceField = (index, field, value) => {
+    const newPrices = [...destinationForm.prices];
     newPrices[index][field] = value;
-    setFormData({ ...formData, prices: newPrices });
+    setDestinationForm({ ...destinationForm, prices: newPrices });
   };
 
-  const removePrice = (index) => {
-    const newPrices = formData.prices.filter((_, i) => i !== index);
-    setFormData({ ...formData, prices: newPrices });
+  const removePriceField = (index) => {
+    const newPrices = destinationForm.prices.filter((_, i) => i !== index);
+    setDestinationForm({ ...destinationForm, prices: newPrices });
   };
 
-  const resetForm = () => {
-    setFormData({
-      title: '',
-      description: '',
-      package_type: 'destination',
-      sub_type: '',
-      country: 'RC',
-      image: null,
-      prices: []
-    });
-    setEditingPackage(null);
+  const handleAddDestination = async () => {
+    if (!destinationForm.title || !destinationForm.departure_country_id || !destinationForm.arrival_country_id) return;
+    
+    try {
+      const payload = {
+        title: destinationForm.title,
+        description: destinationForm.description,
+        image: destinationForm.image ? URL.createObjectURL(destinationForm.image) : '',
+        departure_country_id: destinationForm.departure_country_id,
+        arrival_country_id: destinationForm.arrival_country_id,
+        prices: destinationForm.prices.filter(p => p.people_count && p.price),
+        services: destinationForm.services
+      };
+      
+      await fetch(`${API_BASE}/destinations`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      
+      setDestinationForm({
+        title: '', 
+        description: '', 
+        image: null, 
+        departure_country_id: '',
+        arrival_country_id: '',
+        prices: [{ people_count: '', price: '' }],
+        services: []
+      });
+      loadData();
+    } catch (error) {
+      console.error('Erreur ajout destination:', error);
+    }
   };
 
-  const filteredPackages = packages.filter(pkg => 
-    pkg.title?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const handleAddOuikenac = async () => {
+    if (!ouikenacForm.nom || !ouikenacForm.city_depart_id || !ouikenacForm.city_arrivee_id || !ouikenacForm.prix) return;
+    try {
+      const formData = new FormData();
+      Object.keys(ouikenacForm).forEach(key => {
+        if (ouikenacForm[key] !== null) {
+          formData.append(key, ouikenacForm[key]);
+        }
+      });
+      
+      await fetch(`${API_BASE}/ouikenac`, {
+        method: 'POST',
+        body: formData
+      });
+      setOuikenacForm({
+        nom: '', description: '', image: null, country_depart_id: '', country_arrivee_id: '',
+        city_depart_id: '', city_arrivee_id: '', prix: '', places_min: 1, places_max: 10,
+        programme: '', repas: false, transport: false, hebergement: false
+      });
+      loadData();
+    } catch (error) {
+      console.error('Erreur ajout Ouikenac:', error);
+    }
+  };
 
-  const filteredReservations = reservations.filter(res => 
-    res.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    res.email?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const handleAddCityTour = async () => {
+    if (!cityTourForm.nom || !cityTourForm.country_id || !cityTourForm.date || !cityTourForm.prix) return;
+    try {
+      await fetch(`${API_BASE}/city-tours`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(cityTourForm)
+      });
+      setCityTourForm({
+        nom: '', description: '', country_id: '', date: '',
+        prix: '', places_min: 1, places_max: 10
+      });
+      loadData();
+    } catch (error) {
+      console.error('Erreur ajout City Tour:', error);
+    }
+  };
 
-  if (!token) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-blue-900 flex items-center justify-center p-4">
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PHBhdGggZD0iTTM2IDEzNGgxMnYxMkgzNnptMjQgMGgxMnYxMkg2MHpNMTIgMTEwaDEydjEySDEyem0yNCAwaDEydjEySDM2eiIvPjwvZz48L2c+PC9zdmc+')] opacity-20"></div>
-        
-        <div className="relative bg-white rounded-3xl shadow-2xl p-10 w-full max-w-md">
-          <div className="text-center mb-8">
-            <div className="bg-gradient-to-br from-blue-600 to-blue-700 w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-xl">
-              <Globe className="text-white" size={40} />
-            </div>
-            <h1 className="text-4xl font-black text-gray-900 mb-2">e-TRAVEL WORLD</h1>
-            <p className="text-gray-600 font-semibold">Administration</p>
-          </div>
+  const handleDeleteItem = async (type, id) => {
+    try {
+      await fetch(`${API_BASE}/${type}/${id}`, { method: 'DELETE' });
+      loadData();
+    } catch (error) {
+      console.error('Erreur suppression:', error);
+    }
+  };
 
-          <div className="space-y-5">
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">Email</label>
-              <input
-                type="email"
-                value={loginData.email}
-                onChange={(e) => setLoginData({...loginData, email: e.target.value})}
-                onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:border-blue-600 focus:outline-none transition-all"
-                placeholder="admin@etravel.com"
-              />
-            </div>
+  const handleUpdateReservationStatus = async (id, status) => {
+    try {
+      await fetch(`${API_BASE}/reservations/${id}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status })
+      });
+      loadData();
+    } catch (error) {
+      console.error('Erreur mise à jour:', error);
+    }
+  };
 
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">Mot de passe</label>
-              <input
-                type="password"
-                value={loginData.password}
-                onChange={(e) => setLoginData({...loginData, password: e.target.value})}
-                onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:border-blue-600 focus:outline-none transition-all"
-                placeholder="••••••••"
-              />
-            </div>
+  const stats = {
+    totalReservations: reservations.length,
+    pendingReservations: reservations.filter(r => r.status === 'pending').length,
+    totalRevenue: reservations.filter(r => r.status === 'approved').reduce((sum, r) => sum + parseFloat(r.total_price || 0), 0),
+    totalDestinations: destinations.length + ouikenacs.length + cityTours.length,
+    totalCountries: countries.length,
+    totalCities: cities.length
+  };
 
-            <button
-              onClick={handleLogin}
-              className="w-full bg-gray-900 text-white py-4 rounded-xl font-bold hover:bg-blue-600 transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
-            >
-              Se connecter
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const revenueData = reservations
+    .filter(r => r.status === 'approved')
+    .reduce((acc, r) => {
+      const month = new Date(r.created_at).toLocaleDateString('fr-FR', { month: 'short' });
+      const existing = acc.find(item => item.month === month);
+      if (existing) {
+        existing.revenue += parseFloat(r.total_price || 0);
+      } else {
+        acc.push({ month, revenue: parseFloat(r.total_price || 0) });
+      }
+      return acc;
+    }, []);
+
+  const statusData = [
+    { name: 'En attente', value: reservations.filter(r => r.status === 'pending').length, color: '#f7d617' },
+    { name: 'Approuvées', value: reservations.filter(r => r.status === 'approved').length, color: '#3fa535' },
+    { name: 'Rejetées', value: reservations.filter(r => r.status === 'rejected').length, color: '#cd1422' },
+    { name: 'Annulées', value: reservations.filter(r => r.status === 'cancelled').length, color: '#777' }
+  ];
+
+  const destinationTypeData = [
+    { name: 'Destinations', value: destinations.length, color: '#1b5e8e' },
+    { name: 'Ouikenac', value: ouikenacs.length, color: '#f18f13' },
+    { name: 'City Tours', value: cityTours.length, color: '#40bcd5' }
+  ];
+
+  const menuItems = [
+    { id: 'dashboard', label: 'Dashboard', icon: Home },
+    { id: 'config', label: 'Configuration', icon: Settings },
+    { id: 'destinations', label: 'Destinations', icon: Plane },
+    { id: 'ouikenac', label: 'Ouikenac', icon: Compass },
+    { id: 'citytour', label: 'City Tour', icon: Navigation },
+    { id: 'reservations', label: 'Réservations', icon: Calendar }
+  ];
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {message.text && (
-        <div className={`fixed top-4 right-4 z-50 px-6 py-4 rounded-xl shadow-2xl ${
-          message.type === 'success' 
-            ? 'bg-green-600 text-white' 
-            : 'bg-red-600 text-white'
-        }`}>
-          <div className="flex items-center space-x-2">
-            {message.type === 'success' ? <CheckCircle size={20} /> : <AlertCircle size={20} />}
-            <span className="font-semibold">{message.text}</span>
-          </div>
-        </div>
-      )}
-
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <div className="bg-gradient-to-br from-blue-600 to-blue-700 w-12 h-12 rounded-xl flex items-center justify-center shadow-lg">
-              <Globe className="text-white" size={24} />
-            </div>
-            <div>
-              <h1 className="text-2xl font-black text-gray-900">e-TRAVEL WORLD</h1>
-              <p className="text-xs text-gray-500 font-semibold tracking-wide">ADMIN PANEL</p>
-            </div>
-          </div>
-
-          <button
-            onClick={handleLogout}
-            className="flex items-center space-x-2 px-5 py-2.5 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-900 hover:text-white transition-all font-semibold border border-gray-200"
-          >
-            <LogOut size={18} />
-            <span>Déconnexion</span>
-          </button>
-        </div>
-      </header>
-
-      {/* Navigation Tabs */}
-      <div className="bg-white border-b border-gray-200 sticky top-[73px] z-30">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="flex space-x-1">
-            <button
-              onClick={() => setActiveTab('dashboard')}
-              className={`px-6 py-4 font-bold transition-all relative ${
-                activeTab === 'dashboard'
-                  ? 'text-blue-600'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              <div className="flex items-center space-x-2">
-                <TrendingUp size={20} />
-                <span>Dashboard</span>
-              </div>
-              {activeTab === 'dashboard' && (
-                <div className="absolute bottom-0 left-0 right-0 h-1 bg-blue-600 rounded-t-lg"></div>
-              )}
-            </button>
-
-            <button
-              onClick={() => setActiveTab('packages')}
-              className={`px-6 py-4 font-bold transition-all relative ${
-                activeTab === 'packages'
-                  ? 'text-blue-600'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              <div className="flex items-center space-x-2">
-                <Package size={20} />
-                <span>Packages</span>
-              </div>
-              {activeTab === 'packages' && (
-                <div className="absolute bottom-0 left-0 right-0 h-1 bg-blue-600 rounded-t-lg"></div>
-              )}
-            </button>
-
-            <button
-              onClick={() => setActiveTab('reservations')}
-              className={`px-6 py-4 font-bold transition-all relative ${
-                activeTab === 'reservations'
-                  ? 'text-blue-600'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              <div className="flex items-center space-x-2">
-                <Calendar size={20} />
-                <span>Réservations</span>
-                {stats.pendingReservations > 0 && (
-                  <span className="px-2 py-0.5 bg-yellow-400 text-gray-900 text-xs font-black rounded-full">
-                    {stats.pendingReservations}
-                  </span>
-                )}
-              </div>
-              {activeTab === 'reservations' && (
-                <div className="absolute bottom-0 left-0 right-0 h-1 bg-blue-600 rounded-t-lg"></div>
-              )}
-            </button>
-          </div>
-        </div>
+      {/* Mobile Header */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 bg-white shadow-md z-50 flex items-center justify-between p-4">
+        <h1 className="text-xl font-bold" style={{ color: '#1b5e8e' }}>eTravel Admin</h1>
+        <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2">
+          {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
+        </button>
       </div>
 
-      <main className="max-w-7xl mx-auto px-6 py-8">
-        {/* Dashboard Tab */}
+      {/* Sidebar */}
+      <div className={`fixed left-0 top-0 h-full w-64 bg-white shadow-lg z-40 transition-transform duration-300 ${
+        sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+      } lg:translate-x-0`}>
+        <div className="p-6 border-b border-gray-200 hidden lg:block">
+          <h1 className="text-2xl font-bold" style={{ color: '#1b5e8e' }}>eTravel Admin</h1>
+        </div>
+        <nav className="p-4 mt-16 lg:mt-0">
+          {menuItems.map(item => (
+            <button
+              key={item.id}
+              onClick={() => {
+                setActiveTab(item.id);
+                setSidebarOpen(false);
+              }}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg mb-2 transition-colors ${
+                activeTab === item.id ? 'text-white' : 'text-gray-600 hover:bg-gray-100'
+              }`}
+              style={activeTab === item.id ? { backgroundColor: '#1b5e8e' } : {}}
+            >
+              <item.icon size={20} />
+              <span className="font-medium">{item.label}</span>
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      {/* Overlay for mobile */}
+      {sidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      <div className="lg:ml-64 p-4 sm:p-6 lg:p-8 mt-16 lg:mt-0">
+        {loading && (
+          <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6">
+              <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mx-auto"></div>
+              <p className="mt-4 text-gray-600">Chargement...</p>
+            </div>
+          </div>
+        )}
+
         {activeTab === 'dashboard' && (
-          <div className="space-y-8">
-            <div>
-              <h2 className="text-3xl font-black text-gray-900 mb-2">Vue d'ensemble</h2>
-              <p className="text-gray-600">Bienvenue dans votre tableau de bord administrateur</p>
-            </div>
-
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <div className="bg-white rounded-2xl p-6 border-2 border-gray-200 hover:border-blue-600 transition-all hover:shadow-xl">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                    <Package className="text-blue-600" size={24} />
-                  </div>
-                  <TrendingUp className="text-green-500" size={20} />
-                </div>
-                <h3 className="text-gray-600 font-semibold mb-1">Total Packages</h3>
-                <p className="text-4xl font-black text-gray-900">{stats.totalPackages}</p>
-              </div>
-
-              <div className="bg-white rounded-2xl p-6 border-2 border-gray-200 hover:border-yellow-400 transition-all hover:shadow-xl">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center">
-                    <Calendar className="text-yellow-600" size={24} />
-                  </div>
-                  <Clock className="text-yellow-500" size={20} />
-                </div>
-                <h3 className="text-gray-600 font-semibold mb-1">En attente</h3>
-                <p className="text-4xl font-black text-gray-900">{stats.pendingReservations}</p>
-              </div>
-
-              <div className="bg-white rounded-2xl p-6 border-2 border-gray-200 hover:border-green-500 transition-all hover:shadow-xl">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
-                    <CheckCircle className="text-green-600" size={24} />
-                  </div>
-                  <Award className="text-green-500" size={20} />
-                </div>
-                <h3 className="text-gray-600 font-semibold mb-1">Approuvées</h3>
-                <p className="text-4xl font-black text-gray-900">{stats.approvedReservations}</p>
-              </div>
-
-              <div className="bg-white rounded-2xl p-6 border-2 border-gray-200 hover:border-gray-900 transition-all hover:shadow-xl">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center">
-                    <Users className="text-gray-900" size={24} />
-                  </div>
-                  <DollarSign className="text-gray-900" size={20} />
-                </div>
-                <h3 className="text-gray-600 font-semibold mb-1">Total Réservations</h3>
-                <p className="text-4xl font-black text-gray-900">{stats.totalReservations}</p>
-              </div>
-            </div>
-
-            {/* Charts Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Répartition des packages */}
-              <div className="bg-white rounded-2xl p-6 border-2 border-gray-200">
-                <h3 className="text-xl font-black text-gray-900 mb-6">Répartition des Packages</h3>
-                <div className="space-y-4">
-                  {['destination', 'ouikenac', 'city_tour'].map((type) => {
-                    const count = packages.filter(p => p.package_type === type).length;
-                    const percentage = stats.totalPackages > 0 ? (count / stats.totalPackages) * 100 : 0;
-                    return (
-                      <div key={type}>
-                        <div className="flex justify-between items-center mb-2">
-                          <span className="font-bold text-gray-700 capitalize">{type}</span>
-                          <span className="font-black text-gray-900">{count}</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-3">
-                          <div
-                            className={`h-3 rounded-full ${
-                              type === 'destination' ? 'bg-blue-600' :
-                              type === 'ouikenac' ? 'bg-yellow-400' : 'bg-green-500'
-                            }`}
-                            style={{ width: `${percentage}%` }}
-                          ></div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Statut des réservations */}
-              <div className="bg-white rounded-2xl p-6 border-2 border-gray-200">
-                <h3 className="text-xl font-black text-gray-900 mb-6">Statut des Réservations</h3>
-                <div className="space-y-4">
-                  {[
-                    { status: 'pending', label: 'En attente', color: 'bg-yellow-400' },
-                    { status: 'approved', label: 'Approuvées', color: 'bg-green-500' },
-                    { status: 'rejected', label: 'Rejetées', color: 'bg-red-500' }
-                  ].map(({ status, label, color }) => {
-                    const count = reservations.filter(r => r.status === status).length;
-                    const percentage = stats.totalReservations > 0 ? (count / stats.totalReservations) * 100 : 0;
-                    return (
-                      <div key={status}>
-                        <div className="flex justify-between items-center mb-2">
-                          <span className="font-bold text-gray-700">{label}</span>
-                          <span className="font-black text-gray-900">{count}</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-3">
-                          <div
-                            className={`h-3 rounded-full ${color}`}
-                            style={{ width: `${percentage}%` }}
-                          ></div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-
-            {/* Recent Reservations */}
-            <div className="bg-white rounded-2xl p-6 border-2 border-gray-200">
-              <h3 className="text-xl font-black text-gray-900 mb-6">Réservations Récentes</h3>
-              {recentReservations.length === 0 ? (
-                <p className="text-gray-500 text-center py-8">Aucune réservation récente</p>
-              ) : (
-                <div className="space-y-4">
-                  {recentReservations.map((res) => (
-                    <div key={res.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-all">
-                      <div className="flex items-center space-x-4">
-                        <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                          <Users className="text-blue-600" size={20} />
-                        </div>
-                        <div>
-                          <p className="font-bold text-gray-900">{res.full_name}</p>
-                          <p className="text-sm text-gray-600">{res.email}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-4">
-                        <div className="text-right">
-                          <p className="text-sm text-gray-600">{res.date_reservation}</p>
-                          <p className="text-sm font-semibold text-gray-900">{res.travelers} voyageurs</p>
-                        </div>
-                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                          res.status === 'approved' ? 'bg-green-100 text-green-700' :
-                          res.status === 'rejected' ? 'bg-red-100 text-red-700' :
-                          'bg-yellow-100 text-yellow-700'
-                        }`}>
-                          {res.status === 'approved' ? 'Approuvée' :
-                           res.status === 'rejected' ? 'Rejetée' : 'En attente'}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Packages Tab */}
-        {activeTab === 'packages' && (
           <div>
-            <div className="flex items-center justify-between mb-8">
-              <div>
-                <h2 className="text-3xl font-black text-gray-900 mb-2">Gestion des Packages</h2>
-                <p className="text-gray-600">Créez et gérez vos offres de voyage</p>
-              </div>
-
-              <button
-                onClick={() => {
-                  resetForm();
-                  setShowModal(true);
-                }}
-                className="flex items-center space-x-2 px-6 py-3 bg-gray-900 text-white rounded-xl hover:bg-blue-600 transition-all font-bold shadow-lg hover:shadow-xl"
-              >
-                <Plus size={20} />
-                <span>Nouveau Package</span>
-              </button>
-            </div>
-
-            <div className="relative mb-6">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-              <input
-                type="text"
-                placeholder="Rechercher un package..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-600 focus:outline-none transition-all font-semibold"
-              />
-            </div>
-
-            <div className="grid gap-6">
-              {loading ? (
-                <div className="text-center py-20">
-                  <Loader className="animate-spin text-blue-600 mx-auto mb-4" size={48} />
-                  <p className="text-gray-500 font-semibold">Chargement...</p>
-                </div>
-              ) : filteredPackages.length === 0 ? (
-                <div className="text-center py-20 bg-white rounded-2xl border-2 border-gray-200">
-                  <Package className="mx-auto text-gray-300 mb-4" size={64} />
-                  <p className="text-gray-500 text-lg font-semibold">Aucun package trouvé</p>
-                </div>
-              ) : (
-                filteredPackages.map(pkg => (
-                  <div key={pkg.id} className="bg-white rounded-2xl shadow-sm border-2 border-gray-200 p-6 hover:border-blue-600 hover:shadow-xl transition-all">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-3 mb-3">
-                          <h3 className="text-2xl font-black text-gray-900">{pkg.title}</h3>
-                          <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                            pkg.package_type === 'destination' ? 'bg-blue-100 text-blue-700' :
-                            pkg.package_type === 'ouikenac' ? 'bg-yellow-100 text-yellow-700' :
-                            'bg-green-100 text-green-700'
-                          }`}>
-                            {pkg.package_type}
-                          </span>
-                        </div>
-                        
-                        <p className="text-gray-600 mb-4 leading-relaxed">{pkg.description}</p>
-                        
-                        <div className="flex flex-wrap gap-2 mb-4">
-                          {pkg.country && (
-                            <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm font-semibold">
-                              {pkg.country}
-                            </span>
-                          )}
-                          {pkg.sub_type && (
-                            <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm font-semibold">
-                              {pkg.sub_type}
-                            </span>
-                          )}
-                        </div>
-
-                        {pkg.prices && pkg.prices.length > 0 && (
-                          <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                            <div className="flex items-center space-x-2 mb-3">
-                              <DollarSign size={18} className="text-blue-600" />
-                              <h4 className="font-bold text-gray-900">Tarifs</h4>
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                              {pkg.prices.map((price, idx) => (
-                                <div key={idx} className="bg-white rounded-lg p-3 border border-gray-200">
-                                  <div className="flex justify-between items-center">
-                                    <span className="text-sm text-gray-600 font-semibold">
-                                      {price.min_people === price.max_people 
-                                        ? `${price.min_people} pers.`
-                                        : `${price.min_people}-${price.max_people} pers.`}
-                                    </span>
-                                    <span className="font-black text-blue-600">
-                                      {price.price} {price.currency}
-                                    </span>
-                                  </div>
-                                  {price.country && (
-                                    <span className="text-xs text-gray-500 mt-1 block">{price.country}</span>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="flex space-x-2 ml-6">
-                        <button
-                          onClick={() => openEditModal(pkg)}
-                          className="p-3 text-blue-600 hover:bg-blue-50 rounded-xl transition-colors border-2 border-blue-200 font-bold"
-                          title="Modifier"
-                        >
-                          <Edit2 size={20} />
-                        </button>
-                        <button
-                          onClick={() => handleDeletePackage(pkg.id)}
-                          className="p-3 text-red-600 hover:bg-red-50 rounded-xl transition-colors border-2 border-red-200 font-bold"
-                          title="Supprimer"
-                        >
-                          <Trash2 size={20} />
-                        </button>
-                      </div>
-                    </div>
+            <h2 className="text-2xl sm:text-3xl font-bold mb-6 sm:mb-8 text-gray-800">Tableau de bord</h2>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
+              <div className="bg-white rounded-xl p-4 sm:p-6 shadow-md border-l-4" style={{ borderLeftColor: '#1b5e8e' }}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-600 text-xs sm:text-sm">Réservations</p>
+                    <p className="text-2xl sm:text-3xl font-bold mt-2">{stats.totalReservations}</p>
                   </div>
-                ))
-              )}
-            </div>
-          </div>
-        )}
+                  <div className="bg-blue-100 p-3 sm:p-4 rounded-lg">
+                    <Calendar size={20} className="sm:w-6 sm:h-6" style={{ color: '#1b5e8e' }} />
+                  </div>
+                </div>
+              </div>
 
-        {/* Reservations Tab */}
-        {activeTab === 'reservations' && (
-          <div>
-            <div className="flex items-center justify-between mb-8">
-              <div>
-                <h2 className="text-3xl font-black text-gray-900 mb-2">Gestion des Réservations</h2>
-                <p className="text-gray-600">Validez ou rejetez les demandes de réservation</p>
+              <div className="bg-white rounded-xl p-4 sm:p-6 shadow-md border-l-4" style={{ borderLeftColor: '#3fa535' }}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-600 text-xs sm:text-sm">Revenus</p>
+                    <p className="text-xl sm:text-2xl lg:text-3xl font-bold mt-2">{stats.totalRevenue.toFixed(0)} FCFA</p>
+                  </div>
+                  <div className="bg-green-100 p-3 sm:p-4 rounded-lg">
+                    <DollarSign size={20} className="sm:w-6 sm:h-6" style={{ color: '#3fa535' }} />
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-xl p-4 sm:p-6 shadow-md border-l-4" style={{ borderLeftColor: '#f18f13' }}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-600 text-xs sm:text-sm">Offres Totales</p>
+                    <p className="text-2xl sm:text-3xl font-bold mt-2">{stats.totalDestinations}</p>
+                  </div>
+                  <div className="bg-orange-100 p-3 sm:p-4 rounded-lg">
+                    <MapPin size={20} className="sm:w-6 sm:h-6" style={{ color: '#f18f13' }} />
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-xl p-4 sm:p-6 shadow-md border-l-4" style={{ borderLeftColor: '#f7d617' }}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-600 text-xs sm:text-sm">En attente</p>
+                    <p className="text-2xl sm:text-3xl font-bold mt-2">{stats.pendingReservations}</p>
+                  </div>
+                  <div className="bg-yellow-100 p-3 sm:p-4 rounded-lg">
+                    <TrendingUp size={20} className="sm:w-6 sm:h-6" style={{ color: '#f7d617' }} />
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="relative mb-6">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-              <input
-                type="text"
-                placeholder="Rechercher une réservation..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-600 focus:outline-none transition-all font-semibold"
-              />
-            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
+              <div className="bg-white rounded-xl p-4 sm:p-6 shadow-md">
+                <h3 className="text-lg sm:text-xl font-bold mb-4 text-gray-800">Revenus mensuels</h3>
+                <ResponsiveContainer width="100%" height={250} className="sm:h-[300px]">
+                  <LineChart data={revenueData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+                    <YAxis tick={{ fontSize: 12 }} />
+                    <Tooltip />
+                    <Legend wrapperStyle={{ fontSize: 12 }} />
+                    <Line type="monotone" dataKey="revenue" stroke="#1b5e8e" strokeWidth={3} name="Revenus (FCFA)" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
 
-            <div className="bg-white rounded-2xl shadow-sm border-2 border-gray-200 overflow-hidden">
-              {loading ? (
-                <div className="text-center py-20">
-                  <Loader className="animate-spin text-blue-600 mx-auto mb-4" size={48} />
-                  <p className="text-gray-500 font-semibold">Chargement...</p>
-                </div>
-              ) : filteredReservations.length === 0 ? (
-                <div className="text-center py-20">
-                  <Calendar className="mx-auto text-gray-300 mb-4" size={64} />
-                  <p className="text-gray-500 text-lg font-semibold">Aucune réservation trouvée</p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-gray-50 border-b-2 border-gray-200">
-                      <tr>
-                        <th className="px-6 py-4 text-left text-xs font-black text-gray-700 uppercase tracking-wider">Client</th>
-                        <th className="px-6 py-4 text-left text-xs font-black text-gray-700 uppercase tracking-wider">Contact</th>
-                        <th className="px-6 py-4 text-left text-xs font-black text-gray-700 uppercase tracking-wider">Date</th>
-                        <th className="px-6 py-4 text-left text-xs font-black text-gray-700 uppercase tracking-wider">Voyageurs</th>
-                        <th className="px-6 py-4 text-left text-xs font-black text-gray-700 uppercase tracking-wider">Statut</th>
-                        <th className="px-6 py-4 text-left text-xs font-black text-gray-700 uppercase tracking-wider">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {filteredReservations.map(res => (
-                        <tr key={res.id} className="hover:bg-gray-50 transition-colors">
-                          <td className="px-6 py-4">
-                            <div className="font-bold text-gray-900">{res.full_name}</div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="text-sm text-gray-600 font-semibold">{res.email}</div>
-                            <div className="text-sm text-gray-500">{res.phone}</div>
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-600 font-semibold">{res.date_reservation}</td>
-                          <td className="px-6 py-4">
-                            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold bg-blue-100 text-blue-700">
-                              <Users size={14} className="mr-1" />
-                              {res.travelers}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4">
-                            <span className={`inline-flex px-3 py-1 rounded-full text-xs font-black ${
-                              res.status === 'approved' ? 'bg-green-100 text-green-700 border-2 border-green-200' :
-                              res.status === 'rejected' ? 'bg-red-100 text-red-700 border-2 border-red-200' :
-                              'bg-yellow-100 text-yellow-700 border-2 border-yellow-200'
-                            }`}>
-                              {res.status === 'approved' ? 'Approuvée' :
-                               res.status === 'rejected' ? 'Rejetée' : 'En attente'}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4">
-                            {res.status === 'pending' && (
-                              <div className="flex space-x-2">
-                                <button
-                                  onClick={() => handleValidateReservation(res.id)}
-                                  className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors border-2 border-green-200"
-                                  title="Approuver"
-                                >
-                                  <Check size={20} />
-                                </button>
-                                <button
-                                  onClick={() => handleCancelReservation(res.id)}
-                                  className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors border-2 border-red-200"
-                                  title="Rejeter"
-                                >
-                                  <X size={20} />
-                                </button>
-                              </div>
-                            )}
-                          </td>
-                        </tr>
+              <div className="bg-white rounded-xl p-4 sm:p-6 shadow-md">
+                <h3 className="text-lg sm:text-xl font-bold mb-4 text-gray-800">Statut des réservations</h3>
+                <ResponsiveContainer width="100%" height={250} className="sm:h-[300px]">
+                  <PieChart>
+                    <Pie
+                      data={statusData}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={entry => `${entry.name}: ${entry.value}`}
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {statusData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl p-4 sm:p-6 shadow-md">
+              <h3 className="text-lg sm:text-xl font-bold mb-4 text-gray-800">Répartition des offres</h3>
+              <ResponsiveContainer width="100%" height={250} className="sm:h-[300px]">
+                <BarChart data={destinationTypeData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                  <YAxis tick={{ fontSize: 12 }} />
+                  <Tooltip />
+                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  <Bar dataKey="value" name="Nombre" fill="#1b5e8e">
+                    {destinationTypeData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
             </div>
           </div>
         )}
-      </main>
 
-      {/* Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-blue-700 p-6 z-10 rounded-t-2xl">
-              <h2 className="text-3xl font-black text-white">
-                {editingPackage ? 'Modifier le package' : 'Nouveau package'}
-              </h2>
-            </div>
-
-            <div className="p-6 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-bold text-gray-700 mb-2">Titre *</label>
+        {activeTab === 'config' && (
+          <div>
+            <h2 className="text-2xl sm:text-3xl font-bold mb-6 sm:mb-8 text-gray-800">Configuration</h2>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+              <div className="bg-white rounded-xl p-4 sm:p-6 shadow-md">
+                <h3 className="text-lg sm:text-xl font-bold mb-4 flex items-center gap-2" style={{ color: '#1b5e8e' }}>
+                  <Globe size={20} className="sm:w-6 sm:h-6" />
+                  Ajouter un pays
+                </h3>
+                <div className="space-y-4">
                   <input
                     type="text"
-                    value={formData.title}
-                    onChange={(e) => setFormData({...formData, title: e.target.value})}
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-600 focus:outline-none transition-all font-semibold"
-                    placeholder="Nom du package"
+                    placeholder="Nom du pays"
+                    value={countryForm.name}
+                    onChange={e => setCountryForm({ ...countryForm, name: e.target.value })}
+                    className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
                   />
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-bold text-gray-700 mb-2">Description</label>
-                  <textarea
-                    value={formData.description}
-                    onChange={(e) => setFormData({...formData, description: e.target.value})}
-                    rows="4"
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-600 focus:outline-none transition-all"
-                    placeholder="Description détaillée du package"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">Type *</label>
-                  <select
-                    value={formData.package_type}
-                    onChange={(e) => setFormData({...formData, package_type: e.target.value})}
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-600 focus:outline-none transition-all font-semibold"
-                  >
-                    <option value="ouikenac">Ouikenac</option>
-                    <option value="destination">Destination</option>
-                    <option value="city_tour">City Tour</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">Pays</label>
-                  <select
-                    value={formData.country}
-                    onChange={(e) => setFormData({...formData, country: e.target.value})}
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-600 focus:outline-none transition-all font-semibold"
-                  >
-                    <option value="RC">RC (Congo-Brazzaville)</option>
-                    <option value="RDC">RDC (Congo-Kinshasa)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">Sous-type</label>
                   <input
                     type="text"
-                    value={formData.sub_type}
-                    onChange={(e) => setFormData({...formData, sub_type: e.target.value})}
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-600 focus:outline-none transition-all"
-                    placeholder="Ex: Safari, Plage, Montagne..."
+                    placeholder="Code (ex: CG, FR)"
+                    value={countryForm.code}
+                    onChange={e => setCountryForm({ ...countryForm, code: e.target.value })}
+                    className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
                   />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">Image</label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => setFormData({...formData, image: e.target.files[0]})}
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-600 focus:outline-none transition-all"
-                  />
-                </div>
-              </div>
-
-              <div className="border-t-2 border-gray-200 pt-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center space-x-2">
-                    <DollarSign size={20} className="text-blue-600" />
-                    <h3 className="text-lg font-black text-gray-900">Grille tarifaire</h3>
-                  </div>
                   <button
-                    type="button"
-                    onClick={addPrice}
-                    className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-bold"
+                    onClick={handleAddCountry}
+                    className="w-full text-white py-2 sm:py-3 rounded-lg font-medium hover:opacity-90 transition text-sm sm:text-base"
+                    style={{ backgroundColor: '#1b5e8e' }}
                   >
-                    <Plus size={18} />
-                    <span>Ajouter un tarif</span>
+                    Ajouter le pays
                   </button>
                 </div>
+              </div>
 
-                {formData.prices.length === 0 ? (
-                  <div className="text-center py-8 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
-                    <DollarSign className="mx-auto text-gray-300 mb-2" size={40} />
-                    <p className="text-gray-500 font-semibold">Aucun tarif défini</p>
-                    <p className="text-sm text-gray-400 mt-1">Cliquez sur "Ajouter un tarif" pour commencer</p>
+              <div className="bg-white rounded-xl p-4 sm:p-6 shadow-md">
+                <h3 className="text-lg sm:text-xl font-bold mb-4 flex items-center gap-2" style={{ color: '#f18f13' }}>
+                  <Building size={20} className="sm:w-6 sm:h-6" />
+                  Ajouter une ville
+                </h3>
+                <div className="space-y-4">
+                  <select
+                    value={cityForm.country_id}
+                    onChange={e => setCityForm({ ...cityForm, country_id: e.target.value })}
+                    className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm sm:text-base"
+                  >
+                    <option value="">Sélectionner un pays</option>
+                    {countries.map(c => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                  <input
+                    type="text"
+                    placeholder="Nom de la ville"
+                    value={cityForm.name}
+                    onChange={e => setCityForm({ ...cityForm, name: e.target.value })}
+                    className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm sm:text-base"
+                  />
+                  <button
+                    onClick={handleAddCity}
+                    className="w-full text-white py-2 sm:py-3 rounded-lg font-medium hover:opacity-90 transition text-sm sm:text-base"
+                    style={{ backgroundColor: '#f18f13' }}
+                  >
+                    Ajouter la ville
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 sm:mt-8 bg-white rounded-xl p-4 sm:p-6 shadow-md">
+              <h3 className="text-lg sm:text-xl font-bold mb-4 text-gray-800">Pays et villes configurés</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {countries.map(country => (
+                  <div key={country.id} className="border border-gray-200 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Globe size={18} style={{ color: '#1b5e8e' }} />
+                      <h4 className="font-bold text-base sm:text-lg">{country.name} ({country.code})</h4>
+                    </div>
+                    <div className="ml-6 sm:ml-7 space-y-1">
+                      {country.cities?.map(city => (
+                        <div key={city.id} className="text-xs sm:text-sm text-gray-600 flex items-center gap-2">
+                          <Building size={12} className="sm:w-3.5 sm:h-3.5" style={{ color: '#f18f13' }} />
+                          {city.name}
+                        </div>
+                      ))}
+                      {(!country.cities || country.cities.length === 0) && (
+                        <p className="text-xs sm:text-sm text-gray-400 italic">Aucune ville</p>
+                      )}
+                    </div>
                   </div>
-                ) : (
-                  <div className="space-y-4">
-                    {formData.prices.map((price, index) => (
-                      <div key={index} className="bg-gray-50 rounded-xl p-4 border-2 border-gray-200">
-                        <div className="flex items-start justify-between mb-4">
-                          <span className="text-sm font-black text-gray-700">Tarif #{index + 1}</span>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'destinations' && (
+          <div>
+            <h2 className="text-2xl sm:text-3xl font-bold mb-6 sm:mb-8 text-gray-800">Destinations Populaires</h2>
+            
+            <div className="bg-white rounded-xl p-4 sm:p-6 shadow-md mb-6 sm:mb-8">
+              <h3 className="text-lg sm:text-xl font-bold mb-4" style={{ color: '#1b5e8e' }}>Ajouter une destination</h3>
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <input
+                    type="text"
+                    placeholder="Titre"
+                    value={destinationForm.title}
+                    onChange={e => setDestinationForm({ ...destinationForm, title: e.target.value })}
+                    className="px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm sm:text-base"
+                  />
+                  <div className="relative">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={e => handleFileChange(e, setDestinationForm, destinationForm)}
+                      className="hidden"
+                      id="dest-image"
+                    />
+                    <label 
+                      htmlFor="dest-image"
+                      className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 text-sm sm:text-base"
+                    >
+                      <Upload size={18} />
+                      <span className="text-gray-600 truncate">{destinationForm.image ? destinationForm.image.name : 'Choisir une image'}</span>
+                    </label>
+                  </div>
+                  <select
+                    value={destinationForm.departure_country_id}
+                    onChange={e => setDestinationForm({ ...destinationForm, departure_country_id: e.target.value })}
+                    className="px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm sm:text-base"
+                  >
+                    <option value="">Pays de départ</option>
+                    {countries.map(c => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={destinationForm.arrival_country_id}
+                    onChange={e => setDestinationForm({ ...destinationForm, arrival_country_id: e.target.value })}
+                    className="px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm sm:text-base"
+                  >
+                    <option value="">Pays d'arrivée</option>
+                    {countries.map(c => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <textarea
+                  placeholder="Description"
+                  value={destinationForm.description}
+                  onChange={e => setDestinationForm({ ...destinationForm, description: e.target.value })}
+                  className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm sm:text-base"
+                  rows="3"
+                />
+
+                <div className="border-t pt-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="font-bold text-sm sm:text-base" style={{ color: '#1b5e8e' }}>Tarifs par nombre de personnes</h4>
+                    <button
+                      onClick={addPriceField}
+                      className="px-3 py-1 text-white rounded text-xs sm:text-sm hover:opacity-90"
+                      style={{ backgroundColor: '#1b5e8e' }}
+                    >
+                      + Ajouter un tarif
+                    </button>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    {destinationForm.prices.map((price, index) => (
+                      <div key={index} className="flex gap-2">
+                        <input
+                          type="number"
+                          placeholder="Nb personnes"
+                          value={price.people_count}
+                          onChange={e => updatePriceField(index, 'people_count', e.target.value)}
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                        />
+                        <input
+                          type="number"
+                          placeholder="Prix (FCFA)"
+                          value={price.price}
+                          onChange={e => updatePriceField(index, 'price', e.target.value)}
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                        />
+                        {destinationForm.prices.length > 1 && (
                           <button
-                            type="button"
-                            onClick={() => removePrice(index)}
-                            className="text-red-600 hover:bg-red-50 p-1 rounded-lg transition-colors"
+                            onClick={() => removePriceField(index)}
+                            className="px-3 py-2 bg-red-500 text-white rounded-lg text-sm hover:opacity-90"
                           >
-                            <Trash2 size={18} />
+                            ✕
                           </button>
-                        </div>
-                        
-                        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                          <div>
-                            <label className="block text-xs font-bold text-gray-600 mb-1">Pays</label>
-                            <select
-                              value={price.country}
-                              onChange={(e) => updatePrice(index, 'country', e.target.value)}
-                              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-600 text-sm bg-white font-semibold"
-                            >
-                              <option value="RC">RC</option>
-                              <option value="RDC">RDC</option>
-                            </select>
-                          </div>
-
-                          <div>
-                            <label className="block text-xs font-bold text-gray-600 mb-1">Min pers.</label>
-                            <input
-                              type="number"
-                              min="1"
-                              value={price.min_people}
-                              onChange={(e) => updatePrice(index, 'min_people', e.target.value)}
-                              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-600 text-sm font-semibold"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-xs font-bold text-gray-600 mb-1">Max pers.</label>
-                            <input
-                              type="number"
-                              min="1"
-                              value={price.max_people}
-                              onChange={(e) => updatePrice(index, 'max_people', e.target.value)}
-                              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-600 text-sm font-semibold"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-xs font-bold text-gray-600 mb-1">Prix *</label>
-                            <input
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              value={price.price}
-                              onChange={(e) => updatePrice(index, 'price', e.target.value)}
-                              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-600 text-sm font-semibold"
-                              placeholder="0.00"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-xs font-bold text-gray-600 mb-1">Devise</label>
-                            <select
-                              value={price.currency}
-                              onChange={(e) => updatePrice(index, 'currency', e.target.value)}
-                              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-600 text-sm bg-white font-semibold"
-                            >
-                              <option value="XAF">XAF</option>
-                              <option value="EUR">EUR</option>
-                              <option value="USD">USD</option>
-                              <option value="CDF">CDF</option>
-                            </select>
-                          </div>
-                        </div>
+                        )}
                       </div>
                     ))}
                   </div>
-                )}
-              </div>
+                </div>
 
-              <div className="flex space-x-3 pt-4 border-t-2 border-gray-200">
                 <button
-                  onClick={handleSubmitPackage}
-                  disabled={loading}
-                  className="flex-1 bg-gray-900 text-white py-4 rounded-xl font-black hover:bg-blue-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl text-lg"
+                  onClick={handleAddDestination}
+                  className="w-full text-white py-2 sm:py-3 rounded-lg font-medium hover:opacity-90 transition text-sm sm:text-base"
+                  style={{ backgroundColor: '#1b5e8e' }}
                 >
-                  {loading ? (
-                    <span className="flex items-center justify-center">
-                      <Loader className="w-5 h-5 border-2 animate-spin mr-2" />
-                      Enregistrement...
-                    </span>
-                  ) : (
-                    editingPackage ? 'Mettre à jour' : 'Créer le package'
-                  )}
-                </button>
-                <button
-                  onClick={() => {
-                    setShowModal(false);
-                    resetForm();
-                  }}
-                  className="px-8 py-4 border-2 border-gray-300 text-gray-700 rounded-xl font-black hover:bg-gray-50 transition-colors text-lg"
-                >
-                  Annuler
+                  Ajouter la destination
                 </button>
               </div>
             </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+              {destinations.map(dest => (
+                <div key={dest.id} className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition">
+                  {dest.image && (
+                    <img src={dest.image} alt={dest.title} className="w-full h-40 sm:h-48 object-cover" />
+                  )}
+                  <div className="p-4">
+                    <h4 className="font-bold text-base sm:text-lg mb-2">{dest.title}</h4>
+                    <p className="text-xs sm:text-sm text-gray-600 mb-3 line-clamp-2">{dest.description}</p>
+                    
+                    {dest.prices && dest.prices.length > 0 && (
+                      <div className="mb-3 border-t pt-2">
+                        <p className="text-xs font-semibold text-gray-700 mb-1">Tarifs:</p>
+                        {dest.prices.map((price, idx) => (
+                          <div key={idx} className="flex justify-between text-xs text-gray-600">
+                            <span>{price.people_count} pers.</span>
+                            <span className="font-bold" style={{ color: '#1b5e8e' }}>{price.price} FCFA</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    
+                    <button
+                      onClick={() => handleDeleteItem('destinations', dest.id)}
+                      className="w-full text-white py-2 rounded-lg text-xs sm:text-sm hover:opacity-90"
+                      style={{ backgroundColor: '#cd1422' }}
+                    >
+                      Supprimer
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+
+        {activeTab === 'ouikenac' && (
+          <div>
+            <h2 className="text-2xl sm:text-3xl font-bold mb-6 sm:mb-8 text-gray-800">Packages Ouikenac</h2>
+            
+            <div className="bg-white rounded-xl p-4 sm:p-6 shadow-md mb-6 sm:mb-8">
+              <h3 className="text-lg sm:text-xl font-bold mb-4" style={{ color: '#f18f13' }}>Ajouter un package Ouikenac</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input
+                  type="text"
+                  placeholder="Nom"
+                  value={ouikenacForm.nom}
+                  onChange={e => setOuikenacForm({ ...ouikenacForm, nom: e.target.value })}
+                  className="px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm sm:text-base"
+                />
+                <div className="relative">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={e => handleFileChange(e, setOuikenacForm, ouikenacForm)}
+                    className="hidden"
+                    id="ouik-image"
+                  />
+                  <label 
+                    htmlFor="ouik-image"
+                    className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 text-sm sm:text-base"
+                  >
+                    <Upload size={18} />
+                    <span className="text-gray-600 truncate">{ouikenacForm.image ? ouikenacForm.image.name : 'Choisir une image'}</span>
+                  </label>
+                </div>
+                <select
+                  value={ouikenacForm.country_depart_id}
+                  onChange={e => setOuikenacForm({ ...ouikenacForm, country_depart_id: e.target.value })}
+                  className="px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm sm:text-base"
+                >
+                  <option value="">Pays de départ</option>
+                  {countries.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+                <select
+                  value={ouikenacForm.country_arrivee_id}
+                  onChange={e => setOuikenacForm({ ...ouikenacForm, country_arrivee_id: e.target.value })}
+                  className="px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm sm:text-base"
+                >
+                  <option value="">Pays d'arrivée</option>
+                  {countries.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+                <select
+                  value={ouikenacForm.city_depart_id}
+                  onChange={e => setOuikenacForm({ ...ouikenacForm, city_depart_id: e.target.value })}
+                  className="px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm sm:text-base"
+                >
+                  <option value="">Ville de départ</option>
+                  {cities.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+                <select
+                  value={ouikenacForm.city_arrivee_id}
+                  onChange={e => setOuikenacForm({ ...ouikenacForm, city_arrivee_id: e.target.value })}
+                  className="px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm sm:text-base"
+                >
+                  <option value="">Ville d'arrivée</option>
+                  {cities.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+                <input
+                  type="number"
+                  placeholder="Prix"
+                  value={ouikenacForm.prix}
+                  onChange={e => setOuikenacForm({ ...ouikenacForm, prix: e.target.value })}
+                  className="px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm sm:text-base"
+                />
+                <div className="flex gap-2 sm:gap-4">
+                  <input
+                    type="number"
+                    placeholder="Min"
+                    value={ouikenacForm.places_min}
+                    onChange={e => setOuikenacForm({ ...ouikenacForm, places_min: e.target.value })}
+                    className="w-1/2 px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm sm:text-base"
+                  />
+                  <input
+                    type="number"
+                    placeholder="Max"
+                    value={ouikenacForm.places_max}
+                    onChange={e => setOuikenacForm({ ...ouikenacForm, places_max: e.target.value })}
+                    className="w-1/2 px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm sm:text-base"
+                  />
+                </div>
+                <div className="col-span-1 md:col-span-2 flex flex-wrap gap-4 sm:gap-6">
+                  <label className="flex items-center gap-2 cursor-pointer text-sm sm:text-base">
+                    <input
+                      type="checkbox"
+                      checked={ouikenacForm.repas}
+                      onChange={e => setOuikenacForm({ ...ouikenacForm, repas: e.target.checked })}
+                      className="w-4 h-4 sm:w-5 sm:h-5"
+                    />
+                    <span>Repas inclus</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer text-sm sm:text-base">
+                    <input
+                      type="checkbox"
+                      checked={ouikenacForm.transport}
+                      onChange={e => setOuikenacForm({ ...ouikenacForm, transport: e.target.checked })}
+                      className="w-4 h-4 sm:w-5 sm:h-5"
+                    />
+                    <span>Transport</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer text-sm sm:text-base">
+                    <input
+                      type="checkbox"
+                      checked={ouikenacForm.hebergement}
+                      onChange={e => setOuikenacForm({ ...ouikenacForm, hebergement: e.target.checked })}
+                      className="w-4 h-4 sm:w-5 sm:h-5"
+                    />
+                    <span>Hébergement</span>
+                  </label>
+                </div>
+                <textarea
+                  placeholder="Description"
+                  value={ouikenacForm.description}
+                  onChange={e => setOuikenacForm({ ...ouikenacForm, description: e.target.value })}
+                  className="col-span-1 md:col-span-2 px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm sm:text-base"
+                  rows="3"
+                />
+                <textarea
+                  placeholder="Programme"
+                  value={ouikenacForm.programme}
+                  onChange={e => setOuikenacForm({ ...ouikenacForm, programme: e.target.value })}
+                  className="col-span-1 md:col-span-2 px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm sm:text-base"
+                  rows="3"
+                />
+                <button
+                  onClick={handleAddOuikenac}
+                  className="col-span-1 md:col-span-2 text-white py-2 sm:py-3 rounded-lg font-medium hover:opacity-90 transition text-sm sm:text-base"
+                  style={{ backgroundColor: '#f18f13' }}
+                >
+                  Ajouter le package Ouikenac
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+              {ouikenacs.map(ouik => (
+                <div key={ouik.id} className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition">
+                  {ouik.image && (
+                    <img src={ouik.image} alt={ouik.nom} className="w-full h-40 sm:h-48 object-cover" />
+                  )}
+                  <div className="p-4">
+                    <h4 className="font-bold text-base sm:text-lg mb-2">{ouik.nom}</h4>
+                    <p className="text-xs sm:text-sm text-gray-600 mb-2 line-clamp-2">{ouik.description}</p>
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      {ouik.repas && <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded">Repas</span>}
+                      {ouik.transport && <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">Transport</span>}
+                      {ouik.hebergement && <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded">Hébergement</span>}
+                    </div>
+                    <div className="flex justify-between items-center mb-3">
+                      <span className="font-bold text-sm sm:text-base" style={{ color: '#f18f13' }}>{ouik.prix} FCFA</span>
+                      <span className="text-xs sm:text-sm text-gray-500">{ouik.places_min}-{ouik.places_max} pers.</span>
+                    </div>
+                    <button
+                      onClick={() => handleDeleteItem('ouikenac', ouik.id)}
+                      className="w-full text-white py-2 rounded-lg text-xs sm:text-sm hover:opacity-90"
+                      style={{ backgroundColor: '#cd1422' }}
+                    >
+                      Supprimer
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'citytour' && (
+          <div>
+            <h2 className="text-2xl sm:text-3xl font-bold mb-6 sm:mb-8 text-gray-800">City Tours</h2>
+            
+            <div className="bg-white rounded-xl p-4 sm:p-6 shadow-md mb-6 sm:mb-8">
+              <h3 className="text-lg sm:text-xl font-bold mb-4" style={{ color: '#40bcd5' }}>Ajouter un City Tour</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input
+                  type="text"
+                  placeholder="Nom du tour"
+                  value={cityTourForm.nom}
+                  onChange={e => setCityTourForm({ ...cityTourForm, nom: e.target.value })}
+                  className="px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 text-sm sm:text-base"
+                />
+                <select
+                  value={cityTourForm.country_id}
+                  onChange={e => setCityTourForm({ ...cityTourForm, country_id: e.target.value })}
+                  className="px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 text-sm sm:text-base"
+                >
+                  <option value="">Sélectionner un pays</option>
+                  {countries.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+                <input
+                  type="date"
+                  value={cityTourForm.date}
+                  onChange={e => setCityTourForm({ ...cityTourForm, date: e.target.value })}
+                  className="px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 text-sm sm:text-base"
+                />
+                <input
+                  type="number"
+                  placeholder="Prix"
+                  value={cityTourForm.prix}
+                  onChange={e => setCityTourForm({ ...cityTourForm, prix: e.target.value })}
+                  className="px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 text-sm sm:text-base"
+                />
+                <div className="flex gap-2 sm:gap-4">
+                  <input
+                    type="number"
+                    placeholder="Min personnes"
+                    value={cityTourForm.places_min}
+                    onChange={e => setCityTourForm({ ...cityTourForm, places_min: e.target.value })}
+                    className="w-1/2 px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 text-sm sm:text-base"
+                  />
+                  <input
+                    type="number"
+                    placeholder="Max personnes"
+                    value={cityTourForm.places_max}
+                    onChange={e => setCityTourForm({ ...cityTourForm, places_max: e.target.value })}
+                    className="w-1/2 px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 text-sm sm:text-base"
+                  />
+                </div>
+                <textarea
+                  placeholder="Description"
+                  value={cityTourForm.description}
+                  onChange={e => setCityTourForm({ ...cityTourForm, description: e.target.value })}
+                  className="col-span-1 md:col-span-2 px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 text-sm sm:text-base"
+                  rows="3"
+                />
+                <button
+                  onClick={handleAddCityTour}
+                  className="col-span-1 md:col-span-2 text-white py-2 sm:py-3 rounded-lg font-medium hover:opacity-90 transition text-sm sm:text-base"
+                  style={{ backgroundColor: '#40bcd5' }}
+                >
+                  Ajouter le City Tour
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+              {cityTours.map(tour => (
+                <div key={tour.id} className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition">
+                  <div className="p-4">
+                    <h4 className="font-bold text-base sm:text-lg mb-2">{tour.nom}</h4>
+                    <p className="text-xs sm:text-sm text-gray-600 mb-2 line-clamp-2">{tour.description}</p>
+                    <div className="flex items-center gap-2 mb-2">
+                      <Calendar size={14} className="text-gray-500 sm:w-4 sm:h-4" />
+                      <span className="text-xs sm:text-sm text-gray-600">{tour.date}</span>
+                    </div>
+                    <div className="flex justify-between items-center mb-3">
+                      <span className="font-bold text-sm sm:text-base" style={{ color: '#40bcd5' }}>{tour.prix} FCFA</span>
+                      <span className="text-xs sm:text-sm text-gray-500">{tour.places_min}-{tour.places_max} pers.</span>
+                    </div>
+                    <button
+                      onClick={() => handleDeleteItem('city-tours', tour.id)}
+                      className="w-full text-white py-2 rounded-lg text-xs sm:text-sm hover:opacity-90"
+                      style={{ backgroundColor: '#cd1422' }}
+                    >
+                      Supprimer
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'reservations' && (
+          <div>
+            <h2 className="text-2xl sm:text-3xl font-bold mb-6 sm:mb-8 text-gray-800">Gestion des réservations</h2>
+            
+            <div className="bg-white rounded-xl shadow-md overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[800px]">
+                  <thead className="text-white" style={{ backgroundColor: '#1b5e8e' }}>
+                    <tr>
+                      <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm">Client</th>
+                      <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm">Contact</th>
+                      <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm">Dates</th>
+                      <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm">Voyageurs</th>
+                      <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm">Prix</th>
+                      <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm">Statut</th>
+                      <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {reservations.map((res, idx) => (
+                      <tr key={res.id} className={idx % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
+                        <td className="px-3 sm:px-6 py-3 sm:py-4 font-medium text-xs sm:text-sm">{res.full_name}</td>
+                        <td className="px-3 sm:px-6 py-3 sm:py-4">
+                          <div className="text-xs sm:text-sm">{res.email}</div>
+                          <div className="text-xs text-gray-500">{res.phone}</div>
+                        </td>
+                        <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm">
+                          <div>{res.date_from}</div>
+                          <div className="text-gray-500">au {res.date_to}</div>
+                        </td>
+                        <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm">{res.travelers}</td>
+                        <td className="px-3 sm:px-6 py-3 sm:py-4 font-bold text-xs sm:text-sm">{res.total_price} {res.currency}</td>
+                        <td className="px-3 sm:px-6 py-3 sm:py-4">
+                          <span className={`px-2 sm:px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
+                            res.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                            res.status === 'approved' ? 'bg-green-100 text-green-800' :
+                            res.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {res.status === 'pending' ? 'En attente' :
+                             res.status === 'approved' ? 'Approuvée' :
+                             res.status === 'rejected' ? 'Rejetée' : 'Annulée'}
+                          </span>
+                        </td>
+                        <td className="px-3 sm:px-6 py-3 sm:py-4">
+                          {res.status === 'pending' && (
+                            <div className="flex flex-col sm:flex-row gap-2">
+                              <button
+                                onClick={() => handleUpdateReservationStatus(res.id, 'approved')}
+                                className="px-2 sm:px-3 py-1 text-white rounded text-xs hover:opacity-90 whitespace-nowrap"
+                                style={{ backgroundColor: '#3fa535' }}
+                              >
+                                Approuver
+                              </button>
+                              <button
+                                onClick={() => handleUpdateReservationStatus(res.id, 'rejected')}
+                                className="px-2 sm:px-3 py-1 text-white rounded text-xs hover:opacity-90 whitespace-nowrap"
+                                style={{ backgroundColor: '#cd1422' }}
+                              >
+                                Rejeter
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
 
-export default AdminPanel;
+export default AdminDashboard;
