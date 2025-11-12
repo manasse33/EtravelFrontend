@@ -240,8 +240,8 @@ const AdminDashboard = () => {
       return;
     }
     
-    if (countryForm.code.length !== 2) {
-      showNotification('Le code pays doit contenir exactement 2 caractères', 'warning');
+    if (countryForm.code.length !== 5) {
+      showNotification('Le code pays doit contenir au plus 4 caractères', 'warning');
       return;
     }
 
@@ -784,7 +784,7 @@ const AdminDashboard = () => {
                     placeholder="Code (ex: CG, FR)"
                     value={countryForm.code}
                     onChange={e => setCountryForm({ ...countryForm, code: e.target.value.toUpperCase() })}
-                    maxLength={2}
+                    maxLength={4}
                     className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
                   />
                   <button
