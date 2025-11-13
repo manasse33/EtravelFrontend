@@ -3,38 +3,46 @@ import { Globe, Menu, X, ArrowRight, Phone, Mail, MapPin, Facebook, Instagram, T
 import axios from 'axios';
 import { Link } from 'react-router-dom';
 
-// Composant de notification moderne
+// ============= COMPOSANTS RÉUTILISABLES =============
+
 const Notification = ({ show, message, type, onClose }) => {
   if (!show) return null;
 
-  const icons = {
-    success: <CheckCircle size={24} />,
-    error: <XCircle size={24} />,
-    warning: <AlertCircle size={24} />
+  const configs = {
+    success: {
+      icon: <CheckCircle size={24} />,
+      bg: 'bg-green-50',
+      border: 'border-green-500',
+      text: 'text-green-800',
+      iconColor: 'text-green-500',
+      title: 'Succès'
+    },
+    error: {
+      icon: <XCircle size={24} />,
+      bg: 'bg-red-50',
+      border: 'border-red-500',
+      text: 'text-red-800',
+      iconColor: 'text-red-500',
+      title: 'Erreur'
+    },
+    warning: {
+      icon: <AlertCircle size={24} />,
+      bg: 'bg-yellow-50',
+      border: 'border-yellow-500',
+      text: 'text-yellow-800',
+      iconColor: 'text-yellow-500',
+      title: 'Attention'
+    }
   };
 
-  const colors = {
-    success: 'bg-green-50 border-green-500 text-green-800',
-    error: 'bg-red-50 border-red-500 text-red-800',
-    warning: 'bg-yellow-50 border-yellow-500 text-yellow-800'
-  };
-
-  const iconColors = {
-    success: 'text-green-500',
-    error: 'text-red-500',
-    warning: 'text-yellow-500'
-  };
+  const config = configs[type];
 
   return (
-    <div className={`fixed top-20 right-4 z-50 max-w-md w-full ${colors[type]} border-l-4 rounded-r-xl p-4 shadow-2xl animate-slide-in`}>
+    <div className={`fixed top-20 right-4 z-50 max-w-md w-full ${config.bg} ${config.border} ${config.text} border-l-4 rounded-r-xl p-4 shadow-2xl animate-slide-in`}>
       <div className="flex items-start gap-3">
-        <div className={iconColors[type]}>
-          {icons[type]}
-        </div>
+        <div className={config.iconColor}>{config.icon}</div>
         <div className="flex-1">
-          <p className="font-semibold mb-1">
-            {type === 'success' ? 'Succès' : type === 'error' ? 'Erreur' : 'Attention'}
-          </p>
+          <p className="font-semibold mb-1">{config.title}</p>
           <p className="text-sm">{message}</p>
         </div>
         <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
@@ -45,23 +53,143 @@ const Notification = ({ show, message, type, onClose }) => {
   );
 };
 
-// Composant de chargement moderne
 const LoadingOverlay = ({ message = 'Chargement...' }) => (
   <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
     <div className="bg-white rounded-2xl p-8 shadow-2xl max-w-sm w-full mx-4">
       <div className="flex flex-col items-center">
         <div className="relative">
-          <Loader className="animate-spin h-16 w-16 text-blue-600" />
-          <div className="absolute inset-0 h-16 w-16 border-4 border-blue-200 rounded-full"></div>
+          <Loader className="animate-spin h-16 w-16 text-primary" />
+          <div className="absolute inset-0 h-16 w-16 border-4 border-primary/20 rounded-full"></div>
         </div>
         <p className="text-gray-700 font-semibold text-lg mt-6">{message}</p>
         <div className="w-full bg-gray-200 rounded-full h-1 mt-4 overflow-hidden">
-          <div className="h-full bg-blue-600 rounded-full animate-progress"></div>
+          <div className="h-full bg-primary rounded-full animate-progress"></div>
         </div>
       </div>
     </div>
   </div>
 );
+
+const Button = ({ children, variant = 'primary', size = 'md', className = '', ...props }) => {
+  const variants = {
+    primary: 'bg-primary text-white hover:bg-primary/90',
+    secondary: 'bg-secondary text-white hover:bg-secondary/90',
+    outline: 'border-2 border-primary text-primary hover:bg-primary hover:text-white',
+    green: 'bg-green text-white hover:bg-green/90',
+    warning: 'bg-warning text-gray-900 hover:bg-warning/90'
+  };
+
+  const sizes = {
+    sm: 'px-4 py-2 text-sm',
+    md: 'px-6 py-3',
+    lg: 'px-8 py-4 text-lg'
+  };
+
+  return (
+    <button
+      className={`font-bold rounded-full transition-all hover:shadow-xl hover:scale-105 ${variants[variant]} ${sizes[size]} ${className}`}
+      {...props}
+    >
+      {children}
+    </button>
+  );
+};
+
+const PackageCard = ({ pkg, selectedCountry, onSelect, onViewDetails, formatPrice, loadingDetails }) => (
+  <div className="bg-white rounded-2xl overflow-hidden border-2 border-gray-200 hover:shadow-2xl transition-all hover:-translate-y-2">
+    <div className="relative h-48 overflow-hidden">
+      <img 
+        src={pkg.image || 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=600'} 
+        alt={pkg.title} 
+        className="w-full h-full object-cover hover:scale-110 transition-transform duration-700"
+        onError={(e) => {
+          e.target.src = 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=600';
+        }}
+      />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+      <div className="absolute top-4 left-4">
+        <span className={`px-3 py-1 text-xs font-bold rounded-full ${selectedCountry === 'RC' ? 'bg-primary text-white' : 'bg-green text-white'}`}>
+          {pkg.departure_country?.name || selectedCountry}
+        </span>
+      </div>
+      <div className="absolute top-4 right-4">
+        <span className={`px-3 py-1 text-xs font-bold rounded-full ${pkg.active ? 'bg-green text-white' : 'bg-gray-500 text-white'}`}>
+          {pkg.active ? 'Disponible' : 'Indisponible'}
+        </span>
+      </div>
+    </div>
+    
+    <div className="p-6">
+      <h4 className="text-2xl font-black text-gray-900 mb-3">{pkg.title}</h4>
+      <p className="text-gray-600 mb-4 line-clamp-2">{pkg.description || 'Découvrez ce package unique'}</p>
+      
+      {pkg.departure_country && pkg.arrival_country && (
+        <div className="flex items-center gap-2 mb-4 text-sm text-gray-600">
+          <MapPin size={16} className="text-primary" />
+          <span>
+            {pkg.departure_country.name} → {pkg.arrival_country.name}
+          </span>
+        </div>
+      )}
+
+      {pkg.min_people && (
+        <div className="flex items-center gap-2 mb-4 text-sm text-gray-600">
+          <Users size={16} className="text-primary" />
+          <span>
+            {pkg.min_people} - {pkg.max_people || '+'} personnes
+          </span>
+        </div>
+      )}
+      
+      {pkg.prices && pkg.prices.length > 0 && (
+        <div className="space-y-2 mb-4">
+          {pkg.prices.map((price, idx) => (
+            <div key={idx} className="flex items-center justify-between text-sm bg-light-bg p-3 rounded-lg">
+              <span className="text-gray-700">
+                {price.min_people} {price.max_people ? `- ${price.max_people}` : '+'} pers.
+              </span>
+              <span className="font-bold text-gray-900">{formatPrice(price.price)} {price.currency}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      
+      <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
+        <div>
+          {pkg.prices && pkg.prices[0] && (
+            <div>
+              <p className="text-sm text-gray-500">À partir de</p>
+              <p className="text-2xl font-black text-primary">
+                {formatPrice(pkg.prices[0].price)} <span className="text-sm font-bold">{pkg.prices[0].currency}</span>
+              </p>
+            </div>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={() => onViewDetails(pkg)}
+            disabled={loadingDetails}
+            className="px-3 py-2 bg-gray-100 text-gray-700 font-bold rounded-full text-sm hover:bg-gray-200 transition-all flex items-center gap-1"
+            title="Voir les détails"
+          >
+            <Eye size={16} />
+          </button>
+          <Button 
+            onClick={() => onSelect(pkg.id)}
+            disabled={!pkg.active}
+            variant={pkg.active ? 'warning' : 'outline'}
+            size="sm"
+            className={`${!pkg.active && 'bg-gray-300 cursor-not-allowed hover:scale-100'}`}
+          >
+            {pkg.active ? 'Réserver' : 'Indisponible'}
+          </Button>
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
+// ============= COMPOSANT PRINCIPAL =============
 
 const OuikenacPage = () => {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -81,27 +209,21 @@ const OuikenacPage = () => {
     full_name: '',
     email: '',
     phone: '',
-    // date_from: '',
-    // date_to: '',
-    // travelers: '',
     currency: 'CFA',
     message: ''
   });
 
-  // Configuration de l'API
   const api = axios.create({
-    baseURL: 'http://127.0.0.1:8000/api',
+    baseURL: 'https://etravelbackend-production.up.railway.app/api',
     headers: {
       'Content-Type': 'application/json',
     },
   });
 
-  // Fonction pour formater le prix
   const formatPrice = (price) => {
     return parseFloat(price).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
   };
 
-  // Notification
   const [notification, setNotification] = useState({ show: false, message: '', type: '' });
   
   const showNotification = (message, type = 'success') => {
@@ -109,7 +231,6 @@ const OuikenacPage = () => {
     setTimeout(() => setNotification({ show: false, message: '', type: '' }), 5000);
   };
 
-  // Récupérer les packages au chargement
   useEffect(() => {
     fetchPackages();
   }, []);
@@ -131,7 +252,6 @@ const OuikenacPage = () => {
     }
   };
 
-  // Filtrer les packages par pays de départ
   const currentPackages = packages.filter(pkg => {
     if (selectedCountry === 'RC') {
       return pkg.departure_country?.code === 'RC';
@@ -148,21 +268,10 @@ const OuikenacPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Validation basique
     if (!formData.reservable_id) {
       showNotification('Veuillez sélectionner un package avant de réserver.', 'warning');
       return;
     }
-
-    // if (!formData.full_name || !formData.email || !formData.travelers) {
-    //   showNotification('Veuillez remplir tous les champs obligatoires.', 'warning');
-    //   return;
-    // }
-
-    // if (parseInt(formData.travelers) < 1) {
-    //   showNotification('Le nombre de voyageurs doit être au moins 1.', 'warning');
-    //   return;
-    // }
 
     try {
       setSubmitting(true);
@@ -174,9 +283,6 @@ const OuikenacPage = () => {
         full_name: formData.full_name,
         email: formData.email,
         phone: formData.phone,
-        // date_from: formData.date_from || null,
-        // date_to: formData.date_to || null,
-        // travelers: parseInt(formData.travelers),
         currency: formData.currency,
         message: formData.message
       };
@@ -190,21 +296,16 @@ const OuikenacPage = () => {
       setSubmitSuccess(true);
       showNotification('Réservation envoyée avec succès ! Nous vous contacterons très bientôt.', 'success');
       
-      // Réinitialiser le formulaire
       setFormData({
         reservable_id: '',
         type: 'ouikenac-package',
         full_name: '',
         email: '',
         phone: '',
-        // date_from: '',
-        // date_to: '',
-        // travelers: '',
         currency: 'CFA',
         message: ''
       });
 
-      // Masquer le message de succès après 5 secondes
       setTimeout(() => {
         setSubmitSuccess(false);
       }, 5000);
@@ -233,11 +334,9 @@ const OuikenacPage = () => {
       reservable_id: packageId,
       type: 'ouikenac-package'
     }));
-    // Scroll vers le formulaire
     document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // Fonction pour voir les détails d'un package
   const handleViewDetails = async (pkg) => {
     try {
       setLoadingDetails(true);
@@ -258,7 +357,6 @@ const OuikenacPage = () => {
 
   return (
     <div className="min-h-screen bg-white overflow-x-hidden">
-      {/* Notification */}
       <Notification
         show={notification.show}
         message={notification.message}
@@ -266,15 +364,14 @@ const OuikenacPage = () => {
         onClose={() => setNotification({ show: false, message: '', type: '' })}
       />
 
-      {/* Loading Overlay */}
       {submitting && <LoadingOverlay message="Envoi de votre réservation..." />}
 
       {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-white shadow-md">
+     <header className="fixed top-0 left-0 right-0 z-50 bg-white shadow-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-20">
             <div className="flex items-center space-x-3">
-              <Globe className="text-blue-600" size={36} />
+                <img src="logoetravel.jpg" alt="" width={70}/>
               <div>
                 <h1 className="text-2xl font-black text-gray-900">e-TRAVEL WORLD</h1>
                 <p className="text-xs text-gray-500 tracking-wider">AGENCY</p>
@@ -285,7 +382,7 @@ const OuikenacPage = () => {
               <Link to="/" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">Accueil</Link>
               <Link to="/about" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">À propos</Link>
               <Link to="/weekend" className="px-6 py-2 bg-yellow-400 text-gray-900 font-bold rounded-full hover:bg-yellow-500 transition-all hover:shadow-lg">
-                  OUIKENAC
+                OUIKENAC
               </Link>
               <Link to="/city-tour" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">CityTour</Link>
               <a href="#contact" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">Contact</a>
@@ -339,14 +436,14 @@ const OuikenacPage = () => {
         <div 
           className="absolute inset-0"
           style={{
-            backgroundImage: 'linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.6)), url(https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=1600)',
+            backgroundImage: 'linear-gradient(rgba(27,94,142,0.7), rgba(0,115,53,0.7)), url(https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=1600)',
             backgroundSize: 'cover',
             backgroundPosition: 'center'
           }}
         >
           <div className="relative h-full flex items-center justify-center">
             <div className="text-center px-4">
-              <div className="inline-block px-6 py-2 bg-yellow-400 rounded-full mb-6">
+              <div className="inline-block px-6 py-2 bg-warning rounded-full mb-6">
                 <p className="text-gray-900 font-bold tracking-wider uppercase text-sm">Week-End au Congo</p>
               </div>
               <h2 className="text-5xl md:text-7xl font-black text-white mb-4">OUIKENAC</h2>
@@ -359,7 +456,7 @@ const OuikenacPage = () => {
       {/* Introduction */}
       <section id="apropos" className="py-20 px-4 bg-white">
         <div className="max-w-6xl mx-auto">
-          <div className="bg-gray-50 rounded-2xl p-8 md:p-12 border border-gray-200">
+          <div className="bg-light-bg rounded-2xl p-8 md:p-12 border-2 border-primary/20">
             <h2 className="text-3xl md:text-4xl font-black text-gray-900 mb-8 text-center">
               Qu'est-ce que OUIKENAC ?
             </h2>
@@ -374,7 +471,7 @@ const OuikenacPage = () => {
                 Notre objectif : rendre uniques les week-ends des congolais, des expatriés et autres touristes au travers d'offres de découverte des plus beaux endroits de notre pays, surtout les plus insoupçonnés, de son histoire, de sa culture.
               </p>
             </div>
-            <div className="mt-8 p-6 bg-yellow-50 border-l-4 border-yellow-400 rounded-r-xl">
+            <div className="mt-8 p-6 bg-yellow-50 border-l-4 border-warning rounded-r-xl">
               <p className="text-xl font-bold text-gray-900 italic">
                 Grâce à OUIKENAC, vos semaines ne seront plus jamais les mêmes ! ✨
               </p>
@@ -384,7 +481,7 @@ const OuikenacPage = () => {
       </section>
 
       {/* Country Selection & Packages */}
-      <section id="packages" className="py-20 px-4 bg-gray-50">
+      <section id="packages" className="py-20 px-4 bg-light-bg">
         <div className="max-w-7xl mx-auto">
           <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-12 text-center">
             Choisissez Votre Destination
@@ -394,7 +491,7 @@ const OuikenacPage = () => {
             {/* République du Congo */}
             <div 
               onClick={() => setSelectedCountry('RC')}
-              className={`group cursor-pointer bg-white rounded-2xl overflow-hidden border-2 transition-all hover:shadow-2xl hover:-translate-y-2 ${selectedCountry === 'RC' ? 'border-blue-600 shadow-xl' : 'border-gray-200'}`}
+              className={`group cursor-pointer bg-white rounded-2xl overflow-hidden border-2 transition-all hover:shadow-2xl hover:-translate-y-2 ${selectedCountry === 'RC' ? 'border-primary shadow-xl' : 'border-gray-200'}`}
             >
               <div className="relative h-64">
                 <img 
@@ -413,19 +510,20 @@ const OuikenacPage = () => {
                   La République du CONGO compte 15 départements. Sa capitale est <strong>Brazzaville</strong> depuis le 25 novembre 1958. 
                   Sa monnaie est le Franc CFA.
                 </p>
-                <button 
+                <Button 
                   onClick={() => setSelectedCountry('RC')}
-                  className="w-full py-3 bg-blue-600 text-white font-bold rounded-full hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
+                  variant="primary"
+                  className="w-full flex items-center justify-center gap-2"
                 >
                   Voir les packages RC <ArrowRight size={20} />
-                </button>
+                </Button>
               </div>
             </div>
 
             {/* République Démocratique du Congo */}
             <div 
               onClick={() => setSelectedCountry('RDC')}
-              className={`group cursor-pointer bg-white rounded-2xl overflow-hidden border-2 transition-all hover:shadow-2xl hover:-translate-y-2 ${selectedCountry === 'RDC' ? 'border-green-600 shadow-xl' : 'border-gray-200'}`}
+              className={`group cursor-pointer bg-white rounded-2xl overflow-hidden border-2 transition-all hover:shadow-2xl hover:-translate-y-2 ${selectedCountry === 'RDC' ? 'border-green shadow-xl' : 'border-gray-200'}`}
             >
               <div className="relative h-64">
                 <img 
@@ -444,12 +542,13 @@ const OuikenacPage = () => {
                   La RDC est le quatrième pays le plus peuplé d'Afrique (102 millions d'habitants). 
                   Découpée en 26 provinces. Monnaie : Franc Congolais.
                 </p>
-                <button 
+                <Button 
                   onClick={() => setSelectedCountry('RDC')}
-                  className="w-full py-3 bg-green-600 text-white font-bold rounded-full hover:bg-green-700 transition-all flex items-center justify-center gap-2"
+                  variant="green"
+                  className="w-full flex items-center justify-center gap-2"
                 >
                   Voir les packages RDC <ArrowRight size={20} />
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -460,8 +559,8 @@ const OuikenacPage = () => {
               onClick={() => setSelectedCountry('RC')}
               className={`px-8 py-3 rounded-full font-bold transition-all ${
                 selectedCountry === 'RC' 
-                  ? 'bg-blue-600 text-white shadow-lg' 
-                  : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-blue-600'
+                  ? 'bg-primary text-white shadow-lg' 
+                  : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-primary'
               }`}
             >
               Packages RC
@@ -470,8 +569,8 @@ const OuikenacPage = () => {
               onClick={() => setSelectedCountry('RDC')}
               className={`px-8 py-3 rounded-full font-bold transition-all ${
                 selectedCountry === 'RDC' 
-                  ? 'bg-green-600 text-white shadow-lg' 
-                  : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-green-600'
+                  ? 'bg-green text-white shadow-lg' 
+                  : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-green'
               }`}
             >
               Packages RDC
@@ -482,8 +581,8 @@ const OuikenacPage = () => {
           {loading && (
             <div className="flex flex-col items-center justify-center py-20">
               <div className="relative">
-                <Loader className="animate-spin h-16 w-16 text-blue-600" />
-                <div className="absolute inset-0 h-16 w-16 border-4 border-blue-200 rounded-full"></div>
+                <Loader className="animate-spin h-16 w-16 text-primary" />
+                <div className="absolute inset-0 h-16 w-16 border-4 border-primary/20 rounded-full"></div>
               </div>
               <p className="text-gray-600 text-lg mt-6">Chargement des packages...</p>
             </div>
@@ -499,12 +598,13 @@ const OuikenacPage = () => {
                   <p className="text-red-700">{error}</p>
                 </div>
               </div>
-              <button 
+              <Button 
                 onClick={fetchPackages}
-                className="mt-4 px-6 py-2 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 transition-all"
+                variant="primary"
+                className="mt-4 bg-red-600 hover:bg-red-700"
               >
                 Réessayer
-              </button>
+              </Button>
             </div>
           )}
 
@@ -516,110 +616,29 @@ const OuikenacPage = () => {
               </h3>
               
               {currentPackages.length === 0 ? (
-                <div className="text-center py-12 bg-white rounded-2xl border border-gray-200">
+                <div className="text-center py-12 bg-white rounded-2xl border-2 border-gray-200">
                   <MapPin className="mx-auto text-gray-400 mb-4" size={48} />
                   <p className="text-gray-600 text-lg">Aucun package disponible pour cette destination pour le moment.</p>
-                  <button 
+                  <Button 
                     onClick={fetchPackages}
-                    className="mt-4 px-6 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition-all"
+                    variant="primary"
+                    className="mt-4"
                   >
                     Réessayer
-                  </button>
+                  </Button>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                   {currentPackages.map((pkg) => (
-                    <div key={pkg.id} className="bg-white rounded-2xl overflow-hidden border border-gray-200 hover:shadow-2xl transition-all hover:-translate-y-2">
-                      <div className="relative h-48 overflow-hidden">
-                        <img 
-                          src={pkg.image ? `http://127.0.0.1:8000/storage/${pkg.image}` : 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=600'} 
-                          alt={pkg.title} 
-                          className="w-full h-full object-cover hover:scale-110 transition-transform duration-700"
-                          onError={(e) => {
-                            e.target.src = 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=600';
-                          }}
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
-                        <div className="absolute top-4 left-4">
-                          <span className={`px-3 py-1 text-xs font-bold rounded-full ${selectedCountry === 'RC' ? 'bg-blue-600 text-white' : 'bg-green-600 text-white'}`}>
-                            {pkg.departure_country?.name || selectedCountry}
-                          </span>
-                        </div>
-                        <div className="absolute top-4 right-4">
-                          <span className={`px-3 py-1 text-xs font-bold rounded-full ${pkg.active ? 'bg-green-500 text-white' : 'bg-gray-500 text-white'}`}>
-                            {pkg.active ? 'Disponible' : 'Indisponible'}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="p-6">
-                        <h4 className="text-2xl font-black text-gray-900 mb-3">{pkg.title}</h4>
-                        <p className="text-gray-600 mb-4 line-clamp-2">{pkg.description || 'Découvrez ce package unique'}</p>
-                        
-                        {/* Informations du trajet */}
-                        {pkg.departure_country && pkg.arrival_country && (
-                          <div className="flex items-center gap-2 mb-4 text-sm text-gray-600">
-                            <MapPin size={16} className="text-blue-600" />
-                            <span>
-                              {pkg.departure_country.name} → {pkg.arrival_country.name}
-                            </span>
-                          </div>
-                        )}
-
-                        {/* Nombre de personnes */}
-                        {pkg.min_people && (
-                          <div className="flex items-center gap-2 mb-4 text-sm text-gray-600">
-                            <Users size={16} className="text-blue-600" />
-                            <span>
-                              {pkg.min_people} - {pkg.max_people || '+'} personnes
-                            </span>
-                          </div>
-                        )}
-                        
-                        {/* Affichage des prix */}
-                        {pkg.prices && pkg.prices.length > 0 && (
-                          <div className="space-y-2 mb-4">
-                            {pkg.prices.map((price, idx) => (
-                              <div key={idx} className="flex items-center justify-between text-sm bg-gray-50 p-3 rounded-lg">
-                                <span className="text-gray-700">
-                                  {price.min_people} {price.max_people ? `- ${price.max_people}` : '+'} pers.
-                                </span>
-                                <span className="font-bold text-gray-900">{formatPrice(price.price)} {price.currency}</span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                        
-                        <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
-                          <div>
-                            {pkg.prices && pkg.prices[0] && (
-                              <div>
-                                <p className="text-sm text-gray-500">À partir de</p>
-                                <p className="text-2xl font-black text-blue-600">
-                                  {formatPrice(pkg.prices[0].price)} <span className="text-sm font-bold">{pkg.prices[0].currency}</span>
-                                </p>
-                              </div>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <button 
-                              onClick={() => handleViewDetails(pkg)}
-                              disabled={loadingDetails}
-                              className="px-3 py-2 bg-gray-100 text-gray-700 font-bold rounded-full text-sm hover:bg-gray-200 transition-all flex items-center gap-1"
-                              title="Voir les détails"
-                            >
-                              <Eye size={16} />
-                            </button>
-                            <button 
-                              onClick={() => handlePackageSelect(pkg.id)}
-                              disabled={!pkg.active}
-                              className={`px-4 py-2 ${pkg.active ? 'bg-yellow-400 hover:bg-yellow-500' : 'bg-gray-300 cursor-not-allowed'} text-gray-900 font-bold rounded-full text-sm transition-all`}
-                            >
-                              {pkg.active ? 'Réserver' : 'Indisponible'}
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                    <PackageCard
+                      key={pkg.id}
+                      pkg={pkg}
+                      selectedCountry={selectedCountry}
+                      onSelect={handlePackageSelect}
+                      onViewDetails={handleViewDetails}
+                      formatPrice={formatPrice}
+                      loadingDetails={loadingDetails}
+                    />
                   ))}
                 </div>
               )}
@@ -628,14 +647,13 @@ const OuikenacPage = () => {
         </div>
       </section>
 
-      {/* Reservation Form Section */}
+      {/* Reservation Form Section - suite dans le prochain message */}
       <section id="contact" className="py-20 px-4 bg-white">
         <div className="max-w-7xl mx-auto">
           <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-12 text-center">
             Réservez Votre Week-End
           </h2>
 
-          {/* Success Message */}
           {submitSuccess && (
             <div className="bg-green-50 border-l-4 border-green-500 p-6 rounded-r-xl mb-8 animate-pulse">
               <div className="flex items-center gap-3">
@@ -648,7 +666,7 @@ const OuikenacPage = () => {
             </div>
           )}
           
-          <div className="flex flex-col lg:flex-row gap-12 bg-gray-50 p-8 rounded-2xl shadow-xl border border-gray-200">
+          <div className="flex flex-col lg:flex-row gap-12 bg-light-bg p-8 rounded-2xl shadow-xl border-2 border-primary/20">
             
             {/* Contact Info */}
             <div className="lg:w-1/3 space-y-8">
@@ -656,7 +674,7 @@ const OuikenacPage = () => {
               
               <div className="space-y-4">
                 <div className="flex items-center gap-4">
-                  <Phone size={24} className="text-blue-600" />
+                  <Phone size={24} className="text-primary" />
                   <div>
                     <p className="text-gray-500 text-sm">Téléphone</p>
                     <p className="font-semibold text-gray-800">+242 06 871 13 78</p>
@@ -664,14 +682,14 @@ const OuikenacPage = () => {
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
-                  <Mail size={24} className="text-blue-600" />
+                  <Mail size={24} className="text-primary" />
                   <div>
                     <p className="text-gray-500 text-sm">Email</p>
                     <p className="font-semibold text-gray-800">worldagencyetravel@gmail.com</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
-                  <MapPin size={24} className="text-blue-600" />
+                  <MapPin size={24} className="text-primary" />
                   <div>
                     <p className="text-gray-500 text-sm">Adresse</p>
                     <p className="font-semibold text-gray-800">Brazzaville, CONGO</p>
@@ -680,10 +698,10 @@ const OuikenacPage = () => {
               </div>
 
               <div className="flex gap-4 pt-4 border-t border-gray-200">
-                <a href="#" className="text-gray-500 hover:text-blue-600 transition-colors"><Facebook size={24} /></a>
-                <a href="#" className="text-gray-500 hover:text-blue-600 transition-colors"><Instagram size={24} /></a>
-                <a href="#" className="text-gray-500 hover:text-blue-600 transition-colors"><Twitter size={24} /></a>
-                <a href="#" className="text-gray-500 hover:text-blue-600 transition-colors"><Linkedin size={24} /></a>
+                <a href="#" className="text-gray-500 hover:text-primary transition-colors"><Facebook size={24} /></a>
+                <a href="#" className="text-gray-500 hover:text-primary transition-colors"><Instagram size={24} /></a>
+                <a href="#" className="text-gray-500 hover:text-primary transition-colors"><Twitter size={24} /></a>
+                <a href="#" className="text-gray-500 hover:text-primary transition-colors"><Linkedin size={24} /></a>
               </div>
             </div>
 
@@ -701,7 +719,7 @@ const OuikenacPage = () => {
                     required 
                     value={formData.full_name} 
                     onChange={handleInputChange} 
-                    className="block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-blue-500 focus:border-blue-500" 
+                    className="block w-full border-2 border-gray-200 rounded-lg shadow-sm p-3 focus:ring-primary focus:border-primary" 
                   />
                 </div>
                 <div>
@@ -713,7 +731,7 @@ const OuikenacPage = () => {
                     required 
                     value={formData.email} 
                     onChange={handleInputChange} 
-                    className="block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-blue-500 focus:border-blue-500" 
+                    className="block w-full border-2 border-gray-200 rounded-lg shadow-sm p-3 focus:ring-primary focus:border-primary" 
                   />
                 </div>
               </div>
@@ -728,7 +746,7 @@ const OuikenacPage = () => {
                     value={formData.phone} 
                     onChange={handleInputChange} 
                     placeholder="+242 06 XXX XX XX"
-                    className="block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-blue-500 focus:border-blue-500" 
+                    className="block w-full border-2 border-gray-200 rounded-lg shadow-sm p-3 focus:ring-primary focus:border-primary" 
                   />
                 </div>
                 <div>
@@ -739,7 +757,7 @@ const OuikenacPage = () => {
                     required 
                     value={formData.reservable_id} 
                     onChange={handleInputChange}
-                    className="block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                    className="block w-full border-2 border-gray-200 rounded-lg shadow-sm p-3 focus:ring-primary focus:border-primary bg-white"
                   >
                     <option value="">Sélectionnez un package</option>
                     {packages.map(pkg => (
@@ -752,47 +770,7 @@ const OuikenacPage = () => {
                 </div>
               </div>
 
-              {/* <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label htmlFor="date_from" className="block text-sm font-medium text-gray-700 mb-1">Date de départ</label>
-                  <input 
-                    type="date" 
-                    name="date_from" 
-                    id="date_from" 
-                    value={formData.date_from} 
-                    onChange={handleInputChange} 
-                    min={new Date().toISOString().split('T')[0]}
-                    className="block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-blue-500 focus:border-blue-500" 
-                  />
-                </div>
-                <div>
-                  <label htmlFor="date_to" className="block text-sm font-medium text-gray-700 mb-1">Date de retour</label>
-                  <input 
-                    type="date" 
-                    name="date_to" 
-                    id="date_to" 
-                    value={formData.date_to} 
-                    onChange={handleInputChange} 
-                    min={formData.date_from || new Date().toISOString().split('T')[0]}
-                    className="block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-blue-500 focus:border-blue-500" 
-                  />
-                </div>
-              </div> */}
-
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* <div>
-                  <label htmlFor="travelers" className="block text-sm font-medium text-gray-700 mb-1">Nombre de Voyageurs *</label>
-                  <input 
-                    type="number" 
-                    name="travelers" 
-                    id="travelers" 
-                    min="1" 
-                    required 
-                    value={formData.travelers} 
-                    onChange={handleInputChange} 
-                    className="block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-blue-500 focus:border-blue-500" 
-                  />
-                </div> */}
                 <div>
                   <label htmlFor="currency" className="block text-sm font-medium text-gray-700 mb-1">Devise</label>
                   <select 
@@ -800,7 +778,7 @@ const OuikenacPage = () => {
                     id="currency" 
                     value={formData.currency} 
                     onChange={handleInputChange}
-                    className="block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                    className="block w-full border-2 border-gray-200 rounded-lg shadow-sm p-3 focus:ring-primary focus:border-primary bg-white"
                   >
                     <option value="CFA">CFA</option>
                     <option value="USD">USD</option>
@@ -817,15 +795,17 @@ const OuikenacPage = () => {
                   rows="4" 
                   value={formData.message} 
                   onChange={handleInputChange} 
-                  className="block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-blue-500 focus:border-blue-500" 
+                  className="block w-full border-2 border-gray-200 rounded-lg shadow-sm p-3 focus:ring-primary focus:border-primary" 
                   placeholder="Ajoutez vos demandes spécifiques ici..."
                 />
               </div>
 
-              <button 
+              <Button 
                 type="submit" 
                 disabled={submitting}
-                className="w-full py-4 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition-all shadow-md flex items-center justify-center gap-2 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                variant="primary"
+                size="lg"
+                className="w-full flex items-center justify-center gap-2 disabled:bg-gray-400 disabled:cursor-not-allowed disabled:hover:scale-100"
               >
                 {submitting ? (
                   <>
@@ -837,7 +817,7 @@ const OuikenacPage = () => {
                     Envoyer la Réservation <Calendar size={20} />
                   </>
                 )}
-              </button>
+              </Button>
             </form>
 
           </div>
@@ -845,14 +825,14 @@ const OuikenacPage = () => {
       </section>
 
       {/* Promo Banner */}
-      <section className="py-20 px-4 bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600">
+      <section className="py-20 px-4 bg-green-ouik">
         <div className="max-w-5xl mx-auto text-center">
-          <p className="text-gray-900 text-2xl md:text-3xl mb-4 font-light">
+          <p className="text-white text-2xl md:text-3xl mb-4 font-light">
             Réservez votre <strong className="font-black">OUIKENAC</strong> maintenant
           </p>
-          <p className="text-7xl md:text-8xl font-black text-gray-900 mb-4">20%</p>
-          <p className="text-3xl md:text-4xl font-black text-gray-900 mb-6">DE RÉDUCTION</p>
-          <p className="text-gray-800 text-lg mb-8">Pour les 100 premiers inscrits</p>
+          <p className="text-7xl md:text-8xl font-black text-white mb-4">20%</p>
+          <p className="text-3xl md:text-4xl font-black text-white mb-6">DE RÉDUCTION</p>
+          <p className="text-green-100 text-lg mb-8">Pour les 100 premiers inscrits</p>
           <a href="#packages" className="inline-flex items-center gap-3 px-10 py-4 bg-gray-900 text-white font-bold text-lg rounded-full hover:bg-gray-800 transition-all hover:shadow-2xl hover:scale-105">
             Voir les packages <ArrowRight size={24} />
           </a>
@@ -866,7 +846,7 @@ const OuikenacPage = () => {
             {/* Header Modal */}
             <div className="relative h-64 overflow-hidden rounded-t-2xl">
               <img 
-                src={selectedPackage.image ? `http://127.0.0.1:8000/storage/${selectedPackage.image}` : 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=800'} 
+                src={selectedPackage.image || 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=800'} 
                 alt={selectedPackage.title}
                 className="w-full h-full object-cover"
                 onError={(e) => {
@@ -882,13 +862,13 @@ const OuikenacPage = () => {
               </button>
               <div className="absolute bottom-0 left-0 right-0 p-6">
                 <div className="flex items-center gap-3 mb-2">
-                  <span className={`px-3 py-1 text-xs font-bold rounded-full ${selectedPackage.departure_country?.code === 'RC' ? 'bg-blue-600 text-white' : 'bg-green-600 text-white'}`}>
+                  <span className={`px-3 py-1 text-xs font-bold rounded-full ${selectedPackage.departure_country?.code === 'RC' ? 'bg-primary text-white' : 'bg-green text-white'}`}>
                     {selectedPackage.departure_country?.name || 'Départ'}
                   </span>
-                  <span className="px-3 py-1 text-xs font-bold rounded-full bg-yellow-400 text-gray-900">
+                  <span className="px-3 py-1 text-xs font-bold rounded-full bg-warning text-gray-900">
                     {selectedPackage.arrival_country?.name || 'Arrivée'}
                   </span>
-                  <span className={`px-3 py-1 text-xs font-bold rounded-full ${selectedPackage.active ? 'bg-green-500 text-white' : 'bg-gray-500 text-white'}`}>
+                  <span className={`px-3 py-1 text-xs font-bold rounded-full ${selectedPackage.active ? 'bg-green text-white' : 'bg-gray-500 text-white'}`}>
                     {selectedPackage.active ? 'Disponible' : 'Indisponible'}
                   </span>
                 </div>
@@ -901,7 +881,7 @@ const OuikenacPage = () => {
               {/* Description */}
               <div className="mb-8">
                 <div className="flex items-center gap-2 mb-3">
-                  <Info className="text-blue-600" size={20} />
+                  <Info className="text-primary" size={20} />
                   <h3 className="text-xl font-bold text-gray-900">Description</h3>
                 </div>
                 <p className="text-gray-700 leading-relaxed">{selectedPackage.description || 'Découvrez ce package unique qui vous permettra de vivre une expérience inoubliable au Congo.'}</p>
@@ -910,21 +890,19 @@ const OuikenacPage = () => {
               {/* Itinéraire */}
               <div className="mb-8">
                 <div className="flex items-center gap-2 mb-3">
-                  <MapPin className="text-blue-600" size={20} />
+                  <MapPin className="text-primary" size={20} />
                   <h3 className="text-xl font-bold text-gray-900">Itinéraire</h3>
                 </div>
-                <div className="bg-gray-50 p-4 rounded-xl">
+                <div className="bg-light-bg p-4 rounded-xl">
                   <div className="flex items-center justify-between">
                     <div className="text-center flex-1">
                       <p className="text-sm text-gray-500 mb-1">Départ</p>
                       <p className="font-bold text-gray-900">{selectedPackage.departure_country?.name}</p>
-                      <p className="text-sm text-gray-600">{selectedPackage.departure_city_id ? `Ville ID: ${selectedPackage.departure_city_id}` : ''}</p>
                     </div>
-                    <ArrowRight className="text-blue-600 mx-4" size={24} />
+                    <ArrowRight className="text-primary mx-4" size={24} />
                     <div className="text-center flex-1">
                       <p className="text-sm text-gray-500 mb-1">Arrivée</p>
                       <p className="font-bold text-gray-900">{selectedPackage.arrival_country?.name}</p>
-                      <p className="text-sm text-gray-600">{selectedPackage.arrival_city_id ? `Ville ID: ${selectedPackage.arrival_city_id}` : ''}</p>
                     </div>
                   </div>
                 </div>
@@ -934,14 +912,14 @@ const OuikenacPage = () => {
               {selectedPackage.min_people && (
                 <div className="mb-8">
                   <div className="flex items-center gap-2 mb-3">
-                    <Users className="text-blue-600" size={20} />
+                    <Users className="text-primary" size={20} />
                     <h3 className="text-xl font-bold text-gray-900">Capacité</h3>
                   </div>
-                  <div className="bg-blue-50 p-4 rounded-xl border border-blue-200">
+                  <div className="bg-blue-50 p-4 rounded-xl border border-primary/30">
                     <p className="text-gray-900">
-                      <span className="font-bold text-blue-600 text-2xl">{selectedPackage.min_people}</span> 
+                      <span className="font-bold text-primary text-2xl">{selectedPackage.min_people}</span> 
                       {selectedPackage.max_people && (
-                        <> à <span className="font-bold text-blue-600 text-2xl">{selectedPackage.max_people}</span></>
+                        <> à <span className="font-bold text-primary text-2xl">{selectedPackage.max_people}</span></>
                       )}
                       {!selectedPackage.max_people && '+'}
                       <span className="text-gray-700"> personnes</span>
@@ -954,12 +932,12 @@ const OuikenacPage = () => {
               {selectedPackage.prices && selectedPackage.prices.length > 0 && (
                 <div className="mb-8">
                   <div className="flex items-center gap-2 mb-3">
-                    <DollarSign className="text-green-600" size={20} />
+                    <DollarSign className="text-green" size={20} />
                     <h3 className="text-xl font-bold text-gray-900">Tarifs</h3>
                   </div>
                   <div className="space-y-3">
                     {selectedPackage.prices.map((price, idx) => (
-                      <div key={idx} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200">
+                      <div key={idx} className="flex items-center justify-between p-4 bg-light-bg rounded-xl border-2 border-gray-200">
                         <div className="flex items-center gap-3">
                           <Users className="text-gray-600" size={20} />
                           <div>
@@ -970,7 +948,7 @@ const OuikenacPage = () => {
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="text-2xl font-black text-blue-600">
+                          <p className="text-2xl font-black text-primary">
                             {formatPrice(price.price)}
                           </p>
                           <p className="text-sm font-bold text-gray-600">{price.currency}</p>
@@ -982,9 +960,9 @@ const OuikenacPage = () => {
               )}
 
               {/* Informations supplémentaires */}
-              <div className="bg-blue-50 border-l-4 border-blue-500 p-6 rounded-r-xl mb-8">
+              <div className="bg-blue-50 border-l-4 border-primary p-6 rounded-r-xl mb-8">
                 <div className="flex items-start gap-3">
-                  <Clock className="text-blue-600 flex-shrink-0" size={24} />
+                  <Clock className="text-primary flex-shrink-0" size={24} />
                   <div>
                     <h4 className="font-bold text-blue-900 mb-2">Informations importantes</h4>
                     <ul className="space-y-1 text-blue-800 text-sm">
@@ -1006,13 +984,14 @@ const OuikenacPage = () => {
                 >
                   Fermer
                 </button>
-                <button 
+                <Button 
                   onClick={() => {
                     handlePackageSelect(selectedPackage.id);
                     closeModal();
                   }}
                   disabled={!selectedPackage.active}
-                  className={`flex-1 py-3 ${selectedPackage.active ? 'bg-yellow-400 hover:bg-yellow-500' : 'bg-gray-300 cursor-not-allowed'} text-gray-900 font-bold rounded-lg transition-all flex items-center justify-center gap-2`}
+                  variant={selectedPackage.active ? 'warning' : 'outline'}
+                  className={`flex-1 flex items-center justify-center gap-2 ${!selectedPackage.active && 'bg-gray-300 cursor-not-allowed hover:scale-100'}`}
                 >
                   {selectedPackage.active ? (
                     <>
@@ -1021,7 +1000,7 @@ const OuikenacPage = () => {
                   ) : (
                     'Package indisponible'
                   )}
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -1034,7 +1013,7 @@ const OuikenacPage = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
             <div>
               <div className="flex items-center space-x-3 mb-6">
-                <Globe className="text-blue-400" size={32} />
+                <Globe className="text-secondary" size={32} />
                 <div>
                   <h3 className="text-xl font-black">e-TRAVEL WORLD</h3>
                   <p className="text-xs text-gray-400">AGENCY</p>
@@ -1042,7 +1021,7 @@ const OuikenacPage = () => {
               </div>
               <p className="text-gray-400 mb-6 leading-relaxed">Votre partenaire voyage de confiance depuis 2019. Excellence et innovation à votre service.</p>
               <div className="flex gap-3">
-                <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-blue-600 transition-all">
+                <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-primary transition-all">
                   <Facebook size={18} />
                 </a>
                 <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-pink-600 transition-all">
@@ -1051,7 +1030,7 @@ const OuikenacPage = () => {
                 <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-blue-400 transition-all">
                   <Twitter size={18} />
                 </a>
-                <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-blue-700 transition-all">
+                <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-primary transition-all">
                   <Linkedin size={18} />
                 </a>
               </div>
@@ -1060,8 +1039,8 @@ const OuikenacPage = () => {
             <div>
               <h3 className="text-lg font-bold mb-6">Navigation</h3>
               <div className="space-y-3">
-                <Link to="/" className="block text-gray-400 hover:text-white transition-colors">Accueil</Link>
-                <Link to="/about" className="block text-gray-400 hover:text-white transition-colors">À propos</Link>
+                <a href="/" className="block text-gray-400 hover:text-white transition-colors">Accueil</a>
+                <a href="/about" className="block text-gray-400 hover:text-white transition-colors">À propos</a>
                 <a href="#packages" className="block text-gray-400 hover:text-white transition-colors">Packages</a>
                 <a href="#contact" className="block text-gray-400 hover:text-white transition-colors">Contact</a>
               </div>
@@ -1147,6 +1126,84 @@ const OuikenacPage = () => {
           -webkit-line-clamp: 2;
           -webkit-box-orient: vertical;
           overflow: hidden;
+        }
+
+        /* Charte graphique personnalisée */
+        :root {
+          --primary: #1b5e8e;
+          --secondary: #f18f13;
+          --green: #007335;
+          --warning: #f7b406;
+          --green-ouik: #3fa535;
+          --light-bg: #eee;
+        }
+
+        .text-primary {
+          color: var(--primary);
+        }
+
+        .bg-primary {
+          background-color: var(--primary);
+        }
+
+        .border-primary {
+          border-color: var(--primary);
+        }
+
+        .hover\:bg-primary:hover {
+          background-color: var(--primary);
+        }
+
+        .hover\:text-primary:hover {
+          color: var(--primary);
+        }
+
+        .focus\:ring-primary:focus {
+          --tw-ring-color: var(--primary);
+        }
+
+        .focus\:border-primary:focus {
+          border-color: var(--primary);
+        }
+
+        .text-secondary {
+          color: var(--secondary);
+        }
+
+        .bg-secondary {
+          background-color: var(--secondary);
+        }
+
+        .text-green {
+          color: var(--green);
+        }
+
+        .bg-green {
+          background-color: var(--green);
+        }
+
+        .hover\:border-green:hover {
+          border-color: var(--green);
+        }
+
+        .text-warning {
+          color: var(--warning);
+        }
+
+        .bg-warning {
+          background-color: var(--warning);
+        }
+
+        .border-warning {
+          border-color: var(--warning);
+        }
+
+        .bg-green-ouik {
+          background-color: var(--green-ouik);
+        }
+
+        .bg-light-bg {
+          background-color: var(--light-bg);
         }
       `}</style>
     </div>

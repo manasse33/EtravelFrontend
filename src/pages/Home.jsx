@@ -3,38 +3,47 @@ import { Menu, X, Plane, Ship, Hotel, MapPin, Shield, Calendar, Facebook, Instag
 import axios from 'axios';
 import { Link } from 'react-router-dom';
 
-// Composant de notification moderne
+// ============= COMPOSANTS RÉUTILISABLES =============
+
+// Composant Notification
 const Notification = ({ show, message, type, onClose }) => {
   if (!show) return null;
 
-  const icons = {
-    success: <CheckCircle size={24} />,
-    error: <XCircle size={24} />,
-    warning: <AlertCircle size={24} />
+  const configs = {
+    success: {
+      icon: <CheckCircle size={24} />,
+      bg: 'bg-green-50',
+      border: 'border-green-500',
+      text: 'text-green-800',
+      iconColor: 'text-green-500',
+      title: 'Succès'
+    },
+    error: {
+      icon: <XCircle size={24} />,
+      bg: 'bg-red-50',
+      border: 'border-red-500',
+      text: 'text-red-800',
+      iconColor: 'text-red-500',
+      title: 'Erreur'
+    },
+    warning: {
+      icon: <AlertCircle size={24} />,
+      bg: 'bg-yellow-50',
+      border: 'border-yellow-500',
+      text: 'text-yellow-800',
+      iconColor: 'text-yellow-500',
+      title: 'Attention'
+    }
   };
 
-  const colors = {
-    success: 'bg-green-50 border-green-500 text-green-800',
-    error: 'bg-red-50 border-red-500 text-red-800',
-    warning: 'bg-yellow-50 border-yellow-500 text-yellow-800'
-  };
-
-  const iconColors = {
-    success: 'text-green-500',
-    error: 'text-red-500',
-    warning: 'text-yellow-500'
-  };
+  const config = configs[type];
 
   return (
-    <div className={`fixed top-20 right-4 z-50 max-w-md w-full ${colors[type]} border-l-4 rounded-r-xl p-4 shadow-2xl animate-slide-in`}>
+    <div className={`fixed top-20 right-4 z-50 max-w-md w-full ${config.bg} ${config.border} ${config.text} border-l-4 rounded-r-xl p-4 shadow-2xl animate-slide-in`}>
       <div className="flex items-start gap-3">
-        <div className={iconColors[type]}>
-          {icons[type]}
-        </div>
+        <div className={config.iconColor}>{config.icon}</div>
         <div className="flex-1">
-          <p className="font-semibold mb-1">
-            {type === 'success' ? 'Succès' : type === 'error' ? 'Erreur' : 'Attention'}
-          </p>
+          <p className="font-semibold mb-1">{config.title}</p>
           <p className="text-sm">{message}</p>
         </div>
         <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
@@ -45,30 +54,131 @@ const Notification = ({ show, message, type, onClose }) => {
   );
 };
 
-// Composant de chargement moderne
+// Composant Loading
 const LoadingOverlay = ({ message = 'Chargement...' }) => (
   <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
     <div className="bg-white rounded-2xl p-8 shadow-2xl max-w-sm w-full mx-4">
       <div className="flex flex-col items-center">
         <div className="relative">
-          <Loader className="animate-spin h-16 w-16 text-blue-600" />
-          <div className="absolute inset-0 h-16 w-16 border-4 border-blue-200 rounded-full"></div>
+          <Loader className="animate-spin h-16 w-16 text-primary" />
+          <div className="absolute inset-0 h-16 w-16 border-4 border-primary/20 rounded-full"></div>
         </div>
         <p className="text-gray-700 font-semibold text-lg mt-6">{message}</p>
         <div className="w-full bg-gray-200 rounded-full h-1 mt-4 overflow-hidden">
-          <div className="h-full bg-blue-600 rounded-full animate-progress"></div>
+          <div className="h-full bg-primary rounded-full animate-progress"></div>
         </div>
       </div>
     </div>
   </div>
 );
 
+// Composant Button réutilisable
+const Button = ({ children, variant = 'primary', size = 'md', className = '', ...props }) => {
+  const variants = {
+    primary: 'bg-primary text-white hover:bg-primary/90',
+    secondary: 'bg-secondary text-white hover:bg-secondary/90',
+    outline: 'border-2 border-primary text-primary hover:bg-primary hover:text-white',
+    green: 'bg-green text-white hover:bg-green/90',
+    warning: 'bg-warning text-gray-900 hover:bg-warning/90'
+  };
+
+  const sizes = {
+    sm: 'px-4 py-2 text-sm',
+    md: 'px-6 py-3',
+    lg: 'px-8 py-4 text-lg'
+  };
+
+  return (
+    <button
+      className={`font-bold rounded-full transition-all hover:shadow-xl hover:scale-105 ${variants[variant]} ${sizes[size]} ${className}`}
+      {...props}
+    >
+      {children}
+    </button>
+  );
+};
+
+// Composant Card Service
+const ServiceCard = ({ icon: Icon, title, description }) => (
+  <div className="group bg-white rounded-2xl p-8 border-2 border-primary/20 hover:border-primary hover:shadow-xl transition-all duration-300 hover:-translate-y-2">
+    <div className="w-16 h-16 mx-auto mb-6 bg-primary rounded-xl flex items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-all">
+      <Icon className="text-white" size={32} />
+    </div>
+    <h3 className="text-xl font-bold text-gray-900 text-center mb-3">{title}</h3>
+    <p className="text-gray-600 text-center text-sm">{description}</p>
+  </div>
+);
+
+// Composant Destination Card
+const DestinationCard = ({ destination, onSelect, formatPrice }) => (
+  <div className="group bg-white rounded-2xl overflow-hidden border-2 border-gray-200 hover:shadow-2xl transition-all duration-500 hover:-translate-y-2">
+    <div className="relative h-64 overflow-hidden">
+      <img 
+        src={destination.image || 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=800'} 
+        alt={destination.title} 
+        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+        onError={(e) => {
+          e.target.src = 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=800';
+        }}
+      />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
+      <div className={`absolute top-4 right-4 px-4 py-1 rounded-full text-sm font-bold ${destination.active ? 'bg-green text-white' : 'bg-gray-400 text-white'}`}>
+        {destination.active ? 'Disponible' : 'Indisponible'}
+      </div>
+    </div>
+
+    <div className="p-6">
+      <h3 className="text-2xl font-black text-gray-900 mb-3">{destination.title}</h3>
+      <p className="text-gray-600 mb-4 leading-relaxed line-clamp-2">
+        {destination.description || 'Découvrez cette destination exceptionnelle'}
+      </p>
+      
+      <div className="flex items-center gap-2 mb-4 text-sm text-gray-600">
+        <MapPin size={16} className="text-primary" />
+        <span>
+          {destination.departure_country?.name || 'Départ'} → {destination.arrival_country?.name || 'Arrivée'}
+        </span>
+      </div>
+      
+      <div className="flex items-center justify-between mb-6 pb-6 border-b border-gray-100">
+        <div>
+          <p className="text-sm text-gray-500">À partir de</p>
+          {destination.prices && destination.prices[0] && (
+            <>
+              <p className="text-2xl font-black text-gray-900">
+                {formatPrice(destination.prices[0].price)} <span className="text-sm font-normal">{destination.prices[0].currency}</span>
+              </p>
+              {destination.prices[0].min_people && (
+                <p className="text-xs text-gray-500 mt-1">Min. {destination.prices[0].min_people} pers.</p>
+              )}
+            </>
+          )}
+        </div>
+        <div className="flex gap-1">
+          {[...Array(5)].map((_, i) => (
+            <Star key={i} className="text-warning fill-warning" size={20} />
+          ))}
+        </div>
+      </div>
+
+      <Button 
+        onClick={() => onSelect(destination.id)}
+        disabled={!destination.active}
+        variant={destination.active ? 'primary' : 'outline'}
+        className="w-full disabled:bg-gray-400 disabled:cursor-not-allowed disabled:hover:scale-100"
+      >
+        {destination.active ? 'Réserver maintenant' : 'Indisponible'}
+      </Button>
+    </div>
+  </div>
+);
+
+// ============= COMPOSANT PRINCIPAL =============
+
 const HomePage = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isScrolled, setIsScrolled] = useState(false);
-  
-  // États pour les données du backend
   const [destinations, setDestinations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -135,12 +245,11 @@ const HomePage = () => {
     setTimeout(() => setNotification({ show: false, message: '', type: '' }), 5000);
   };
 
-  // Fonction pour formater le prix
   const formatPrice = (price) => {
     return parseFloat(price).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
   };
 
-  // Récupérer les packages au chargement
+  // Récupérer les packages au chargement avec l'API
   useEffect(() => {
     fetchDestinations();
   }, []);
@@ -151,7 +260,6 @@ const HomePage = () => {
       const response = await api.get('/destinations');
       const destinationsData = response.data;
       
-      // Si la réponse est un tableau, l'utiliser directement, sinon extraire .data
       const destinations = Array.isArray(destinationsData) ? destinationsData : (destinationsData.data || []);
       
       setDestinations(destinations);
@@ -195,7 +303,6 @@ const HomePage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Validation
     if (!formData.reservable_id) {
       showNotification('Veuillez sélectionner une destination avant de réserver.', 'warning');
       return;
@@ -234,7 +341,6 @@ const HomePage = () => {
       
       showNotification('Réservation envoyée avec succès ! Nous vous contacterons très bientôt.', 'success');
       
-      // Réinitialiser le formulaire
       setFormData({
         reservable_id: '',
         type: 'destination-package',
@@ -267,7 +373,6 @@ const HomePage = () => {
 
   return (
     <div className="min-h-screen bg-white overflow-x-hidden">
-      {/* Notification */}
       <Notification
         show={notification.show}
         message={notification.message}
@@ -275,7 +380,6 @@ const HomePage = () => {
         onClose={() => setNotification({ show: false, message: '', type: '' })}
       />
 
-      {/* Loading Overlay */}
       {submitting && <LoadingOverlay message="Envoi de votre réservation..." />}
 
       {/* Header */}
@@ -283,7 +387,7 @@ const HomePage = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-20">
             <div className="flex items-center space-x-3">
-              <Globe className="text-blue-600" size={36} />
+                <img src="logoetravel.jpg" alt="e-TRAVEL WORLD AGENCY" width={70}/>
               <div>
                 <h1 className="text-2xl font-black text-gray-900">e-TRAVEL WORLD</h1>
                 <p className="text-xs text-gray-500 tracking-wider">AGENCY</p>
@@ -291,13 +395,13 @@ const HomePage = () => {
             </div>
 
             <nav className="hidden md:flex items-center space-x-10">
-              <Link to="/" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">Accueil</Link>
-              <Link to="/about" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">À propos</Link>
-              <Link to="/weekend" className="px-6 py-2 bg-yellow-400 text-gray-900 font-bold rounded-full hover:bg-yellow-500 transition-all hover:shadow-lg">
-                  OUIKENAC
+              <Link to="/" className="text-gray-700 hover:text-primary transition-colors font-medium">Accueil</Link>
+              <Link to="/about" className="text-gray-700 hover:text-primary transition-colors font-medium">À propos</Link>
+              <Link to="/weekend" className="px-6 py-2 bg-warning text-gray-900 font-bold rounded-full hover:bg-warning/90 transition-all hover:shadow-lg">
+                OUIKENAC
               </Link>
-              <Link to="/city-tour" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">CityTour</Link>
-              <a href="#contact" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">Contact</a>
+              <Link to="/city-tour" className="text-gray-700 hover:text-primary transition-colors font-medium">CityTour</Link>
+              <a href="#contact" className="text-gray-700 hover:text-primary transition-colors font-medium">Contact</a>
             </nav>
 
             <button onClick={() => setMenuOpen(!menuOpen)} className="md:hidden text-gray-900 p-2">
@@ -310,47 +414,47 @@ const HomePage = () => {
           <div className="md:hidden bg-white border-t border-gray-100 shadow-lg">
             <nav className="px-4 py-4 space-y-2">
               <Link 
-                  to="/" 
-                  className="block text-gray-700 hover:text-blue-600 py-3 text-base font-medium border-b border-gray-100" 
-                  onClick={() => setMenuOpen(false)}
-                >
-                  Accueil
-                </Link>
+                to="/" 
+                className="block text-gray-700 hover:text-primary py-3 text-base font-medium border-b border-gray-100" 
+                onClick={() => setMenuOpen(false)}
+              >
+                Accueil
+              </Link>
               <Link 
-                  to="/about" 
-                  className="block text-gray-700 hover:text-blue-600 py-3 text-base font-medium border-b border-gray-100" 
-                  onClick={() => setMenuOpen(false)}
-                >
-                  A propos
-                </Link>
+                to="/about" 
+                className="block text-gray-700 hover:text-primary py-3 text-base font-medium border-b border-gray-100" 
+                onClick={() => setMenuOpen(false)}
+              >
+                A propos
+              </Link>
               <Link 
-                  to="/weekend" 
-                  className="block text-gray-700 hover:text-blue-600 py-3 text-base font-medium border-b border-gray-100" 
-                  onClick={() => setMenuOpen(false)}
-                >
-                  Ouikenac
-                </Link>
+                to="/weekend" 
+                className="block text-gray-700 hover:text-primary py-3 text-base font-medium border-b border-gray-100" 
+                onClick={() => setMenuOpen(false)}
+              >
+                Ouikenac
+              </Link>
               <Link 
-                  to="/city-tour" 
-                  className="block text-gray-700 hover:text-blue-600 py-3 text-base font-medium border-b border-gray-100" 
-                  onClick={() => setMenuOpen(false)}
-                >
-                  CityTour
-                </Link>
-              <a href="#contact" className="block text-gray-700 hover:text-blue-600 py-3 text-base font-medium" onClick={() => setMenuOpen(false)}>Contactez-nous</a>
+                to="/city-tour" 
+                className="block text-gray-700 hover:text-primary py-3 text-base font-medium border-b border-gray-100" 
+                onClick={() => setMenuOpen(false)}
+              >
+                CityTour
+              </Link>
+              <a href="#contact" className="block text-gray-700 hover:text-primary py-3 text-base font-medium" onClick={() => setMenuOpen(false)}>Contactez-nous</a>
             </nav>
           </div>
         )}
       </header>
 
       {/* Hero Slider */}
-      <section className="relative h-screen mt-20">
+      <section id="home" className="relative h-screen mt-20">
         {slides.map((slide, index) => (
           <div
             key={index}
             className={`absolute inset-0 transition-opacity duration-1000 ${index === currentSlide ? 'opacity-100' : 'opacity-0'}`}
             style={{
-              backgroundImage: `linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.4)), url(${slide.image})`,
+              backgroundImage: `linear-gradient(rgba(27,94,142,0.7), rgba(0,115,53,0.7)), url(${slide.image})`,
               backgroundSize: 'cover',
               backgroundPosition: 'center'
             }}
@@ -364,12 +468,14 @@ const HomePage = () => {
                 <p className="text-2xl sm:text-3xl md:text-4xl text-white mb-10 font-light">
                   {slide.subtitle}
                 </p>
-                <button 
+                <Button 
                   onClick={() => document.getElementById('destinations')?.scrollIntoView({ behavior: 'smooth' })}
-                  className="px-10 py-4 bg-white text-gray-900 font-bold text-lg rounded-full hover:bg-gray-100 transition-all hover:shadow-2xl hover:scale-105"
+                  variant="primary"
+                  size="lg"
+                  className="bg-white text-gray-900 hover:bg-gray-100"
                 >
                   Découvrir nos offres
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -394,7 +500,7 @@ const HomePage = () => {
       </section>
 
       {/* Services Section */}
-      <section className="py-24 px-4 bg-gray-50">
+      <section className="py-24 px-4 bg-light-bg">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-4">Nos Services</h2>
@@ -403,16 +509,7 @@ const HomePage = () => {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
             {services.map((service, index) => (
-              <div
-                key={index}
-                className="group bg-white rounded-2xl p-8 border border-gray-200 hover:border-blue-600 hover:shadow-xl transition-all duration-300 hover:-translate-y-2"
-              >
-                <div className="w-16 h-16 mx-auto mb-6 bg-blue-600 rounded-xl flex items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-all">
-                  <service.icon className="text-white" size={32} />
-                </div>
-                <h3 className="text-xl font-bold text-gray-900 text-center mb-3">{service.title}</h3>
-                <p className="text-gray-600 text-center text-sm">{service.desc}</p>
-              </div>
+              <ServiceCard key={index} icon={service.icon} title={service.title} description={service.desc} />
             ))}
           </div>
         </div>
@@ -428,13 +525,13 @@ const HomePage = () => {
                 alt="About" 
                 className="rounded-2xl shadow-2xl w-full"
               />
-              <div className="absolute -bottom-6 -right-6 bg-yellow-400 rounded-xl p-6 shadow-xl">
-                <Award className="text-gray-900" size={48} />
+              <div className="absolute -bottom-6 -right-6 bg-secondary rounded-xl p-6 shadow-xl">
+                <Award className="text-white" size={48} />
               </div>
             </div>
 
             <div>
-              <p className="text-blue-600 font-semibold text-sm tracking-wider mb-4 uppercase">Qui sommes-nous</p>
+              <p className="text-primary font-semibold text-sm tracking-wider mb-4 uppercase">Qui sommes-nous</p>
               <h3 className="text-4xl md:text-5xl font-black text-gray-900 mb-6">Votre Partenaire Voyage de Confiance</h3>
 
               <p className="text-lg text-gray-700 leading-relaxed mb-6">
@@ -447,137 +544,77 @@ const HomePage = () => {
 
               <div className="grid grid-cols-3 gap-6 mb-8 py-6 border-t border-b border-gray-200">
                 <div className="text-center">
-                  <p className="text-4xl font-black text-gray-900 mb-1">500+</p>
+                  <p className="text-4xl font-black text-primary mb-1">500+</p>
                   <p className="text-sm text-gray-600">Clients satisfaits</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-4xl font-black text-gray-900 mb-1">50+</p>
+                  <p className="text-4xl font-black text-primary mb-1">50+</p>
                   <p className="text-sm text-gray-600">Destinations</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-4xl font-black text-gray-900 mb-1">4.9</p>
+                  <p className="text-4xl font-black text-primary mb-1">4.9</p>
                   <p className="text-sm text-gray-600">Note moyenne</p>
                 </div>
               </div>
 
-              <Link to="/about" className="px-8 py-4 bg-blue-600 text-white font-bold rounded-full hover:bg-blue-700 transition-all hover:shadow-xl hover:scale-105 inline-flex items-center gap-2">
+              <Button variant="primary" size="lg" className="inline-flex items-center gap-2">
                 En savoir plus <ArrowRight size={20} />
-              </Link>
+              </Button>
             </div>
           </div>
         </div>
       </section>
 
       {/* Destinations Section */}
-      <section id="destinations" className="py-24 px-4 bg-gray-50">
+      <section id="destinations" className="py-24 px-4 bg-light-bg">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-4">Destinations Populaires</h2>
             <p className="text-xl text-gray-600">Explorez nos meilleures offres de voyage</p>
           </div>
 
-          {/* Loading State */}
-          {loading && (
+          {loading ? (
             <div className="flex flex-col items-center justify-center py-20">
               <div className="relative">
-                <Loader className="animate-spin h-16 w-16 text-blue-600" />
-                <div className="absolute inset-0 h-16 w-16 border-4 border-blue-200 rounded-full"></div>
+                <Loader className="animate-spin h-16 w-16 text-primary" />
+                <div className="absolute inset-0 h-16 w-16 border-4 border-primary/20 rounded-full"></div>
               </div>
               <p className="text-gray-600 text-lg mt-6">Chargement des destinations...</p>
             </div>
-          )}
-
-          {/* Destinations Display */}
-          {!loading && destinations.length > 0 && (
+          ) : destinations.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
               {destinations.map((dest) => (
-                <div
+                <DestinationCard 
                   key={dest.id}
-                  className="group bg-white rounded-2xl overflow-hidden border border-gray-200 hover:shadow-2xl transition-all duration-500 hover:-translate-y-2"
-                >
-                  <div className="relative h-64 overflow-hidden">
-                    <img 
-                      src={dest.image || 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=800'} 
-                      alt={dest.title} 
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                      onError={(e) => {
-                        e.target.src = 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=800';
-                      }}
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
-                    <div className="absolute top-4 right-4 px-4 py-1 bg-white rounded-full text-gray-900 text-sm font-bold">
-                      {dest.active ? 'Disponible' : 'Indisponible'}
-                    </div>
-                  </div>
-
-                  <div className="p-6">
-                    <h3 className="text-2xl font-black text-gray-900 mb-3">{dest.title}</h3>
-                    <p className="text-gray-600 mb-4 leading-relaxed line-clamp-2">{dest.description || 'Découvrez cette destination exceptionnelle'}</p>
-                    
-                    {/* Affichage des pays */}
-                    <div className="flex items-center gap-2 mb-4 text-sm text-gray-600">
-                      <MapPin size={16} className="text-blue-600" />
-                      <span>
-                        {dest.departure_country?.name || 'Départ'} → {dest.arrival_country?.name || 'Arrivée'}
-                      </span>
-                    </div>
-                    
-                    <div className="flex items-center justify-between mb-6 pb-6 border-b border-gray-100">
-                      <div>
-                        <p className="text-sm text-gray-500">À partir de</p>
-                        {dest.prices && dest.prices[0] && (
-                          <p className="text-2xl font-black text-gray-900">
-                            {formatPrice(dest.prices[0].price)} <span className="text-sm font-normal">{dest.prices[0].currency}</span>
-                          </p>
-                        )}
-                        {dest.prices && dest.prices[0] && dest.prices[0].min_people && (
-                          <p className="text-xs text-gray-500 mt-1">
-                            Min. {dest.prices[0].min_people} pers.
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex gap-1">
-                        {[...Array(5)].map((_, i) => (
-                          <Star key={i} className="text-yellow-400 fill-yellow-400" size={20} />
-                        ))}
-                      </div>
-                    </div>
-
-                    <button 
-                      onClick={() => handlePackageSelect(dest.id)}
-                      disabled={!dest.active}
-                      className={`w-full py-3 ${dest.active ? 'bg-gray-900 hover:bg-blue-600' : 'bg-gray-400 cursor-not-allowed'} text-white font-bold rounded-full transition-all`}
-                    >
-                      {dest.active ? 'Réserver maintenant' : 'Indisponible'}
-                    </button>
-                  </div>
-                </div>
+                  destination={dest}
+                  onSelect={handlePackageSelect}
+                  formatPrice={formatPrice}
+                />
               ))}
             </div>
-          )}
-
-          {!loading && destinations.length === 0 && (
-            <div className="text-center py-12 bg-white rounded-2xl border border-gray-200">
+          ) : (
+            <div className="text-center py-12 bg-white rounded-2xl border-2 border-gray-200">
               <MapPin className="mx-auto text-gray-400 mb-4" size={48} />
               <p className="text-gray-600 text-lg">Aucune destination disponible pour le moment.</p>
-              <button 
+              <Button 
                 onClick={fetchDestinations}
-                className="mt-4 px-6 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition-all"
+                variant="primary"
+                className="mt-4"
               >
                 Réessayer
-              </button>
+              </Button>
             </div>
           )}
 
           <div className="text-center mt-12">
-            <Link to="/destinations" className="px-10 py-4 bg-white border-2 border-gray-900 text-gray-900 font-bold rounded-full hover:bg-gray-900 hover:text-white transition-all hover:shadow-xl">
+            <Button variant="outline" size="lg">
               Voir toutes les destinations
-            </Link>
+            </Button>
           </div>
         </div>
       </section>
 
-      {/* Booking Form (Contact Section) */}
+      {/* Booking Form */}
       <section id="contact" className="py-24 px-4 bg-white">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-12">
@@ -585,7 +622,7 @@ const HomePage = () => {
             <p className="text-xl text-gray-600">Remplissez le formulaire et nous vous contacterons rapidement</p>
           </div>
 
-          <div className="bg-gray-50 rounded-2xl p-8 md:p-12 border border-gray-200">
+          <div className="bg-light-bg rounded-2xl p-8 md:p-12 border-2 border-primary/20">
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid md:grid-cols-2 gap-6">
                 <input 
@@ -595,7 +632,7 @@ const HomePage = () => {
                   onChange={handleInputChange}
                   placeholder="Nom complet *"
                   required
-                  className="px-6 py-4 bg-white border-2 border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:border-blue-600 focus:outline-none transition-all"
+                  className="px-6 py-4 bg-white border-2 border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:border-primary focus:outline-none transition-all"
                 />
                 <input 
                   type="email" 
@@ -604,7 +641,7 @@ const HomePage = () => {
                   onChange={handleInputChange}
                   placeholder="Adresse email *"
                   required
-                  className="px-6 py-4 bg-white border-2 border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:border-blue-600 focus:outline-none transition-all"
+                  className="px-6 py-4 bg-white border-2 border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:border-primary focus:outline-none transition-all"
                 />
                 <input 
                   type="tel" 
@@ -612,14 +649,14 @@ const HomePage = () => {
                   value={formData.phone}
                   onChange={handleInputChange}
                   placeholder="Téléphone"
-                  className="px-6 py-4 bg-white border-2 border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:border-blue-600 focus:outline-none transition-all"
+                  className="px-6 py-4 bg-white border-2 border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:border-primary focus:outline-none transition-all"
                 />
                 <select 
                   name="reservable_id"
                   value={formData.reservable_id}
                   onChange={handleInputChange}
                   required
-                  className="px-6 py-4 bg-white border-2 border-gray-200 rounded-xl text-gray-900 focus:border-blue-600 focus:outline-none transition-all"
+                  className="px-6 py-4 bg-white border-2 border-gray-200 rounded-xl text-gray-900 focus:border-primary focus:outline-none transition-all"
                 >
                   <option value="">Sélectionner une destination *</option>
                   {destinations.map(dest => (
@@ -636,7 +673,7 @@ const HomePage = () => {
                   onChange={handleInputChange}
                   placeholder="Date de départ"
                   min={new Date().toISOString().split('T')[0]}
-                  className="px-6 py-4 bg-white border-2 border-gray-200 rounded-xl text-gray-900 focus:border-blue-600 focus:outline-none transition-all"
+                  className="px-6 py-4 bg-white border-2 border-gray-200 rounded-xl text-gray-900 focus:border-primary focus:outline-none transition-all"
                 />
                 <input 
                   type="date" 
@@ -645,7 +682,7 @@ const HomePage = () => {
                   onChange={handleInputChange}
                   placeholder="Date de retour"
                   min={formData.date_from || new Date().toISOString().split('T')[0]}
-                  className="px-6 py-4 bg-white border-2 border-gray-200 rounded-xl text-gray-900 focus:border-blue-600 focus:outline-none transition-all"
+                  className="px-6 py-4 bg-white border-2 border-gray-200 rounded-xl text-gray-900 focus:border-primary focus:outline-none transition-all"
                 />
                 <input 
                   type="number"
@@ -655,13 +692,13 @@ const HomePage = () => {
                   placeholder="Nombre de voyageurs *"
                   required
                   min="1"
-                  className="px-6 py-4 bg-white border-2 border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:border-blue-600 focus:outline-none transition-all"
+                  className="px-6 py-4 bg-white border-2 border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:border-primary focus:outline-none transition-all"
                 />
                 <select 
                   name="currency"
                   value={formData.currency}
                   onChange={handleInputChange}
-                  className="px-6 py-4 bg-white border-2 border-gray-200 rounded-xl text-gray-900 focus:border-blue-600 focus:outline-none transition-all"
+                  className="px-6 py-4 bg-white border-2 border-gray-200 rounded-xl text-gray-900 focus:border-primary focus:outline-none transition-all"
                 >
                   <option value="CFA">CFA</option>
                   <option value="USD">USD</option>
@@ -674,12 +711,14 @@ const HomePage = () => {
                 value={formData.message}
                 onChange={handleInputChange}
                 placeholder="Message ou demande spécifique..." 
-                className="w-full px-6 py-4 bg-white border-2 border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:border-blue-600 focus:outline-none transition-all resize-none"
+                className="w-full px-6 py-4 bg-white border-2 border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:border-primary focus:outline-none transition-all resize-none"
               />
-              <button 
+              <Button 
                 type="submit"
                 disabled={submitting}
-                className="w-full py-5 bg-gray-900 text-white font-bold text-lg rounded-full hover:bg-blue-600 transition-all hover:shadow-xl hover:scale-105 flex items-center justify-center gap-3 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                variant="primary"
+                size="lg"
+                className="w-full disabled:bg-gray-400 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-3"
               >
                 {submitting ? (
                   <>
@@ -691,14 +730,14 @@ const HomePage = () => {
                     Réserver maintenant <ArrowRight size={24} />
                   </>
                 )}
-              </button>
+              </Button>
             </form>
           </div>
         </div>
       </section>
 
       {/* Promo Banner */}
-      <section className="py-20 px-4 bg-green-600">
+      <section className="py-20 px-4 bg-green-ouik">
         <div className="max-w-5xl mx-auto text-center">
           <p className="text-white text-2xl md:text-3xl mb-4 font-light">
             Faites partie des premiers à réserver un <strong className="font-black">OUIKENAC</strong> et bénéficiez de
@@ -709,7 +748,7 @@ const HomePage = () => {
         </div>
       </section>
 
-      {/* City Tour / OUIKENAC */}
+      {/* OUIKENAC Section */}
       <section id="ouikenac" className="py-24 px-4 bg-white">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
@@ -717,10 +756,10 @@ const HomePage = () => {
             <p className="text-xl text-gray-600">Découverte culturelle authentique du Congo</p>
           </div>
 
-          <div className="bg-gray-50 rounded-2xl p-8 md:p-16 border border-gray-200">
+          <div className="bg-light-bg rounded-2xl p-8 md:p-16 border-2 border-primary/20">
             <div className="grid md:grid-cols-2 gap-12 items-center">
               <div>
-                <p className="text-blue-600 font-semibold text-sm tracking-wider mb-4 uppercase">Patrimoine & Culture</p>
+                <p className="text-primary font-semibold text-sm tracking-wider mb-4 uppercase">Patrimoine & Culture</p>
                 
                 <p className="text-lg text-gray-700 leading-relaxed mb-6">
                   <strong className="text-gray-900 text-xl">OUIKENAC CITY TOUR</strong> ce sont des journées de visite guidée du patrimoine culturel et naturel des villes des CONGO (République du CONGO & République Démocratique du CONGO).
@@ -731,33 +770,28 @@ const HomePage = () => {
                 </p>
 
                 <div className="space-y-4 mb-8">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
-                      <Check className="text-white" size={20} />
+                  {[
+                    'Guides professionnels certifiés',
+                    'Sites UNESCO et monuments historiques',
+                    'Expérience immersive et authentique'
+                  ].map((item, idx) => (
+                    <div key={idx} className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-green-ouik rounded-full flex items-center justify-center flex-shrink-0">
+                        <Check className="text-white" size={20} />
+                      </div>
+                      <span className="text-gray-700">{item}</span>
                     </div>
-                    <span className="text-gray-700">Guides professionnels certifiés</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
-                      <Check className="text-white" size={20} />
-                    </div>
-                    <span className="text-gray-700">Sites UNESCO et monuments historiques</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
-                      <Check className="text-white" size={20} />
-                    </div>
-                    <span className="text-gray-700">Expérience immersive et authentique</span>
-                  </div>
+                  ))}
                 </div>
 
-                <Link 
-                  to='/city-tour-calendar' 
-                  className="px-8 py-4 bg-yellow-400 text-gray-900 font-bold rounded-full hover:bg-yellow-500 transition-all hover:shadow-xl hover:scale-105 inline-flex items-center gap-3"
+                <Button 
+                  variant="warning"
+                  size="lg"
+                  className="inline-flex items-center gap-3"
                 >
                   <Calendar size={24} />
                   Voir le calendrier
-                </Link>
+                </Button>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -783,7 +817,7 @@ const HomePage = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
             <div>
               <div className="flex items-center space-x-3 mb-6">
-                <Globe className="text-blue-400" size={32} />
+                <Globe className="text-secondary" size={32} />
                 <div>
                   <h3 className="text-xl font-black">e-TRAVEL WORLD</h3>
                   <p className="text-xs text-gray-400">AGENCY</p>
@@ -791,39 +825,34 @@ const HomePage = () => {
               </div>
               <p className="text-gray-400 mb-6 leading-relaxed">Votre partenaire voyage de confiance depuis 2019. Excellence et innovation à votre service.</p>
               <div className="flex gap-3">
-                <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-blue-600 transition-all">
-                  <Facebook size={18} />
-                </a>
-                <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-pink-600 transition-all">
-                  <Instagram size={18} />
-                </a>
-                <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-blue-400 transition-all">
-                  <Twitter size={18} />
-                </a>
-                <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-blue-700 transition-all">
-                  <Linkedin size={18} />
-                </a>
+                {[
+                  { icon: Facebook, color: 'hover:bg-primary' },
+                  { icon: Instagram, color: 'hover:bg-pink-600' },
+                  { icon: Twitter, color: 'hover:bg-blue-400' },
+                  { icon: Linkedin, color: 'hover:bg-primary' }
+                ].map((social, idx) => (
+                  <a key={idx} href="#" className={`w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center ${social.color} transition-all`}>
+                    <social.icon size={18} />
+                  </a>
+                ))}
               </div>
             </div>
 
             <div>
               <h3 className="text-lg font-bold mb-6">Navigation</h3>
               <div className="space-y-3">
-                <Link to="/" className="block text-gray-400 hover:text-white transition-colors">Accueil</Link>
-                <Link to="/about" className="block text-gray-400 hover:text-white transition-colors">À propos</Link>
-                <Link to="/city-tour" className="block text-gray-400 hover:text-white transition-colors">City Tours</Link>
-                <Link to="/weekend" className="block text-gray-400 hover:text-white transition-colors">OUIKENAC</Link>
-                <a href="#contact" className="block text-gray-400 hover:text-white transition-colors">Contact</a>
+                {['Accueil', 'À propos', 'City Tours', 'OUIKENAC', 'Contact'].map((item) => (
+                  <a key={item} href="#" className="block text-gray-400 hover:text-white transition-colors">{item}</a>
+                ))}
               </div>
             </div>
 
             <div>
               <h3 className="text-lg font-bold mb-6">Informations</h3>
               <div className="space-y-3">
-                <a href="#" className="block text-gray-400 hover:text-white transition-colors">Politique de confidentialité</a>
-                <a href="#" className="block text-gray-400 hover:text-white transition-colors">Conditions générales</a>
-                <a href="#" className="block text-gray-400 hover:text-white transition-colors">FAQ</a>
-                <a href="#" className="block text-gray-400 hover:text-white transition-colors">Blog</a>
+                {['Politique de confidentialité', 'Conditions générales', 'FAQ', 'Blog'].map((item) => (
+                  <a key={item} href="#" className="block text-gray-400 hover:text-white transition-colors">{item}</a>
+                ))}
               </div>
             </div>
 
@@ -864,6 +893,12 @@ const HomePage = () => {
       </footer>
 
       <style jsx>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap');
+
+        * {
+          font-family: 'Inter', sans-serif;
+        }
+
         @keyframes slide-in {
           from {
             transform: translateX(100%);
@@ -890,6 +925,86 @@ const HomePage = () => {
 
         .animate-progress {
           animation: progress 2s ease-in-out infinite;
+        }
+
+        /* Charte graphique officielle E-TRAVEL WORLD AGENCY */
+        /* Conformément au document de charte graphique GMSS.Agence */
+        :root {
+          --primary: #1b5e8e;      /* Pantone 647 C - Bleu principal */
+          --secondary: #f18f13;    /* Pantone 144 C - Orange */
+          --green: #007335;        /* Pantone 7732 C - Vert */
+          --warning: #f7b406;      /* Pantone 124 C - Jaune */
+          --green-ouik: #3fa535;   /* Vert OUIKENAC */
+          --light-bg: #eee;        /* Fond clair */
+          --cyan: #40bcd5;         /* Pantone 637 C - Cyan */
+        }
+
+        .text-primary {
+          color: var(--primary);
+        }
+
+        .bg-primary {
+          background-color: var(--primary);
+        }
+
+        .border-primary {
+          border-color: var(--primary);
+        }
+
+        .hover\:bg-primary:hover {
+          background-color: var(--primary);
+        }
+
+        .hover\:text-primary:hover {
+          color: var(--primary);
+        }
+
+        .focus\:border-primary:focus {
+          border-color: var(--primary);
+        }
+
+        .text-secondary {
+          color: var(--secondary);
+        }
+
+        .bg-secondary {
+          background-color: var(--secondary);
+        }
+
+        .text-green {
+          color: var(--green);
+        }
+
+        .bg-green {
+          background-color: var(--green);
+        }
+
+        .text-warning {
+          color: var(--warning);
+        }
+
+        .bg-warning {
+          background-color: var(--warning);
+        }
+
+        .fill-warning {
+          fill: var(--warning);
+        }
+
+        .bg-green-ouik {
+          background-color: var(--green-ouik);
+        }
+
+        .bg-light-bg {
+          background-color: var(--light-bg);
+        }
+
+        .text-cyan {
+          color: var(--cyan);
+        }
+
+        .bg-cyan {
+          background-color: var(--cyan);
         }
       `}</style>
     </div>
