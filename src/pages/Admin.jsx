@@ -150,7 +150,7 @@ const AdminDashboard = () => {
   
   // Destination: Price grid removed, simple price added.
   const [destinationForm, setDestinationForm] = useState({
-    title: '', description: '', image: null, departure_country_id: '', arrival_country_id: '', price: '', currency: 'CFA'
+    title: '', description: '', image: null, departure_country_id: '', price: '', currency: 'CFA'
   });
   
   // Ouikenac: Simple price/min/max removed, complex grid/inclusions/cities added.
@@ -367,9 +367,9 @@ const AdminDashboard = () => {
   // 3. ADD DESTINATION (DestinationPackageController)
   const handleAddDestination = () => {
     // UPDATED LOGIC: Simple price, no more grid
-    const { title, description, image, departure_country_id, arrival_country_id, price, currency } = destinationForm;
+    const { title, description, image, departure_country_id, price, currency } = destinationForm;
 
-    if (!title || !departure_country_id || !arrival_country_id || !image || !price) {
+    if (!title || !departure_country_id  || !image || !price) {
       showNotification('Veuillez remplir tous les champs obligatoires (titre, image, pays de départ et d\'arrivée, prix)', 'warning');
       return;
     }
@@ -378,13 +378,13 @@ const AdminDashboard = () => {
     formData.append('title', title);
     formData.append('description', description || '');
     formData.append('departure_country_id', departure_country_id);
-    formData.append('arrival_country_id', arrival_country_id);
+    // formData.append('arrival_country_id', arrival_country_id);
     formData.append('image', image);
     formData.append('price', price); // Simple price
     formData.append('currency', currency);
     
     handleCreation('destinations', formData, 'Destination ajoutée avec succès', () => setDestinationForm({
-        title: '', description: '', image: null, departure_country_id: '', arrival_country_id: '', price: '', currency: 'CFA'
+        title: '', description: '', image: null, departure_country_id: '', price: '', currency: 'CFA'
     }));
   };
 
@@ -534,9 +534,9 @@ const AdminDashboard = () => {
   // Specific Update Functions
   const handleUpdateDestination = () => {
     // UPDATED LOGIC: Simple price
-    const { id, title, description, departure_country_id, arrival_country_id, price, currency } = editForm;
+    const { id, title, description, departure_country_id, price, currency } = editForm;
 
-    if (!title || !departure_country_id || !arrival_country_id || !price) {
+    if (!title || !departure_country_id  || !price) {
         showNotification('Veuillez remplir tous les champs obligatoires (titre, pays de départ et d\'arrivée, prix)', 'warning');
         return;
     }
@@ -545,7 +545,7 @@ const AdminDashboard = () => {
     formData.append('title', title);
     formData.append('description', description || '');
     formData.append('departure_country_id', departure_country_id);
-    formData.append('arrival_country_id', arrival_country_id);
+    // formData.append('arrival_country_id', arrival_country_id);
     formData.append('price', price); // Simple price
     formData.append('currency', currency);
 
@@ -992,10 +992,10 @@ const AdminDashboard = () => {
                                         <option value="">Pays de départ *</option>
                                         {countries.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                                     </select>
-                                    <select value={destinationForm.arrival_country_id} onChange={e => setDestinationForm({ ...destinationForm, arrival_country_id: e.target.value })} className="px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm sm:text-base" required>
+                                    {/* <select value={destinationForm.arrival_country_id} onChange={e => setDestinationForm({ ...destinationForm, arrival_country_id: e.target.value })} className="px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm sm:text-base" required>
                                         <option value="">Pays d'arrivée *</option>
                                         {countries.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                    </select>
+                                    </select> */}
                                     
                                     {/* Simple Price Field (Replaced Dynamic Grid) */}
                                     <input type="number" placeholder="Prix (FCFA) *" value={destinationForm.price} onChange={e => setDestinationForm({ ...destinationForm, price: e.target.value })} className="px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm sm:text-base" required />
@@ -1428,10 +1428,10 @@ const AdminDashboard = () => {
                                       <option value="">Pays de départ *</option>
                                       {countries.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                                   </select>
-                                  <select value={editForm.arrival_country_id || ''} onChange={e => setEditForm({ ...editForm, arrival_country_id: e.target.value })} className="w-full px-3 py-2 border rounded-lg" required>
+                                  {/* <select value={editForm.arrival_country_id || ''} onChange={e => setEditForm({ ...editForm, arrival_country_id: e.target.value })} className="w-full px-3 py-2 border rounded-lg" required>
                                       <option value="">Pays d'arrivée *</option>
                                       {countries.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                  </select>
+                                  </select> */}
                                   
                                   {/* Simple Price Fields */}
                                   <input type="number" placeholder="Prix (FCFA) *" value={editForm.price || ''} onChange={e => setEditForm({ ...editForm, price: e.target.value })} className="w-full px-3 py-2 border rounded-lg" required />
