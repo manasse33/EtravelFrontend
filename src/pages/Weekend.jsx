@@ -67,8 +67,8 @@ const LoadingOverlay = ({ message = 'Chargement...' }) => (
         </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 const Button = ({ children, variant = 'primary', size = 'md', className = '', ...props }) => {
   const variants = {
@@ -95,99 +95,113 @@ const Button = ({ children, variant = 'primary', size = 'md', className = '', ..
   );
 };
 
-const PackageCard = ({ pkg, selectedCountry, onSelect, onViewDetails, formatPrice, loadingDetails }) => (
-  <div className="bg-white rounded-2xl overflow-hidden border-2 border-gray-200 hover:shadow-2xl transition-all hover:-translate-y-2">
-    <div className="relative h-48 overflow-hidden">
-      <img 
-        src={pkg.image || 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=600'} 
-        alt={pkg.title} 
-        className="w-full h-full object-cover hover:scale-110 transition-transform duration-700"
-        onError={(e) => {
-          e.target.src = 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=600';
-        }}
-      />
-      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
-      <div className="absolute top-4 left-4">
-        <span className={`px-3 py-1 text-xs font-bold rounded-full ${selectedCountry === 'RC' ? 'bg-primary text-white' : 'bg-green text-white'}`}>
-          {pkg.departure_country?.name || selectedCountry}
-        </span>
-      </div>
-      <div className="absolute top-4 right-4">
-        <span className={`px-3 py-1 text-xs font-bold rounded-full ${pkg.active ? 'bg-green text-white' : 'bg-gray-500 text-white'}`}>
-          {pkg.active ? 'Disponible' : 'Indisponible'}
-        </span>
-      </div>
-    </div>
-    
-    <div className="p-6">
-      <h4 className="text-2xl font-black text-gray-900 mb-3">{pkg.title}</h4>
-      <p className="text-gray-600 mb-4 line-clamp-2">{pkg.description || 'Découvrez ce package unique'}</p>
-      
-      {pkg.departure_country && pkg.arrival_country && (
-        <div className="flex items-center gap-2 mb-4 text-sm text-gray-600">
-          <MapPin size={16} className="text-primary" />
-          <span>
-            {pkg.departure_country.name} → {pkg.arrival_country.name}
-          </span>
-        </div>
-      )}
+// MODIFICATION APPORTÉE ICI
+const PackageCard = ({ pkg, selectedCountry, onSelect, onViewDetails, formatPrice, loadingDetails }) => {
+  // Extraction des données standardisées ajoutées dans fetchPackages (voir ci-dessous)
+  const departureCountry = pkg.departure_country || pkg.prices?.[0]?.departure_country;
+  const arrivalCountry = pkg.arrival_country || pkg.prices?.[0]?.arrival_country;
+  const minPeople = pkg.min_people || pkg.prices?.[0]?.min_people;
+  const maxPeople = pkg.max_people || pkg.prices?.[0]?.max_people;
 
-      {pkg.min_people && (
-        <div className="flex items-center gap-2 mb-4 text-sm text-gray-600">
-          <Users size={16} className="text-primary" />
-          <span>
-            {pkg.min_people} - {pkg.max_people || '+'} personnes
+  return (
+    <div className="bg-white rounded-2xl overflow-hidden border-2 border-gray-200 hover:shadow-2xl transition-all hover:-translate-y-2">
+      <div className="relative h-48 overflow-hidden">
+        <img 
+          src={pkg.image || 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=600'} 
+          alt={pkg.title} 
+          className="w-full h-full object-cover hover:scale-110 transition-transform duration-700"
+          onError={(e) => {
+            e.target.src = 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=600';
+          }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+        {/* Affichage du pays de départ basé sur les données standardisées */}
+        {departureCountry && (
+            <div className="absolute top-4 left-4">
+              <span className={`px-3 py-1 text-xs font-bold rounded-full ${departureCountry.code === 'RC' ? 'bg-primary text-white' : 'bg-green text-white'}`}>
+                {departureCountry.name}
+              </span>
+            </div>
+        )}
+        <div className="absolute top-4 right-4">
+          <span className={`px-3 py-1 text-xs font-bold rounded-full ${pkg.active ? 'bg-green text-white' : 'bg-gray-500 text-white'}`}>
+            {pkg.active ? 'Disponible' : 'Indisponible'}
           </span>
         </div>
-      )}
+      </div>
       
-      {pkg.prices && pkg.prices.length > 0 && (
-        <div className="space-y-2 mb-4">
-          {pkg.prices.map((price, idx) => (
-            <div key={idx} className="flex items-center justify-between text-sm bg-light-bg p-3 rounded-lg">
-              <span className="text-gray-700">
-                {price.min_people} {price.max_people ? `- ${price.max_people}` : '+'} pers.
-              </span>
-              <span className="font-bold text-gray-900">{formatPrice(price.price)} {price.currency}</span>
-            </div>
-          ))}
-        </div>
-      )}
-      
-      <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
-        <div>
-          {pkg.prices && pkg.prices[0] && (
-            <div>
-              <p className="text-sm text-gray-500">À partir de</p>
-              <p className="text-2xl font-black text-primary">
-                {formatPrice(pkg.prices[0].price)} <span className="text-sm font-bold">{pkg.prices[0].currency}</span>
-              </p>
-            </div>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          <button 
-            onClick={() => onViewDetails(pkg)}
-            disabled={loadingDetails}
-            className="px-3 py-2 bg-gray-100 text-gray-700 font-bold rounded-full text-sm hover:bg-gray-200 transition-all flex items-center gap-1"
-            title="Voir les détails"
-          >
-            <Eye size={16} />
-          </button>
-          <Button 
-            onClick={() => onSelect(pkg.id)}
-            disabled={!pkg.active}
-            variant={pkg.active ? 'warning' : 'outline'}
-            size="sm"
-            className={`${!pkg.active && 'bg-gray-300 cursor-not-allowed hover:scale-100'}`}
-          >
-            {pkg.active ? 'Réserver' : 'Indisponible'}
-          </Button>
+      <div className="p-6">
+        <h4 className="text-2xl font-black text-gray-900 mb-3">{pkg.title}</h4>
+        <p className="text-gray-600 mb-4 line-clamp-2">{pkg.description || 'Découvrez ce package unique'}</p>
+        
+        {/* Affichage du pays de départ -> pays d'arrivée */}
+        {departureCountry && arrivalCountry && (
+          <div className="flex items-center gap-2 mb-4 text-sm text-gray-600">
+            <MapPin size={16} className="text-primary" />
+            <span>
+              {departureCountry.name} → {arrivalCountry.name}
+            </span>
+          </div>
+        )}
+
+        {/* Affichage de la capacité min/max */}
+        {minPeople && (
+          <div className="flex items-center gap-2 mb-4 text-sm text-gray-600">
+            <Users size={16} className="text-primary" />
+            <span>
+              {minPeople} - {maxPeople || '+'} personnes
+            </span>
+          </div>
+        )}
+        
+        {pkg.prices && pkg.prices.length > 0 && (
+          <div className="space-y-2 mb-4">
+            {pkg.prices.map((price, idx) => (
+              <div key={idx} className="flex items-center justify-between text-sm bg-light-bg p-3 rounded-lg">
+                <span className="text-gray-700">
+                  {price.min_people} {price.max_people ? `- ${price.max_people}` : '+'} pers.
+                </span>
+                <span className="font-bold text-gray-900">{formatPrice(price.price)} {price.currency}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        
+        <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
+          <div>
+            {pkg.prices && pkg.prices[0] && (
+              <div>
+                <p className="text-sm text-gray-500">À partir de</p>
+                <p className="text-2xl font-black text-primary">
+                  {formatPrice(pkg.prices[0].price)} <span className="text-sm font-bold">{pkg.prices[0].currency}</span>
+                </p>
+              </div>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => onViewDetails(pkg)}
+              disabled={loadingDetails}
+              className="px-3 py-2 bg-gray-100 text-gray-700 font-bold rounded-full text-sm hover:bg-gray-200 transition-all flex items-center gap-1"
+              title="Voir les détails"
+            >
+              <Eye size={16} />
+            </button>
+            <Button 
+              onClick={() => onSelect(pkg.id)}
+              disabled={!pkg.active}
+              variant={pkg.active ? 'warning' : 'outline'}
+              size="sm"
+              className={`${!pkg.active && 'bg-gray-300 cursor-not-allowed hover:scale-100'}`}
+            >
+              {pkg.active ? 'Réserver' : 'Indisponible'}
+            </Button>
+          </div>
         </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 // ============= COMPOSANT PRINCIPAL =============
 
@@ -221,6 +235,8 @@ const OuikenacPage = () => {
   });
 
   const formatPrice = (price) => {
+    // Correction: Assurez-vous que price est bien une chaîne ou un nombre avant toFixed
+    if (price === null || price === undefined) return 'N/A';
     return parseFloat(price).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
   };
 
@@ -235,14 +251,32 @@ const OuikenacPage = () => {
     fetchPackages();
   }, []);
 
+  // MODIFICATION APPORTÉE ICI
   const fetchPackages = async () => {
     try {
       setLoading(true);
       setError(null);
       const response = await api.get('/ouikenac');
       console.log('Packages récupérés:', response.data);
+      
       const packagesData = Array.isArray(response.data) ? response.data : (response.data.data || []);
-      setPackages(packagesData);
+      
+      // Standardisation des données des packages
+      const standardizedPackages = packagesData.map(pkg => {
+        // Récupère les infos de pays et de capacité depuis le premier prix
+        const firstPrice = pkg.prices && pkg.prices.length > 0 ? pkg.prices[0] : {};
+        
+        return {
+          ...pkg,
+          // Ajout direct au package pour une utilisation plus simple dans le filtrage/affichage
+          departure_country: firstPrice.departure_country || pkg.departure_country,
+          arrival_country: firstPrice.arrival_country || pkg.arrival_country,
+          min_people: firstPrice.min_people || pkg.min_people,
+          max_people: firstPrice.max_people || pkg.max_people,
+        };
+      });
+
+      setPackages(standardizedPackages);
       setLoading(false);
     } catch (err) {
       console.error('Erreur lors de la récupération des packages:', err);
@@ -252,14 +286,20 @@ const OuikenacPage = () => {
     }
   };
 
+  // Correction de la logique de filtrage
   const currentPackages = packages.filter(pkg => {
+    const departureCode = pkg.departure_country?.code;
+    
     if (selectedCountry === 'RC') {
-      return pkg.departure_country?.code === 'RC';
+      return departureCode === 'RC';
     } else if (selectedCountry === 'RDC') {
-      return pkg.departure_country?.code === 'rdc' || pkg.departure_country?.code === 'RDC';
+      // Utilisez toLowerCase pour la comparaison pour être plus robuste
+      return departureCode?.toLowerCase() === 'rdc';
     }
+    
     return false;
   });
+  
 
   const handleInputChange = (e) => {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -340,7 +380,8 @@ const OuikenacPage = () => {
   const handleViewDetails = async (pkg) => {
     try {
       setLoadingDetails(true);
-      setSelectedPackage(pkg);
+      // S'assurer que les données du package dans la modale sont complètes
+      setSelectedPackage(pkg); 
       setShowModal(true);
     } catch (err) {
       console.error('Erreur lors de la récupération des détails:', err);
@@ -647,7 +688,7 @@ const OuikenacPage = () => {
         </div>
       </section>
 
-      {/* Reservation Form Section - suite dans le prochain message */}
+      {/* Reservation Form Section */}
       <section id="contact" className="py-20 px-4 bg-white">
         <div className="max-w-7xl mx-auto">
           <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-12 text-center">
@@ -760,12 +801,19 @@ const OuikenacPage = () => {
                     className="block w-full border-2 border-gray-200 rounded-lg shadow-sm p-3 focus:ring-primary focus:border-primary bg-white"
                   >
                     <option value="">Sélectionnez un package</option>
-                    {packages.map(pkg => (
-                      <option key={pkg.id} value={pkg.id} disabled={!pkg.active}>
-                        {pkg.title} - {pkg.departure_country?.name} → {pkg.arrival_country?.name}
-                        {pkg.prices && pkg.prices[0] && ` (${formatPrice(pkg.prices[0].price)} ${pkg.prices[0].currency})`}
-                      </option>
-                    ))}
+                    {packages.map(pkg => {
+                        // Utiliser la structure standardisée
+                        const departureName = pkg.departure_country?.name;
+                        const arrivalName = pkg.arrival_country?.name;
+                        const priceInfo = pkg.prices?.[0];
+
+                        return (
+                            <option key={pkg.id} value={pkg.id} disabled={!pkg.active}>
+                              {pkg.title} - {departureName} → {arrivalName}
+                              {priceInfo && ` (${formatPrice(priceInfo.price)} ${priceInfo.currency})`}
+                            </option>
+                        );
+                    })}
                   </select>
                 </div>
               </div>
@@ -953,6 +1001,24 @@ const OuikenacPage = () => {
                           </p>
                           <p className="text-sm font-bold text-gray-600">{price.currency}</p>
                         </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Inclusions (Nouveau - Utilise les données fournies dans le JSON) */}
+              {selectedPackage.inclusions && selectedPackage.inclusions.length > 0 && (
+                <div className="mb-8">
+                  <div className="flex items-center gap-2 mb-3">
+                    <CheckCircle className="text-green" size={20} />
+                    <h3 className="text-xl font-bold text-gray-900">Ce qui est inclus</h3>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    {selectedPackage.inclusions.map((inclusion, idx) => (
+                      <div key={idx} className="flex items-center gap-2 p-3 bg-green-50 rounded-lg">
+                        <CheckCircle className="text-green-600 flex-shrink-0" size={16} />
+                        <p className="text-gray-800 text-sm font-medium">{inclusion.name}</p>
                       </div>
                     ))}
                   </div>
