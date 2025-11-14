@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Globe, Menu, X, ArrowRight, Phone, Mail, MapPin, Facebook, Instagram, Twitter, Linkedin, Calendar, Loader, AlertCircle, CheckCircle, Eye, Users, Clock, DollarSign, Info, XCircle } from 'lucide-react';
 import axios from 'axios';
-import { Link } from 'react-router-dom';
 
 // ============= COMPOSANTS RÉUTILISABLES =============
 
@@ -58,12 +57,12 @@ const LoadingOverlay = ({ message = 'Chargement...' }) => (
     <div className="bg-white rounded-2xl p-8 shadow-2xl max-w-sm w-full mx-4">
       <div className="flex flex-col items-center">
         <div className="relative">
-          <Loader className="animate-spin h-16 w-16 text-primary" />
-          <div className="absolute inset-0 h-16 w-16 border-4 border-primary/20 rounded-full"></div>
+          <Loader className="animate-spin h-16 w-16 text-blue-600" />
+          <div className="absolute inset-0 h-16 w-16 border-4 border-blue-600/20 rounded-full"></div>
         </div>
         <p className="text-gray-700 font-semibold text-lg mt-6">{message}</p>
         <div className="w-full bg-gray-200 rounded-full h-1 mt-4 overflow-hidden">
-          <div className="h-full bg-primary rounded-full animate-progress"></div>
+          <div className="h-full bg-blue-600 rounded-full animate-progress"></div>
         </div>
       </div>
     </div>
@@ -72,11 +71,11 @@ const LoadingOverlay = ({ message = 'Chargement...' }) => (
 
 const Button = ({ children, variant = 'primary', size = 'md', className = '', ...props }) => {
   const variants = {
-    primary: 'bg-primary text-white hover:bg-primary/90',
-    secondary: 'bg-secondary text-white hover:bg-secondary/90',
-    outline: 'border-2 border-primary text-primary hover:bg-primary hover:text-white',
-    green: 'bg-green text-white hover:bg-green/90',
-    warning: 'bg-warning text-gray-900 hover:bg-warning/90'
+    primary: 'bg-blue-600 text-white hover:bg-blue-700',
+    secondary: 'bg-emerald-500 text-white hover:bg-emerald-600',
+    outline: 'border-2 border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white',
+    green: 'bg-emerald-500 text-white hover:bg-emerald-600',
+    warning: 'bg-yellow-400 text-gray-900 hover:bg-yellow-500'
   };
 
   const sizes = {
@@ -95,99 +94,110 @@ const Button = ({ children, variant = 'primary', size = 'md', className = '', ..
   );
 };
 
-const PackageCard = ({ pkg, selectedCountry, onSelect, onViewDetails, formatPrice, loadingDetails }) => (
-  <div className="bg-white rounded-2xl overflow-hidden border-2 border-gray-200 hover:shadow-2xl transition-all hover:-translate-y-2">
-    <div className="relative h-48 overflow-hidden">
-      <img 
-        src={pkg.image || 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=600'} 
-        alt={pkg.title} 
-        className="w-full h-full object-cover hover:scale-110 transition-transform duration-700"
-        onError={(e) => {
-          e.target.src = 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=600';
-        }}
-      />
-      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
-      <div className="absolute top-4 left-4">
-        <span className={`px-3 py-1 text-xs font-bold rounded-full ${selectedCountry === 'RC' ? 'bg-primary text-white' : 'bg-green text-white'}`}>
-          {pkg.departure_country?.name || selectedCountry}
-        </span>
-      </div>
-      <div className="absolute top-4 right-4">
-        <span className={`px-3 py-1 text-xs font-bold rounded-full ${pkg.active ? 'bg-green text-white' : 'bg-gray-500 text-white'}`}>
-          {pkg.active ? 'Disponible' : 'Indisponible'}
-        </span>
-      </div>
-    </div>
-    
-    <div className="p-6">
-      <h4 className="text-2xl font-black text-gray-900 mb-3">{pkg.title}</h4>
-      <p className="text-gray-600 mb-4 line-clamp-2">{pkg.description || 'Découvrez ce package unique'}</p>
-      
-      {pkg.departure_country && pkg.arrival_country && (
-        <div className="flex items-center gap-2 mb-4 text-sm text-gray-600">
-          <MapPin size={16} className="text-primary" />
-          <span>
-            {pkg.departure_country.name} → {pkg.arrival_country.name}
-          </span>
-        </div>
-      )}
+const PackageCard = ({ pkg, selectedCountry, onSelect, onViewDetails, formatPrice, loadingDetails }) => {
+  // Trouver les prix correspondant au pays sélectionné
+  const relevantPrices = pkg.prices?.filter(price => 
+    price.departure_country?.code?.toUpperCase() === selectedCountry.toUpperCase()
+  ) || [];
+  
+  const firstPrice = relevantPrices[0];
+  const departureCountry = firstPrice?.departure_country;
+  const arrivalCountry = firstPrice?.arrival_country;
 
-      {pkg.min_people && (
-        <div className="flex items-center gap-2 mb-4 text-sm text-gray-600">
-          <Users size={16} className="text-primary" />
-          <span>
-            {pkg.min_people} - {pkg.max_people || '+'} personnes
+  return (
+    <div className="bg-white rounded-2xl overflow-hidden border-2 border-gray-200 hover:shadow-2xl transition-all hover:-translate-y-2">
+      <div className="relative h-48 overflow-hidden">
+        <img 
+          src={pkg.image || 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=600'} 
+          alt={pkg.title} 
+          className="w-full h-full object-cover hover:scale-110 transition-transform duration-700"
+          onError={(e) => {
+            e.target.src = 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=600';
+          }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+        <div className="absolute top-4 left-4">
+          <span className={`px-3 py-1 text-xs font-bold rounded-full ${selectedCountry === 'RC' ? 'bg-blue-600 text-white' : 'bg-emerald-500 text-white'}`}>
+            {departureCountry?.name || selectedCountry}
           </span>
         </div>
-      )}
-      
-      {pkg.prices && pkg.prices.length > 0 && (
-        <div className="space-y-2 mb-4">
-          {pkg.prices.map((price, idx) => (
-            <div key={idx} className="flex items-center justify-between text-sm bg-light-bg p-3 rounded-lg">
-              <span className="text-gray-700">
-                {price.min_people} {price.max_people ? `- ${price.max_people}` : '+'} pers.
-              </span>
-              <span className="font-bold text-gray-900">{formatPrice(price.price)} {price.currency}</span>
-            </div>
-          ))}
+        <div className="absolute top-4 right-4">
+          <span className={`px-3 py-1 text-xs font-bold rounded-full ${pkg.active ? 'bg-emerald-500 text-white' : 'bg-gray-500 text-white'}`}>
+            {pkg.active ? 'Disponible' : 'Indisponible'}
+          </span>
         </div>
-      )}
+      </div>
       
-      <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
-        <div>
-          {pkg.prices && pkg.prices[0] && (
-            <div>
-              <p className="text-sm text-gray-500">À partir de</p>
-              <p className="text-2xl font-black text-primary">
-                {formatPrice(pkg.prices[0].price)} <span className="text-sm font-bold">{pkg.prices[0].currency}</span>
-              </p>
-            </div>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          <button 
-            onClick={() => onViewDetails(pkg)}
-            disabled={loadingDetails}
-            className="px-3 py-2 bg-gray-100 text-gray-700 font-bold rounded-full text-sm hover:bg-gray-200 transition-all flex items-center gap-1"
-            title="Voir les détails"
-          >
-            <Eye size={16} />
-          </button>
-          <Button 
-            onClick={() => onSelect(pkg.id)}
-            disabled={!pkg.active}
-            variant={pkg.active ? 'warning' : 'outline'}
-            size="sm"
-            className={`${!pkg.active && 'bg-gray-300 cursor-not-allowed hover:scale-100'}`}
-          >
-            {pkg.active ? 'Réserver' : 'Indisponible'}
-          </Button>
+      <div className="p-6">
+        <h4 className="text-2xl font-black text-gray-900 mb-3">{pkg.title}</h4>
+        <p className="text-gray-600 mb-4 line-clamp-2">{pkg.description || 'Découvrez ce package unique'}</p>
+        
+        {departureCountry && arrivalCountry && (
+          <div className="flex items-center gap-2 mb-4 text-sm text-gray-600">
+            <MapPin size={16} className="text-blue-600" />
+            <span>
+              {departureCountry.name} → {arrivalCountry.name}
+            </span>
+          </div>
+        )}
+
+        {firstPrice && (
+          <div className="flex items-center gap-2 mb-4 text-sm text-gray-600">
+            <Users size={16} className="text-blue-600" />
+            <span>
+              {firstPrice.min_people} - {firstPrice.max_people || '+'} personnes
+            </span>
+          </div>
+        )}
+        
+        {relevantPrices.length > 0 && (
+          <div className="space-y-2 mb-4">
+            {relevantPrices.map((price, idx) => (
+              <div key={idx} className="flex items-center justify-between text-sm bg-gray-100 p-3 rounded-lg">
+                <span className="text-gray-700">
+                  {price.min_people} {price.max_people ? `- ${price.max_people}` : '+'} pers.
+                </span>
+                <span className="font-bold text-gray-900">{formatPrice(price.price)} {price.currency}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        
+        <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
+          <div>
+            {firstPrice && (
+              <div>
+                <p className="text-sm text-gray-500">À partir de</p>
+                <p className="text-2xl font-black text-blue-600">
+                  {formatPrice(firstPrice.price)} <span className="text-sm font-bold">{firstPrice.currency}</span>
+                </p>
+              </div>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => onViewDetails(pkg)}
+              disabled={loadingDetails}
+              className="px-3 py-2 bg-gray-100 text-gray-700 font-bold rounded-full text-sm hover:bg-gray-200 transition-all flex items-center gap-1"
+              title="Voir les détails"
+            >
+              <Eye size={16} />
+            </button>
+            <Button 
+              onClick={() => onSelect(pkg.id)}
+              disabled={!pkg.active}
+              variant={pkg.active ? 'warning' : 'outline'}
+              size="sm"
+              className={`${!pkg.active && 'bg-gray-300 cursor-not-allowed hover:scale-100'}`}
+            >
+              {pkg.active ? 'Réserver' : 'Indisponible'}
+            </Button>
+          </div>
         </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 // ============= COMPOSANT PRINCIPAL =============
 
@@ -241,7 +251,6 @@ const OuikenacPage = () => {
       setError(null);
       const response = await api.get('/ouikenac');
       console.log('Packages récupérés:', response.data);
-      // console.log(departure_country?.code); // Removed this line: departure_country is not defined here
       const packagesData = Array.isArray(response.data) ? response.data : (response.data.data || []);
       setPackages(packagesData);
       setLoading(false);
@@ -253,23 +262,19 @@ const OuikenacPage = () => {
     }
   };
 
- const currentPackages = packages.filter(pkg => {
-    const code = pkg.departure_country?.code;
+  const currentPackages = packages.filter(pkg => {
+    // Vérifier si le package a des prix disponibles
+    if (!pkg.prices || pkg.prices.length === 0) return false;
 
-    if (!code) return false; // Sécurité : ignorer si le code pays est manquant
-
-    // Normaliser le code du pays en majuscules pour une comparaison cohérente
-    const normalizedCode = code.toUpperCase(); 
-    
-    if (selectedCountry === 'RC') {
-      return normalizedCode === 'RC'; // Le filtre est maintenant insensible à la casse pour 'RC', 'rc', 'Rc', etc.
-    } else if (selectedCountry === 'RDC') {
-      return normalizedCode === 'RDC'; // Simplifie également le filtre pour 'RDC'
-    }
-    
-    return false;
+    // Vérifier si au moins un prix correspond au pays de départ sélectionné
+    return pkg.prices.some(price => {
+      const code = price.departure_country?.code;
+      if (!code) return false;
+      
+      const normalizedCode = code.toUpperCase();
+      return normalizedCode === selectedCountry.toUpperCase();
+    });
   });
-  
 
   const handleInputChange = (e) => {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -382,18 +387,20 @@ const OuikenacPage = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-20">
             <div className="flex items-center space-x-3">
-              <img src="logoetravel.jpg" alt="Logo e-Travel World" width={70}/>
+              <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center">
+                <Globe className="text-white" size={32} />
+              </div>
               <div>
                 <h1 className="text-2xl font-black text-gray-900">e-TRAVEL WORLD</h1>
                 <p className="text-xs text-gray-500 tracking-wider">AGENCY</p>
               </div>
             </div>
             <nav className="hidden md:flex items-center space-x-10">
-              <Link to="/" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">Accueil</Link>
-              <Link to="/about" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">À propos</Link>
-              <Link to="/weekend" className="px-6 py-2 bg-yellow-400 text-gray-900 font-bold rounded-full transition-all hover:bg-yellow-500 hover:shadow-lg">
+              <a href="#" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">Accueil</a>
+              <a href="#about" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">À propos</a>
+              <a href="#packages" className="px-6 py-2 bg-yellow-400 text-gray-900 font-bold rounded-full transition-all hover:bg-yellow-500 hover:shadow-lg">
                 OUIKENAC
-              </Link>
+              </a>
             </nav>
             <button 
               onClick={() => setMenuOpen(!menuOpen)} 
@@ -408,11 +415,11 @@ const OuikenacPage = () => {
       {/* Mobile Menu */}
       <div className={`fixed top-20 left-0 right-0 z-40 bg-white shadow-xl md:hidden transition-transform duration-300 ${menuOpen ? 'translate-y-0' : '-translate-y-full'}`}>
         <nav className="flex flex-col space-y-4 p-6">
-          <Link to="/" className="text-gray-700 hover:text-blue-600 transition-colors font-medium pb-2 border-b border-gray-100" onClick={() => setMenuOpen(false)}>Accueil</Link>
-          <Link to="/about" className="text-gray-700 hover:text-blue-600 transition-colors font-medium pb-2 border-b border-gray-100" onClick={() => setMenuOpen(false)}>À propos</Link>
-          <Link to="/weekend" className="px-4 py-2 bg-yellow-400 text-gray-900 font-bold rounded-full text-center transition-all hover:bg-yellow-500 hover:shadow-lg" onClick={() => setMenuOpen(false)}>
+          <a href="#" className="text-gray-700 hover:text-blue-600 transition-colors font-medium pb-2 border-b border-gray-100" onClick={() => setMenuOpen(false)}>Accueil</a>
+          <a href="#about" className="text-gray-700 hover:text-blue-600 transition-colors font-medium pb-2 border-b border-gray-100" onClick={() => setMenuOpen(false)}>À propos</a>
+          <a href="#packages" className="px-4 py-2 bg-yellow-400 text-gray-900 font-bold rounded-full text-center transition-all hover:bg-yellow-500 hover:shadow-lg" onClick={() => setMenuOpen(false)}>
             OUIKENAC
-          </Link>
+          </a>
         </nav>
       </div>
       
@@ -420,7 +427,7 @@ const OuikenacPage = () => {
         {/* Hero Section */}
         <section className="relative h-[600px] overflow-hidden">
           <img 
-            src="https://images.unsplash.com/photo-1510414842594-b258387532a7?q=80&w=1932&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D" 
+            src="https://images.unsplash.com/photo-1510414842594-b258387532a7?q=80&w=1932&auto=format&fit=crop" 
             alt="Paysage du Congo"
             className="w-full h-full object-cover brightness-[.65]"
           />
@@ -452,11 +459,11 @@ const OuikenacPage = () => {
             <div className="grid md:grid-cols-2 gap-12 items-center">
               <div className="relative h-96 rounded-2xl overflow-hidden shadow-2xl">
                 <img 
-                  src="https://images.unsplash.com/photo-1522204523234-8729aa6e993e?q=80&w=1740&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D" 
+                  src="https://images.unsplash.com/photo-1522204523234-8729aa6e993e?q=80&w=1740&auto=format&fit=crop" 
                   alt="Pont entre les capitales" 
                   className="w-full h-full object-cover"
                 />
-                <div className="absolute inset-0 bg-primary/40 flex items-end p-6">
+                <div className="absolute inset-0 bg-blue-600/40 flex items-end p-6">
                   <h3 className="text-3xl font-black text-white">Le pont entre les deux Congos</h3>
                 </div>
               </div>
@@ -470,7 +477,7 @@ const OuikenacPage = () => {
                 <p className="text-lg text-gray-700 leading-relaxed">
                   Notre objectif : rendre uniques les week-ends des congolais, des expatriés et autres touristes au travers d'offres de découverte des plus beaux endroits de notre pays, surtout les plus insoupçonnés, de son histoire, de sa culture.
                 </p>
-                <div className="mt-8 p-6 bg-yellow-50 border-l-4 border-warning rounded-r-xl">
+                <div className="mt-8 p-6 bg-yellow-50 border-l-4 border-yellow-400 rounded-r-xl">
                   <p className="text-xl font-bold text-gray-900 italic">
                     Grâce à OUIKENAC, vos semaines ne seront plus jamais les mêmes ! ✨
                   </p>
@@ -481,19 +488,19 @@ const OuikenacPage = () => {
         </section>
 
         {/* Country Selection & Packages */}
-        <section id="packages" className="py-20 px-4 bg-light-bg">
+        <section id="packages" className="py-20 px-4 bg-gray-100">
           <div className="max-w-7xl mx-auto">
             <div className="max-w-3xl mx-auto text-center mb-16">
               <h2 className="text-4xl font-black text-gray-900 mb-4">Nos Packages Week-end</h2>
               <p className="text-lg text-gray-600">Choisissez votre destination et évadez-vous pour un week-end inoubliable.</p>
             </div>
 
-            {/* Country Info Cards (for visibility) */}
+            {/* Country Info Cards */}
             <div className="grid md:grid-cols-2 gap-8 mb-16">
-              <div className="bg-white rounded-2xl overflow-hidden shadow-lg border-t-4 border-primary">
+              <div className="bg-white rounded-2xl overflow-hidden shadow-lg border-t-4 border-blue-600">
                 <div className="p-6">
                   <h3 className="text-2xl font-black text-gray-900 mb-3 flex items-center gap-2">
-                    <Globe size={24} className="text-primary" /> République du Congo (RC)
+                    <Globe size={24} className="text-blue-600" /> République du Congo (RC)
                   </h3>
                   <p className="text-gray-700 leading-relaxed mb-4">
                     Le Congo, aussi appelé Congo-Brazzaville, est réputé pour sa forêt équatoriale et sa faune. C'est le berceau de l'écotourisme en Afrique centrale. Monnaie : Franc CFA.
@@ -508,10 +515,10 @@ const OuikenacPage = () => {
                 </div>
               </div>
 
-              <div className="bg-white rounded-2xl overflow-hidden shadow-lg border-t-4 border-green">
+              <div className="bg-white rounded-2xl overflow-hidden shadow-lg border-t-4 border-emerald-500">
                 <div className="p-6">
                   <h3 className="text-2xl font-black text-gray-900 mb-3 flex items-center gap-2">
-                    <Globe size={24} className="text-green" /> Rép. Démocratique du Congo (RDC)
+                    <Globe size={24} className="text-emerald-500" /> Rép. Démocratique du Congo (RDC)
                   </h3>
                   <p className="text-gray-700 leading-relaxed mb-4">
                     La RDC est le quatrième pays le plus peuplé d'Afrique (102 millions d'habitants). Découpée en 26 provinces. Monnaie : Franc Congolais.
@@ -532,7 +539,7 @@ const OuikenacPage = () => {
               <button 
                 onClick={() => setSelectedCountry('RC')} 
                 className={`px-8 py-3 rounded-full font-bold transition-all ${
-                  selectedCountry === 'RC' ? 'bg-primary text-white shadow-lg' : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-primary'
+                  selectedCountry === 'RC' ? 'bg-blue-600 text-white shadow-lg' : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-blue-600'
                 }`}
               >
                 Packages RC
@@ -540,7 +547,7 @@ const OuikenacPage = () => {
               <button 
                 onClick={() => setSelectedCountry('RDC')} 
                 className={`px-8 py-3 rounded-full font-bold transition-all ${
-                  selectedCountry === 'RDC' ? 'bg-green text-white shadow-lg' : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-green'
+                  selectedCountry === 'RDC' ? 'bg-emerald-500 text-white shadow-lg' : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-emerald-500'
                 }`}
               >
                 Packages RDC
@@ -551,8 +558,8 @@ const OuikenacPage = () => {
             {loading && (
               <div className="flex flex-col items-center justify-center py-20">
                 <div className="relative">
-                  <Loader className="animate-spin h-16 w-16 text-primary" />
-                  <div className="absolute inset-0 h-16 w-16 border-4 border-primary/20 rounded-full"></div>
+                  <Loader className="animate-spin h-16 w-16 text-blue-600" />
+                  <div className="absolute inset-0 h-16 w-16 border-4 border-blue-600/20 rounded-full"></div>
                 </div>
                 <p className="text-gray-700 font-semibold text-lg mt-6">Chargement des packages...</p>
               </div>
@@ -616,13 +623,13 @@ const OuikenacPage = () => {
               </div>
             )}
 
-            <div className="flex flex-col lg:flex-row gap-12 bg-light-bg p-8 rounded-2xl shadow-xl border-2 border-primary/20">
+            <div className="flex flex-col lg:flex-row gap-12 bg-gray-100 p-8 rounded-2xl shadow-xl border-2 border-blue-600/20">
               {/* Contact Info */}
               <div className="lg:w-1/3 space-y-8">
                 <h3 className="text-2xl font-black text-gray-900">Contactez-nous</h3>
                 <div className="space-y-4">
                   <div className="flex items-center gap-4">
-                    <Phone size={24} className="text-primary" />
+                    <Phone size={24} className="text-blue-600" />
                     <div>
                       <p className="text-gray-500 text-sm">Téléphone</p>
                       <p className="font-semibold text-gray-800">+242 06 871 13 78</p>
@@ -630,14 +637,14 @@ const OuikenacPage = () => {
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
-                    <Mail size={24} className="text-primary" />
+                    <Mail size={24} className="text-blue-600" />
                     <div>
                       <p className="text-gray-500 text-sm">Email</p>
                       <p className="font-semibold text-gray-800">worldagencyetravel@gmail.com</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
-                    <MapPin size={24} className="text-primary" />
+                    <MapPin size={24} className="text-blue-600" />
                     <div>
                       <p className="text-gray-500 text-sm">Adresse</p>
                       <p className="font-semibold text-gray-800">Brazzaville, CONGO</p>
@@ -654,7 +661,7 @@ const OuikenacPage = () => {
                   <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-blue-400 transition-all" aria-label="Twitter">
                     <Twitter size={18} className="text-white" />
                   </a>
-                  <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-primary transition-all" aria-label="LinkedIn">
+                  <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-blue-600 transition-all" aria-label="LinkedIn">
                     <Linkedin size={18} className="text-white" />
                   </a>
                 </div>
@@ -674,7 +681,7 @@ const OuikenacPage = () => {
                         value={formData.full_name} 
                         onChange={handleInputChange} 
                         required 
-                        className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-primary focus:border-primary" 
+                        className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-blue-600 focus:border-blue-600" 
                         placeholder="Votre nom et prénom"
                       />
                     </div>
@@ -687,7 +694,7 @@ const OuikenacPage = () => {
                         value={formData.email} 
                         onChange={handleInputChange} 
                         required 
-                        className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-primary focus:border-primary" 
+                        className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-blue-600 focus:border-blue-600" 
                         placeholder="votre.email@exemple.com"
                       />
                     </div>
@@ -701,13 +708,13 @@ const OuikenacPage = () => {
                       value={formData.phone} 
                       onChange={handleInputChange} 
                       required 
-                      className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-primary focus:border-primary" 
+                      className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-blue-600 focus:border-blue-600" 
                       placeholder="+242 0x xxx xx xx"
                     />
                   </div>
-                  <div className="p-4 bg-warning/20 border border-warning/50 rounded-xl">
+                  <div className="p-4 bg-yellow-400/20 border border-yellow-400/50 rounded-xl">
                     <label htmlFor="reservable_id" className="block text-sm font-medium text-gray-900 mb-1 flex items-center gap-2">
-                      <Info size={16} className="text-warning" /> Package Sélectionné (ID)
+                      <Info size={16} className="text-yellow-400" /> Package Sélectionné (ID)
                     </label>
                     <input 
                       type="text" 
@@ -716,7 +723,7 @@ const OuikenacPage = () => {
                       value={formData.reservable_id} 
                       readOnly 
                       required 
-                      className="w-full p-3 border border-warning bg-white rounded-xl font-bold text-gray-900 cursor-default" 
+                      className="w-full p-3 border border-yellow-400 bg-white rounded-xl font-bold text-gray-900 cursor-default" 
                       placeholder="Sélectionnez un package ci-dessus"
                     />
                   </div>
@@ -728,7 +735,7 @@ const OuikenacPage = () => {
                       value={formData.message} 
                       onChange={handleInputChange} 
                       rows="4" 
-                      className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-primary focus:border-primary" 
+                      className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-blue-600 focus:border-blue-600" 
                       placeholder="Ajoutez vos demandes spécifiques ici..."
                     />
                   </div>
@@ -756,7 +763,7 @@ const OuikenacPage = () => {
         </section>
 
         {/* Promo Banner */}
-        <section className="py-20 px-4 bg-green-ouik">
+        <section className="py-20 px-4 bg-emerald-500">
           <div className="max-w-5xl mx-auto text-center">
             <p className="text-white text-2xl md:text-3xl mb-4 font-light">
               Réservez votre <strong className="font-black">OUIKENAC</strong> maintenant
@@ -776,7 +783,9 @@ const OuikenacPage = () => {
         <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8">
           <div>
             <div className="flex items-center space-x-3 mb-6">
-              <img src="logoetravel.jpg" alt="Logo e-Travel World" width={40}/>
+              <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
+                <Globe className="text-white" size={20} />
+              </div>
               <div>
                 <h3 className="text-xl font-black">e-TRAVEL WORLD</h3>
                 <p className="text-xs text-gray-400">AGENCY</p>
@@ -787,8 +796,8 @@ const OuikenacPage = () => {
           <div>
             <h3 className="text-lg font-bold mb-6">Navigation</h3>
             <div className="space-y-3">
-              <a href="/" className="text-gray-400 hover:text-white transition-colors block">Accueil</a>
-              <a href="/about" className="text-gray-400 hover:text-white transition-colors block">À propos</a>
+              <a href="#" className="text-gray-400 hover:text-white transition-colors block">Accueil</a>
+              <a href="#about" className="text-gray-400 hover:text-white transition-colors block">À propos</a>
               <a href="#packages" className="text-gray-400 hover:text-white transition-colors block">Packages</a>
               <a href="#reservation-form" className="text-gray-400 hover:text-white transition-colors block">Réservation</a>
             </div>
@@ -797,13 +806,13 @@ const OuikenacPage = () => {
             <h3 className="text-lg font-bold mb-6">Contact</h3>
             <div className="space-y-3 text-sm">
               <p className="flex items-center gap-2 text-gray-400">
-                <Phone size={16} className="text-primary" /> +242 06 871 13 78
+                <Phone size={16} className="text-blue-600" /> +242 06 871 13 78
               </p>
               <p className="flex items-center gap-2 text-gray-400">
-                <Mail size={16} className="text-primary" /> worldagencyetravel@gmail.com
+                <Mail size={16} className="text-blue-600" /> worldagencyetravel@gmail.com
               </p>
               <p className="flex items-start gap-2 text-gray-400">
-                <MapPin size={16} className="text-primary mt-1" /> Brazzaville, CONGO
+                <MapPin size={16} className="text-blue-600 mt-1" /> Brazzaville, CONGO
               </p>
             </div>
           </div>
@@ -819,7 +828,7 @@ const OuikenacPage = () => {
               <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-blue-400 transition-all" aria-label="Twitter">
                 <Twitter size={18} />
               </a>
-              <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-primary transition-all" aria-label="LinkedIn">
+              <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-blue-600 transition-all" aria-label="LinkedIn">
                 <Linkedin size={18} />
               </a>
             </div>
@@ -858,7 +867,7 @@ const OuikenacPage = () => {
               {/* Description */}
               <div className="border-b pb-6">
                 <div className="flex items-center gap-2 mb-3">
-                  <Info className="text-primary" size={20} />
+                  <Info className="text-blue-600" size={20} />
                   <h3 className="text-xl font-bold text-gray-900">Détails du Package</h3>
                 </div>
                 <p className="text-gray-700 leading-relaxed whitespace-pre-line">{selectedPackage.description}</p>
@@ -866,42 +875,42 @@ const OuikenacPage = () => {
 
               {/* Infos Clés */}
               <div className="grid grid-cols-2 gap-4 md:grid-cols-4 border-b pb-6">
-                <div className="flex flex-col items-center p-3 bg-light-bg rounded-xl">
-                  <Clock size={24} className="text-primary mb-1" />
+                <div className="flex flex-col items-center p-3 bg-gray-100 rounded-xl">
+                  <Clock size={24} className="text-blue-600 mb-1" />
                   <p className="text-sm text-gray-500">Durée</p>
-                  <p className="font-bold text-gray-900">{selectedPackage.duration || 'N/A'}</p>
+                  <p className="font-bold text-gray-900">{selectedPackage.duration || 'Week-end'}</p>
                 </div>
-                <div className="flex flex-col items-center p-3 bg-light-bg rounded-xl">
-                  <Calendar size={24} className="text-primary mb-1" />
+                <div className="flex flex-col items-center p-3 bg-gray-100 rounded-xl">
+                  <Calendar size={24} className="text-blue-600 mb-1" />
                   <p className="text-sm text-gray-500">Période</p>
                   <p className="font-bold text-gray-900">{selectedPackage.period || 'Week-end'}</p>
                 </div>
-                <div className="flex flex-col items-center p-3 bg-light-bg rounded-xl">
-                  <Globe size={24} className="text-primary mb-1" />
+                <div className="flex flex-col items-center p-3 bg-gray-100 rounded-xl">
+                  <Globe size={24} className="text-blue-600 mb-1" />
                   <p className="text-sm text-gray-500">Départ</p>
-                  <p className="font-bold text-gray-900">{selectedPackage.departure_country?.name}</p>
+                  <p className="font-bold text-gray-900">{selectedPackage.prices?.[0]?.departure_country?.name || 'N/A'}</p>
                 </div>
-                <div className="flex flex-col items-center p-3 bg-light-bg rounded-xl">
-                  <MapPin size={24} className="text-primary mb-1" />
+                <div className="flex flex-col items-center p-3 bg-gray-100 rounded-xl">
+                  <MapPin size={24} className="text-blue-600 mb-1" />
                   <p className="text-sm text-gray-500">Arrivée</p>
-                  <p className="font-bold text-gray-900">{selectedPackage.arrival_country?.name}</p>
+                  <p className="font-bold text-gray-900">{selectedPackage.prices?.[0]?.arrival_country?.name || 'N/A'}</p>
                 </div>
               </div>
 
               {/* Capacité */}
-              {selectedPackage.min_people && (
+              {selectedPackage.prices?.[0]?.min_people && (
                 <div className="mb-8">
                   <div className="flex items-center gap-2 mb-3">
-                    <Users className="text-primary" size={20} />
+                    <Users className="text-blue-600" size={20} />
                     <h3 className="text-xl font-bold text-gray-900">Capacité</h3>
                   </div>
-                  <div className="bg-blue-50 p-4 rounded-xl border border-primary/30">
+                  <div className="bg-blue-50 p-4 rounded-xl border border-blue-600/30">
                     <p className="text-gray-900">
-                      <span className="font-bold text-primary text-2xl">{selectedPackage.min_people}</span> 
-                      {selectedPackage.max_people && (
-                        <> à <span className="font-bold text-primary text-2xl">{selectedPackage.max_people}</span></>
+                      <span className="font-bold text-blue-600 text-2xl">{selectedPackage.prices[0].min_people}</span> 
+                      {selectedPackage.prices[0].max_people && (
+                        <> à <span className="font-bold text-blue-600 text-2xl">{selectedPackage.prices[0].max_people}</span></>
                       )} 
-                      {!selectedPackage.max_people && '+'} 
+                      {!selectedPackage.prices[0].max_people && '+'} 
                       <span className="text-gray-700"> personnes</span>
                     </p>
                   </div>
@@ -912,18 +921,41 @@ const OuikenacPage = () => {
               {selectedPackage.prices && selectedPackage.prices.length > 0 && (
                 <div className="mb-8">
                   <div className="flex items-center gap-2 mb-3">
-                    <DollarSign className="text-green" size={20} />
+                    <DollarSign className="text-emerald-500" size={20} />
                     <h3 className="text-xl font-bold text-gray-900">Tarifs</h3>
                   </div>
                   <div className="space-y-3">
                     {selectedPackage.prices.map((price, idx) => (
                       <div key={idx} className="flex items-center justify-between text-lg p-4 bg-gray-50 rounded-xl border border-gray-200">
-                        <span className="text-gray-700 font-medium">
-                          {price.min_people} {price.max_people ? `- ${price.max_people}` : '+'} personne(s)
-                        </span>
-                        <span className="text-2xl font-black text-primary">
+                        <div>
+                          <span className="text-gray-700 font-medium block">
+                            {price.min_people} {price.max_people ? `- ${price.max_people}` : '+'} personne(s)
+                          </span>
+                          <span className="text-sm text-gray-500">
+                            {price.departure_country?.name} → {price.arrival_country?.name}
+                          </span>
+                        </div>
+                        <span className="text-2xl font-black text-blue-600">
                           {formatPrice(price.price)} <span className="text-sm font-bold">{price.currency}</span>
                         </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Inclusions */}
+              {selectedPackage.inclusions && selectedPackage.inclusions.length > 0 && (
+                <div className="mb-8">
+                  <div className="flex items-center gap-2 mb-3">
+                    <CheckCircle className="text-emerald-500" size={20} />
+                    <h3 className="text-xl font-bold text-gray-900">Inclusions</h3>
+                  </div>
+                  <div className="grid md:grid-cols-2 gap-3">
+                    {selectedPackage.inclusions.map((inclusion, idx) => (
+                      <div key={idx} className="flex items-center gap-2 p-3 bg-emerald-50 rounded-lg border border-emerald-200">
+                        <CheckCircle size={16} className="text-emerald-500 flex-shrink-0" />
+                        <span className="text-gray-800 font-medium">{inclusion.name}</span>
                       </div>
                     ))}
                   </div>
@@ -954,84 +986,8 @@ const OuikenacPage = () => {
         </div>
       )}
 
-      {/* Tailwind CSS Variables (for local development/extension support) */}
+      {/* Styles */}
       <style jsx global>{`
-        :root {
-          --primary: #2563eb; /* blue-600 */
-          --secondary: #10b981; /* emerald-500 */
-          --green: #10b981; /* emerald-500 */
-          --warning: #facc15; /* yellow-400 */
-          --light-bg: #f3f4f6; /* gray-100 */
-        }
-        
-        .bg-green-ouik {
-          background-color: var(--green);
-        }
-
-        .text-primary {
-          color: var(--primary);
-        }
-
-        .bg-primary {
-          background-color: var(--primary);
-        }
-
-        .border-primary {
-          border-color: var(--primary);
-        }
-
-        .hover\\:bg-primary:hover {
-          background-color: var(--primary);
-        }
-
-        .hover\\:text-primary:hover {
-          color: var(--primary);
-        }
-
-        .focus\\:ring-primary:focus {
-          --tw-ring-color: var(--primary);
-        }
-
-        .focus\\:border-primary:focus {
-          border-color: var(--primary);
-        }
-
-        .text-secondary {
-          color: var(--secondary);
-        }
-
-        .bg-secondary {
-          background-color: var(--secondary);
-        }
-
-        .text-green {
-          color: var(--green);
-        }
-
-        .bg-green {
-          background-color: var(--green);
-        }
-
-        .hover\\:border-green:hover {
-          border-color: var(--green);
-        }
-
-        .text-warning {
-          color: var(--warning);
-        }
-
-        .bg-warning {
-          background-color: var(--warning);
-        }
-
-        .border-warning {
-          border-color: var(--warning);
-        }
-
-        .bg-light-bg {
-          background-color: var(--light-bg);
-        }
-
         .animate-progress {
           animation: progress-bar 1.5s infinite linear;
         }
@@ -1059,6 +1015,12 @@ const OuikenacPage = () => {
           to { transform: scale(1); opacity: 1; }
         }
 
+        .line-clamp-2 {
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
       `}</style>
     </div>
   );
