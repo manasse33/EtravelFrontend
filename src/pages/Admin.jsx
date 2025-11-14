@@ -1211,14 +1211,37 @@ const AdminDashboard = () => {
                                 <input type="text" placeholder="Nom du Tour *" value={cityTourForm.nom} onChange={e => setCityTourForm({ ...cityTourForm, nom: e.target.value })} className="px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 text-sm sm:text-base" required />
                                 <input type="number" placeholder="Prix (FCFA) *" value={cityTourForm.price} onChange={e => setCityTourForm({ ...cityTourForm, price: e.target.value })} className="px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 text-sm sm:text-base" required />
                                 
-                                <select value={cityTourForm.country_id} onChange={e => { setCityTourForm({ ...cityTourForm, country_id: e.target.value, city_id: '' }) }} className="px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 text-sm sm:text-base" required>
-                                    <option value="">Sélectionnez le pays *</option>
-                                    {countries.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                </select>
-                                <select value={cityTourForm.city_id} onChange={e => setCityTourForm({ ...cityTourForm, city_id: e.target.value })} className="px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 text-sm sm:text-base" required disabled={!cityTourForm.country_id}>
-                                    <option value="">Sélectionnez la ville *</option>
-                                    {cities.filter(c => c.country_id === cityTourForm.country_id).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                </select>
+                                <select 
+    value={cityTourForm.country_id} 
+    onChange={e => { 
+        const selectedValue = e.target.value;
+        // Convertit en nombre, sauf si c'est la chaîne vide ("") pour l'option par défaut.
+        const countryId = selectedValue === "" ? "" : Number(selectedValue);
+
+        setCityTourForm({ 
+            ...cityTourForm, 
+            country_id: countryId, 
+            city_id: '' // Réinitialisation de la ville lors du changement de pays
+        }) 
+    }} 
+    className="px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 text-sm sm:text-base" 
+    required
+>
+    <option value="">Sélectionnez le pays *</option>
+    {countries.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+</select>
+                                <select 
+    value={cityTourForm.city_id} 
+    onChange={e => setCityTourForm({ ...cityTourForm, city_id: e.target.value })} 
+    className="px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 text-sm sm:text-base" 
+    required 
+    disabled={!cityTourForm.country_id}
+>
+    <option value="">Sélectionnez la ville *</option>
+    {cities
+        .filter(c => c.country_id === cityTourForm.country_id) // ✅ '===' est maintenant correct
+        .map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+</select>
                                 
                                 <input type="date" placeholder="Date de début *" value={cityTourForm.date} onChange={e => setCityTourForm({ ...cityTourForm, date: e.target.value })} className="px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 text-sm sm:text-base" required />
                                 <div className="flex gap-2 sm:gap-4">
