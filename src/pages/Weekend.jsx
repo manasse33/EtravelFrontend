@@ -253,11 +253,18 @@ const OuikenacPage = () => {
     }
   };
 
-  const currentPackages = packages.filter(pkg => {
+ const currentPackages = packages.filter(pkg => {
+    const code = pkg.departure_country?.code;
+
+    if (!code) return false; // Sécurité : ignorer si le code pays est manquant
+
+    // Normaliser le code du pays en majuscules pour une comparaison cohérente
+    const normalizedCode = code.toUpperCase(); 
+    
     if (selectedCountry === 'RC') {
-      return pkg.departure_country?.code === 'RC';
+      return normalizedCode === 'RC'; // Le filtre est maintenant insensible à la casse pour 'RC', 'rc', 'Rc', etc.
     } else if (selectedCountry === 'RDC') {
-      return pkg.departure_country?.code === 'rdc' || pkg.departure_country?.code === 'RDC';
+      return normalizedCode === 'RDC'; // Simplifie également le filtre pour 'RDC'
     }
     
     return false;
