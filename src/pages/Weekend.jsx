@@ -2,11 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { Globe, Menu, X, ArrowRight, Phone, Mail, MapPin, Facebook, Instagram, Twitter, Linkedin, Calendar, Loader, AlertCircle, CheckCircle, Eye, Users, Clock, DollarSign, Info, XCircle } from 'lucide-react';
 import axios from 'axios';
 
-// ============= COMPOSANTS RÉUTILISABLES =============
+// ============= COMPOSANTS RÉUTILISABLES (Harmonisés) =============
 
 const Notification = ({ show, message, type, onClose }) => {
   if (!show) return null;
 
+  // Les couleurs des notifications sont conservées pour leur sémantique standard (vert, rouge, jaune)
   const configs = {
     success: {
       icon: <CheckCircle size={24} />,
@@ -57,25 +58,33 @@ const LoadingOverlay = ({ message = 'Chargement...' }) => (
     <div className="bg-white rounded-2xl p-8 shadow-2xl max-w-sm w-full mx-4">
       <div className="flex flex-col items-center">
         <div className="relative">
-          <Loader className="animate-spin h-16 w-16 text-blue-600" />
-          <div className="absolute inset-0 h-16 w-16 border-4 border-blue-600/20 rounded-full"></div>
+          {/* Utilisation de la couleur primaire */}
+          <Loader className="animate-spin h-16 w-16 text-primary" />
+          <div className="absolute inset-0 h-16 w-16 border-4 border-primary/20 rounded-full"></div>
         </div>
         <p className="text-gray-700 font-semibold text-lg mt-6">{message}</p>
         <div className="w-full bg-gray-200 rounded-full h-1 mt-4 overflow-hidden">
-          <div className="h-full bg-blue-600 rounded-full animate-progress"></div>
+          {/* Utilisation de la couleur primaire */}
+          <div className="h-full bg-primary rounded-full animate-progress"></div>
         </div>
       </div>
     </div>
   </div>
 );
 
+// Composant Button réutilisable (Harmonisé)
 const Button = ({ children, variant = 'primary', size = 'md', className = '', ...props }) => {
   const variants = {
-    primary: 'bg-blue-600 text-white hover:bg-blue-700',
-    secondary: 'bg-emerald-500 text-white hover:bg-emerald-600',
-    outline: 'border-2 border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white',
-    green: 'bg-emerald-500 text-white hover:bg-emerald-600',
-    warning: 'bg-yellow-400 text-gray-900 hover:bg-yellow-500'
+    // Primaire: Bleu e-TRAVEL
+    primary: 'bg-primary text-white hover:bg-primary/90 hover:shadow-primary-lg',
+    // Secondaire: Orange e-TRAVEL
+    secondary: 'bg-secondary text-white hover:bg-secondary/90 hover:shadow-secondary-lg',
+    // Outline: Contour bleu primaire
+    outline: 'border-2 border-primary text-primary hover:bg-primary hover:text-white',
+    // Green: Vert e-TRAVEL (pour les tours RDC/Eco)
+    green: 'bg-green text-white hover:bg-green/90 hover:shadow-green-lg',
+    // Warning: Jaune e-TRAVEL
+    warning: 'bg-warning text-gray-900 hover:bg-warning/90 hover:shadow-warning-lg'
   };
 
   const sizes = {
@@ -86,7 +95,7 @@ const Button = ({ children, variant = 'primary', size = 'md', className = '', ..
 
   return (
     <button
-      className={`font-bold rounded-full transition-all hover:shadow-xl hover:scale-105 ${variants[variant]} ${sizes[size]} ${className}`}
+      className={`font-bold rounded-full transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 ${variants[variant]} ${sizes[size]} ${className}`}
       {...props}
     >
       {children}
@@ -104,6 +113,13 @@ const PackageCard = ({ pkg, selectedCountry, onSelect, onViewDetails, formatPric
   const departureCountry = firstPrice?.departure_country;
   const arrivalCountry = firstPrice?.arrival_country;
 
+  // Détermination des couleurs de la carte selon le pays
+  const isRC = selectedCountry === 'RC';
+  const tagBg = isRC ? 'bg-primary text-white' : 'bg-green text-white';
+  const priceColor = isRC ? 'text-primary' : 'text-green';
+  const iconColor = isRC ? 'text-primary' : 'text-green';
+
+
   return (
     <div className="bg-white rounded-2xl overflow-hidden border-2 border-gray-200 hover:shadow-2xl transition-all hover:-translate-y-2">
       <div className="relative h-48 overflow-hidden">
@@ -117,12 +133,13 @@ const PackageCard = ({ pkg, selectedCountry, onSelect, onViewDetails, formatPric
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
         <div className="absolute top-4 left-4">
-          <span className={`px-3 py-1 text-xs font-bold rounded-full ${selectedCountry === 'RC' ? 'bg-blue-600 text-white' : 'bg-emerald-500 text-white'}`}>
+          <span className={`px-3 py-1 text-xs font-bold rounded-full ${tagBg}`}>
             {departureCountry?.name || selectedCountry}
           </span>
         </div>
         <div className="absolute top-4 right-4">
-          <span className={`px-3 py-1 text-xs font-bold rounded-full ${pkg.active ? 'bg-emerald-500 text-white' : 'bg-gray-500 text-white'}`}>
+          {/* Couleur générique pour disponibilité */}
+          <span className={`px-3 py-1 text-xs font-bold rounded-full ${pkg.active ? 'bg-green text-white' : 'bg-gray-500 text-white'}`}>
             {pkg.active ? 'Disponible' : 'Indisponible'}
           </span>
         </div>
@@ -134,7 +151,7 @@ const PackageCard = ({ pkg, selectedCountry, onSelect, onViewDetails, formatPric
         
         {departureCountry && arrivalCountry && (
           <div className="flex items-center gap-2 mb-4 text-sm text-gray-600">
-            <MapPin size={16} className="text-blue-600" />
+            <MapPin size={16} className={iconColor} />
             <span>
               {departureCountry.name} → {arrivalCountry.name}
             </span>
@@ -143,7 +160,7 @@ const PackageCard = ({ pkg, selectedCountry, onSelect, onViewDetails, formatPric
 
         {firstPrice && (
           <div className="flex items-center gap-2 mb-4 text-sm text-gray-600">
-            <Users size={16} className="text-blue-600" />
+            <Users size={16} className={iconColor} />
             <span>
               {firstPrice.min_people} - {firstPrice.max_people || '+'} personnes
             </span>
@@ -168,7 +185,7 @@ const PackageCard = ({ pkg, selectedCountry, onSelect, onViewDetails, formatPric
             {firstPrice && (
               <div>
                 <p className="text-sm text-gray-500">À partir de</p>
-                <p className="text-2xl font-black text-blue-600">
+                <p className={`text-2xl font-black ${priceColor}`}>
                   {formatPrice(firstPrice.price)} <span className="text-sm font-bold">{firstPrice.currency}</span>
                 </p>
               </div>
@@ -186,7 +203,7 @@ const PackageCard = ({ pkg, selectedCountry, onSelect, onViewDetails, formatPric
             <Button 
               onClick={() => onSelect(pkg.id)}
               disabled={!pkg.active}
-              variant={pkg.active ? 'warning' : 'outline'}
+              variant={pkg.active ? 'warning' : 'outline'} // Utilisation de la couleur warning pour la réservation
               size="sm"
               className={`${!pkg.active && 'bg-gray-300 cursor-not-allowed hover:scale-100'}`}
             >
@@ -387,24 +404,26 @@ const OuikenacPage = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-20">
             <div className="flex items-center space-x-3">
-              <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center">
+              {/* Utilisation de la couleur primaire */}
+              <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center">
                 <Globe className="text-white" size={32} />
               </div>
               <div>
                 <h1 className="text-2xl font-black text-gray-900">e-TRAVEL WORLD</h1>
-                <p className="text-xs text-gray-500 tracking-wider">AGENCY</p>
+                <p className="text-xs text-primary tracking-wider">AGENCY</p>
               </div>
             </div>
             <nav className="hidden md:flex items-center space-x-10">
-              <a href="#" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">Accueil</a>
-              <a href="#about" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">À propos</a>
-              <a href="#packages" className="px-6 py-2 bg-yellow-400 text-gray-900 font-bold rounded-full transition-all hover:bg-yellow-500 hover:shadow-lg">
+              <a href="#" className="text-gray-700 hover:text-primary transition-colors font-medium">Accueil</a>
+              <a href="#about" className="text-gray-700 hover:text-primary transition-colors font-medium">À propos</a>
+              {/* Utilisation de la couleur warning pour OUIKENAC */}
+              <a href="#packages" className="px-6 py-2 bg-warning text-gray-900 font-bold rounded-full transition-all hover:bg-warning/90 hover:shadow-lg">
                 OUIKENAC
               </a>
             </nav>
             <button 
               onClick={() => setMenuOpen(!menuOpen)} 
-              className="md:hidden text-gray-700 hover:text-blue-600"
+              className="md:hidden text-gray-700 hover:text-primary"
             >
               {menuOpen ? <X size={28} /> : <Menu size={28} />}
             </button>
@@ -415,9 +434,9 @@ const OuikenacPage = () => {
       {/* Mobile Menu */}
       <div className={`fixed top-20 left-0 right-0 z-40 bg-white shadow-xl md:hidden transition-transform duration-300 ${menuOpen ? 'translate-y-0' : '-translate-y-full'}`}>
         <nav className="flex flex-col space-y-4 p-6">
-          <a href="#" className="text-gray-700 hover:text-blue-600 transition-colors font-medium pb-2 border-b border-gray-100" onClick={() => setMenuOpen(false)}>Accueil</a>
-          <a href="#about" className="text-gray-700 hover:text-blue-600 transition-colors font-medium pb-2 border-b border-gray-100" onClick={() => setMenuOpen(false)}>À propos</a>
-          <a href="#packages" className="px-4 py-2 bg-yellow-400 text-gray-900 font-bold rounded-full text-center transition-all hover:bg-yellow-500 hover:shadow-lg" onClick={() => setMenuOpen(false)}>
+          <a href="#" className="text-gray-700 hover:text-primary transition-colors font-medium pb-2 border-b border-gray-100" onClick={() => setMenuOpen(false)}>Accueil</a>
+          <a href="#about" className="text-gray-700 hover:text-primary transition-colors font-medium pb-2 border-b border-gray-100" onClick={() => setMenuOpen(false)}>À propos</a>
+          <a href="#packages" className="px-4 py-2 bg-warning text-gray-900 font-bold rounded-full text-center transition-all hover:bg-warning/90 hover:shadow-lg" onClick={() => setMenuOpen(false)}>
             OUIKENAC
           </a>
         </nav>
@@ -427,15 +446,16 @@ const OuikenacPage = () => {
         {/* Hero Section */}
         <section className="relative h-[600px] overflow-hidden">
           <img 
-            src="https://images.unsplash.com/photo-1510414842594-b258387532a7?q=80&w=1932&auto=format&fit=crop" 
+            src="BZKIN.webp" 
             alt="Paysage du Congo"
             className="w-full h-full object-cover brightness-[.65]"
           />
           <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
             <div className="text-center p-8 max-w-4xl">
-              <p className="text-yellow-400 text-xl font-bold mb-4">LE WEEK-END DE VOS RÊVES</p>
+              {/* Utilisation de la couleur warning */}
+              <p className="text-warning text-xl font-bold mb-4">LE WEEK-END DE VOS RÊVES</p>
               <h2 className="text-6xl md:text-8xl font-black text-white mb-6 leading-tight">
-                OUIKENAC <span className="text-yellow-400">by e-TRAVEL</span>
+                OUIKENAC <span className="text-warning">by e-TRAVEL</span>
               </h2>
               <p className="text-xl text-gray-200 mb-8">
                 Des packages touristiques uniques pour un week-end d'évasion entre la République du Congo (RC) et la République Démocratique du Congo (RDC).
@@ -459,11 +479,12 @@ const OuikenacPage = () => {
             <div className="grid md:grid-cols-2 gap-12 items-center">
               <div className="relative h-96 rounded-2xl overflow-hidden shadow-2xl">
                 <img 
-                  src="https://images.unsplash.com/photo-1522204523234-8729aa6e993e?q=80&w=1740&auto=format&fit=crop" 
+                  src="ouikenac2.png" 
                   alt="Pont entre les capitales" 
                   className="w-full h-full object-cover"
                 />
-                <div className="absolute inset-0 bg-blue-600/40 flex items-end p-6">
+                {/* Utilisation de la couleur primaire */}
+                <div className="absolute inset-0 bg-primary/40 flex items-end p-6">
                   <h3 className="text-3xl font-black text-white">Le pont entre les deux Congos</h3>
                 </div>
               </div>
@@ -477,7 +498,8 @@ const OuikenacPage = () => {
                 <p className="text-lg text-gray-700 leading-relaxed">
                   Notre objectif : rendre uniques les week-ends des congolais, des expatriés et autres touristes au travers d'offres de découverte des plus beaux endroits de notre pays, surtout les plus insoupçonnés, de son histoire, de sa culture.
                 </p>
-                <div className="mt-8 p-6 bg-yellow-50 border-l-4 border-yellow-400 rounded-r-xl">
+                {/* Utilisation des couleurs warning */}
+                <div className="mt-8 p-6 bg-warning/10 border-l-4 border-warning rounded-r-xl">
                   <p className="text-xl font-bold text-gray-900 italic">
                     Grâce à OUIKENAC, vos semaines ne seront plus jamais les mêmes ! ✨
                   </p>
@@ -497,10 +519,10 @@ const OuikenacPage = () => {
 
             {/* Country Info Cards */}
             <div className="grid md:grid-cols-2 gap-8 mb-16">
-              <div className="bg-white rounded-2xl overflow-hidden shadow-lg border-t-4 border-blue-600">
+              <div className="bg-white rounded-2xl overflow-hidden shadow-lg border-t-4 border-primary">
                 <div className="p-6">
                   <h3 className="text-2xl font-black text-gray-900 mb-3 flex items-center gap-2">
-                    <Globe size={24} className="text-blue-600" /> République du Congo (RC)
+                    <Globe size={24} className="text-primary" /> République du Congo (RC)
                   </h3>
                   <p className="text-gray-700 leading-relaxed mb-4">
                     Le Congo, aussi appelé Congo-Brazzaville, est réputé pour sa forêt équatoriale et sa faune. C'est le berceau de l'écotourisme en Afrique centrale. Monnaie : Franc CFA.
@@ -515,10 +537,10 @@ const OuikenacPage = () => {
                 </div>
               </div>
 
-              <div className="bg-white rounded-2xl overflow-hidden shadow-lg border-t-4 border-emerald-500">
+              <div className="bg-white rounded-2xl overflow-hidden shadow-lg border-t-4 border-green">
                 <div className="p-6">
                   <h3 className="text-2xl font-black text-gray-900 mb-3 flex items-center gap-2">
-                    <Globe size={24} className="text-emerald-500" /> Rép. Démocratique du Congo (RDC)
+                    <Globe size={24} className="text-green" /> Rép. Démocratique du Congo (RDC)
                   </h3>
                   <p className="text-gray-700 leading-relaxed mb-4">
                     La RDC est le quatrième pays le plus peuplé d'Afrique (102 millions d'habitants). Découpée en 26 provinces. Monnaie : Franc Congolais.
@@ -539,7 +561,7 @@ const OuikenacPage = () => {
               <button 
                 onClick={() => setSelectedCountry('RC')} 
                 className={`px-8 py-3 rounded-full font-bold transition-all ${
-                  selectedCountry === 'RC' ? 'bg-blue-600 text-white shadow-lg' : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-blue-600'
+                  selectedCountry === 'RC' ? 'bg-primary text-white shadow-lg' : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-primary'
                 }`}
               >
                 Packages RC
@@ -547,7 +569,7 @@ const OuikenacPage = () => {
               <button 
                 onClick={() => setSelectedCountry('RDC')} 
                 className={`px-8 py-3 rounded-full font-bold transition-all ${
-                  selectedCountry === 'RDC' ? 'bg-emerald-500 text-white shadow-lg' : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-emerald-500'
+                  selectedCountry === 'RDC' ? 'bg-green text-white shadow-lg' : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-green'
                 }`}
               >
                 Packages RDC
@@ -558,8 +580,8 @@ const OuikenacPage = () => {
             {loading && (
               <div className="flex flex-col items-center justify-center py-20">
                 <div className="relative">
-                  <Loader className="animate-spin h-16 w-16 text-blue-600" />
-                  <div className="absolute inset-0 h-16 w-16 border-4 border-blue-600/20 rounded-full"></div>
+                  <Loader className="animate-spin h-16 w-16 text-primary" />
+                  <div className="absolute inset-0 h-16 w-16 border-4 border-primary/20 rounded-full"></div>
                 </div>
                 <p className="text-gray-700 font-semibold text-lg mt-6">Chargement des packages...</p>
               </div>
@@ -576,10 +598,10 @@ const OuikenacPage = () => {
 
             {/* Packages Grid */}
             {!loading && !error && currentPackages.length === 0 && (
-              <div className="text-center py-20 bg-yellow-100 rounded-2xl border border-yellow-300">
-                <Info size={48} className="text-yellow-500 mx-auto mb-4" />
-                <h3 className="text-2xl font-bold text-yellow-800">Aucun package disponible</h3>
-                <p className="text-yellow-700">Il n'y a actuellement aucun package OUIKENAC pour la zone {selectedCountry}.</p>
+              <div className="text-center py-20 bg-warning/10 rounded-2xl border border-warning/50">
+                <Info size={48} className="text-warning mx-auto mb-4" />
+                <h3 className="text-2xl font-bold text-warning-dark">Aucun package disponible</h3>
+                <p className="text-gray-700">Il n'y a actuellement aucun package OUIKENAC pour la zone {selectedCountry}.</p>
               </div>
             )}
 
@@ -623,13 +645,14 @@ const OuikenacPage = () => {
               </div>
             )}
 
-            <div className="flex flex-col lg:flex-row gap-12 bg-gray-100 p-8 rounded-2xl shadow-xl border-2 border-blue-600/20">
+            {/* Utilisation de la couleur primaire pour la bordure du formulaire */}
+            <div className="flex flex-col lg:flex-row gap-12 bg-gray-100 p-8 rounded-2xl shadow-xl border-2 border-primary/20">
               {/* Contact Info */}
               <div className="lg:w-1/3 space-y-8">
                 <h3 className="text-2xl font-black text-gray-900">Contactez-nous</h3>
                 <div className="space-y-4">
                   <div className="flex items-center gap-4">
-                    <Phone size={24} className="text-blue-600" />
+                    <Phone size={24} className="text-primary" />
                     <div>
                       <p className="text-gray-500 text-sm">Téléphone</p>
                       <p className="font-semibold text-gray-800">+242 06 871 13 78</p>
@@ -637,14 +660,14 @@ const OuikenacPage = () => {
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
-                    <Mail size={24} className="text-blue-600" />
+                    <Mail size={24} className="text-primary" />
                     <div>
                       <p className="text-gray-500 text-sm">Email</p>
                       <p className="font-semibold text-gray-800">worldagencyetravel@gmail.com</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
-                    <MapPin size={24} className="text-blue-600" />
+                    <MapPin size={24} className="text-primary" />
                     <div>
                       <p className="text-gray-500 text-sm">Adresse</p>
                       <p className="font-semibold text-gray-800">Brazzaville, CONGO</p>
@@ -652,16 +675,17 @@ const OuikenacPage = () => {
                   </div>
                 </div>
                 <div className="flex gap-4 pt-4 border-t border-gray-200">
-                  <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-blue-700 transition-all" aria-label="Facebook">
+                  {/* Social media icons with brand hover colors */}
+                  <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-primary transition-all" aria-label="Facebook">
                     <Facebook size={18} className="text-white" />
                   </a>
-                  <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-pink-600 transition-all" aria-label="Instagram">
+                  <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-secondary transition-all" aria-label="Instagram">
                     <Instagram size={18} className="text-white" />
                   </a>
-                  <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-blue-400 transition-all" aria-label="Twitter">
+                  <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-primary/90 transition-all" aria-label="Twitter">
                     <Twitter size={18} className="text-white" />
                   </a>
-                  <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-blue-600 transition-all" aria-label="LinkedIn">
+                  <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-primary transition-all" aria-label="LinkedIn">
                     <Linkedin size={18} className="text-white" />
                   </a>
                 </div>
@@ -681,7 +705,7 @@ const OuikenacPage = () => {
                         value={formData.full_name} 
                         onChange={handleInputChange} 
                         required 
-                        className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-blue-600 focus:border-blue-600" 
+                        className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-primary focus:border-primary" 
                         placeholder="Votre nom et prénom"
                       />
                     </div>
@@ -694,7 +718,7 @@ const OuikenacPage = () => {
                         value={formData.email} 
                         onChange={handleInputChange} 
                         required 
-                        className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-blue-600 focus:border-blue-600" 
+                        className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-primary focus:border-primary" 
                         placeholder="votre.email@exemple.com"
                       />
                     </div>
@@ -708,13 +732,14 @@ const OuikenacPage = () => {
                       value={formData.phone} 
                       onChange={handleInputChange} 
                       required 
-                      className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-blue-600 focus:border-blue-600" 
+                      className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-primary focus:border-primary" 
                       placeholder="+242 0x xxx xx xx"
                     />
                   </div>
-                  <div className="p-4 bg-yellow-400/20 border border-yellow-400/50 rounded-xl">
+                  {/* Utilisation des couleurs warning */}
+                  <div className="p-4 bg-warning/20 border border-warning/50 rounded-xl">
                     <label htmlFor="reservable_id" className="block text-sm font-medium text-gray-900 mb-1 flex items-center gap-2">
-                      <Info size={16} className="text-yellow-400" /> Package Sélectionné (ID)
+                      <Info size={16} className="text-warning" /> Package Sélectionné (ID)
                     </label>
                     <input 
                       type="text" 
@@ -723,7 +748,7 @@ const OuikenacPage = () => {
                       value={formData.reservable_id} 
                       readOnly 
                       required 
-                      className="w-full p-3 border border-yellow-400 bg-white rounded-xl font-bold text-gray-900 cursor-default" 
+                      className="w-full p-3 border border-warning bg-white rounded-xl font-bold text-gray-900 cursor-default" 
                       placeholder="Sélectionnez un package ci-dessus"
                     />
                   </div>
@@ -735,7 +760,7 @@ const OuikenacPage = () => {
                       value={formData.message} 
                       onChange={handleInputChange} 
                       rows="4" 
-                      className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-blue-600 focus:border-blue-600" 
+                      className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-primary focus:border-primary" 
                       placeholder="Ajoutez vos demandes spécifiques ici..."
                     />
                   </div>
@@ -763,14 +788,15 @@ const OuikenacPage = () => {
         </section>
 
         {/* Promo Banner */}
-        <section className="py-20 px-4 bg-emerald-500">
+        {/* Utilisation de la couleur green */}
+        <section className="py-20 px-4 bg-green">
           <div className="max-w-5xl mx-auto text-center">
             <p className="text-white text-2xl md:text-3xl mb-4 font-light">
               Réservez votre <strong className="font-black">OUIKENAC</strong> maintenant
             </p>
             <p className="text-7xl md:text-8xl font-black text-white mb-4">20%</p>
             <p className="text-3xl md:text-4xl font-black text-white mb-6">DE RÉDUCTION</p>
-            <p className="text-green-100 text-lg mb-8">Pour les 100 premiers inscrits</p>
+            <p className="text-green/20 text-lg mb-8">Pour les 100 premiers inscrits</p>
             <a href="#packages" className="inline-flex items-center gap-3 px-10 py-4 bg-gray-900 text-white font-bold text-lg rounded-full hover:bg-gray-800 transition-all hover:shadow-2xl hover:scale-105">
               Voir les packages <ArrowRight size={24} />
             </a>
@@ -783,12 +809,13 @@ const OuikenacPage = () => {
         <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8">
           <div>
             <div className="flex items-center space-x-3 mb-6">
-              <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
+              {/* Utilisation de la couleur primaire */}
+              <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
                 <Globe className="text-white" size={20} />
               </div>
               <div>
                 <h3 className="text-xl font-black">e-TRAVEL WORLD</h3>
-                <p className="text-xs text-gray-400">AGENCY</p>
+                <p className="text-xs text-secondary">AGENCY</p>
               </div>
             </div>
             <p className="text-gray-400 text-sm">Votre agence de voyage pour des week-ends uniques entre le Congo et la RDC.</p>
@@ -806,29 +833,29 @@ const OuikenacPage = () => {
             <h3 className="text-lg font-bold mb-6">Contact</h3>
             <div className="space-y-3 text-sm">
               <p className="flex items-center gap-2 text-gray-400">
-                <Phone size={16} className="text-blue-600" /> +242 06 871 13 78
+                <Phone size={16} className="text-primary" /> +242 06 871 13 78
               </p>
               <p className="flex items-center gap-2 text-gray-400">
-                <Mail size={16} className="text-blue-600" /> worldagencyetravel@gmail.com
+                <Mail size={16} className="text-primary" /> worldagencyetravel@gmail.com
               </p>
               <p className="flex items-start gap-2 text-gray-400">
-                <MapPin size={16} className="text-blue-600 mt-1" /> Brazzaville, CONGO
+                <MapPin size={16} className="text-primary mt-1" /> Brazzaville, CONGO
               </p>
             </div>
           </div>
           <div>
             <h3 className="text-lg font-bold mb-6">Suivez-nous</h3>
             <div className="flex gap-4">
-              <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-blue-700 transition-all" aria-label="Facebook">
+              <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-primary transition-all" aria-label="Facebook">
                 <Facebook size={18} />
               </a>
-              <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-pink-600 transition-all" aria-label="Instagram">
+              <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-secondary transition-all" aria-label="Instagram">
                 <Instagram size={18} />
               </a>
-              <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-blue-400 transition-all" aria-label="Twitter">
+              <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-primary/90 transition-all" aria-label="Twitter">
                 <Twitter size={18} />
               </a>
-              <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-blue-600 transition-all" aria-label="LinkedIn">
+              <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-primary transition-all" aria-label="LinkedIn">
                 <Linkedin size={18} />
               </a>
             </div>
@@ -867,7 +894,7 @@ const OuikenacPage = () => {
               {/* Description */}
               <div className="border-b pb-6">
                 <div className="flex items-center gap-2 mb-3">
-                  <Info className="text-blue-600" size={20} />
+                  <Info className="text-primary" size={20} />
                   <h3 className="text-xl font-bold text-gray-900">Détails du Package</h3>
                 </div>
                 <p className="text-gray-700 leading-relaxed whitespace-pre-line">{selectedPackage.description}</p>
@@ -876,22 +903,22 @@ const OuikenacPage = () => {
               {/* Infos Clés */}
               <div className="grid grid-cols-2 gap-4 md:grid-cols-4 border-b pb-6">
                 <div className="flex flex-col items-center p-3 bg-gray-100 rounded-xl">
-                  <Clock size={24} className="text-blue-600 mb-1" />
+                  <Clock size={24} className="text-primary" />
                   <p className="text-sm text-gray-500">Durée</p>
                   <p className="font-bold text-gray-900">{selectedPackage.duration || 'Week-end'}</p>
                 </div>
                 <div className="flex flex-col items-center p-3 bg-gray-100 rounded-xl">
-                  <Calendar size={24} className="text-blue-600 mb-1" />
+                  <Calendar size={24} className="text-primary" />
                   <p className="text-sm text-gray-500">Période</p>
                   <p className="font-bold text-gray-900">{selectedPackage.period || 'Week-end'}</p>
                 </div>
                 <div className="flex flex-col items-center p-3 bg-gray-100 rounded-xl">
-                  <Globe size={24} className="text-blue-600 mb-1" />
+                  <Globe size={24} className="text-primary" />
                   <p className="text-sm text-gray-500">Départ</p>
                   <p className="font-bold text-gray-900">{selectedPackage.prices?.[0]?.departure_country?.name || 'N/A'}</p>
                 </div>
                 <div className="flex flex-col items-center p-3 bg-gray-100 rounded-xl">
-                  <MapPin size={24} className="text-blue-600 mb-1" />
+                  <MapPin size={24} className="text-primary" />
                   <p className="text-sm text-gray-500">Arrivée</p>
                   <p className="font-bold text-gray-900">{selectedPackage.prices?.[0]?.arrival_country?.name || 'N/A'}</p>
                 </div>
@@ -901,14 +928,15 @@ const OuikenacPage = () => {
               {selectedPackage.prices?.[0]?.min_people && (
                 <div className="mb-8">
                   <div className="flex items-center gap-2 mb-3">
-                    <Users className="text-blue-600" size={20} />
+                    <Users className="text-primary" size={20} />
                     <h3 className="text-xl font-bold text-gray-900">Capacité</h3>
                   </div>
-                  <div className="bg-blue-50 p-4 rounded-xl border border-blue-600/30">
+                  {/* Utilisation de la couleur primaire */}
+                  <div className="bg-primary/10 p-4 rounded-xl border border-primary/30">
                     <p className="text-gray-900">
-                      <span className="font-bold text-blue-600 text-2xl">{selectedPackage.prices[0].min_people}</span> 
+                      <span className="font-bold text-primary text-2xl">{selectedPackage.prices[0].min_people}</span> 
                       {selectedPackage.prices[0].max_people && (
-                        <> à <span className="font-bold text-blue-600 text-2xl">{selectedPackage.prices[0].max_people}</span></>
+                        <> à <span className="font-bold text-primary text-2xl">{selectedPackage.prices[0].max_people}</span></>
                       )} 
                       {!selectedPackage.prices[0].max_people && '+'} 
                       <span className="text-gray-700"> personnes</span>
@@ -921,7 +949,7 @@ const OuikenacPage = () => {
               {selectedPackage.prices && selectedPackage.prices.length > 0 && (
                 <div className="mb-8">
                   <div className="flex items-center gap-2 mb-3">
-                    <DollarSign className="text-emerald-500" size={20} />
+                    <DollarSign className="text-green" size={20} />
                     <h3 className="text-xl font-bold text-gray-900">Tarifs</h3>
                   </div>
                   <div className="space-y-3">
@@ -935,7 +963,7 @@ const OuikenacPage = () => {
                             {price.departure_country?.name} → {price.arrival_country?.name}
                           </span>
                         </div>
-                        <span className="text-2xl font-black text-blue-600">
+                        <span className="text-2xl font-black text-primary">
                           {formatPrice(price.price)} <span className="text-sm font-bold">{price.currency}</span>
                         </span>
                       </div>
@@ -948,13 +976,14 @@ const OuikenacPage = () => {
               {selectedPackage.inclusions && selectedPackage.inclusions.length > 0 && (
                 <div className="mb-8">
                   <div className="flex items-center gap-2 mb-3">
-                    <CheckCircle className="text-emerald-500" size={20} />
+                    <CheckCircle className="text-green" size={20} />
                     <h3 className="text-xl font-bold text-gray-900">Inclusions</h3>
                   </div>
                   <div className="grid md:grid-cols-2 gap-3">
+                    {/* Utilisation de la couleur green */}
                     {selectedPackage.inclusions.map((inclusion, idx) => (
-                      <div key={idx} className="flex items-center gap-2 p-3 bg-emerald-50 rounded-lg border border-emerald-200">
-                        <CheckCircle size={16} className="text-emerald-500 flex-shrink-0" />
+                      <div key={idx} className="flex items-center gap-2 p-3 bg-green/10 rounded-lg border border-green/30">
+                        <CheckCircle size={16} className="text-green flex-shrink-0" />
                         <span className="text-gray-800 font-medium">{inclusion.name}</span>
                       </div>
                     ))}
@@ -987,7 +1016,7 @@ const OuikenacPage = () => {
       )}
 
       {/* Styles */}
-      <style jsx global>{`
+      <style jsx>{`
         .animate-progress {
           animation: progress-bar 1.5s infinite linear;
         }
@@ -1022,6 +1051,87 @@ const OuikenacPage = () => {
           overflow: hidden;
         }
       `}</style>
+
+      {/* Tailwind Custom Colors (Charte graphique officielle E-TRAVEL WORLD AGENCY) */}
+      <style jsx global>
+        {`
+        /* Charte graphique officielle E-TRAVEL WORLD AGENCY */
+        /* Codes Hex: #1b5e8e (Primary/Bleu), #f18f13 (Secondary/Orange), #007335 (Green), #f7b406 (Warning/Jaune) */
+        
+        /* 1. Définition des variables CSS */
+        :root { 
+          --primary: #1b5e8e;
+          --secondary: #f18f13;
+          --green: #007335;
+          --warning: #f7b406;
+          --light-bg: #f5f7f9;
+        }
+
+        /* 2. Classes utilitaires de base (text, bg, border) */
+        .text-primary { color: var(--primary); }
+        .bg-primary { background-color: var(--primary); }
+        .border-primary { border-color: var(--primary); }
+        .focus\\:border-primary:focus { border-color: var(--primary); }
+        .focus\\:ring-primary:focus { --tw-ring-color: var(--primary); }
+
+        
+        .text-secondary { color: var(--secondary); }
+        .bg-secondary { background-color: var(--secondary); }
+        
+        .text-green { color: var(--green); }
+        .bg-green { background-color: var(--green); }
+        .border-green { border-color: var(--green); }
+
+        .text-warning { color: var(--warning); }
+        .bg-warning { background-color: var(--warning); }
+        .border-warning { border-color: var(--warning); }
+        .fill-warning { fill: var(--warning); }
+        
+        .bg-light-bg { background-color: var(--light-bg); }
+
+
+        /* 3. Classes d'opacité et de survol manquantes (utiliser rgba pour la robustesse) */
+        
+        /* Opacité 10% / 20% / 30% / 50% */
+        .bg-primary\\/10 { background-color: rgba(27, 94, 142, 0.1); }
+        .border-primary\\/20 { border-color: rgba(27, 94, 142, 0.2); }
+        .border-primary\\/30 { border-color: rgba(27, 94, 142, 0.3); }
+
+        .bg-green\\/10 { background-color: rgba(0, 115, 53, 0.1); }
+        .border-green\\/30 { border-color: rgba(0, 115, 53, 0.3); }
+
+        .bg-warning\\/20 { background-color: rgba(247, 180, 6, 0.2); }
+        .border-warning\\/50 { border-color: rgba(247, 180, 6, 0.5); }
+
+
+        /* Survol (hover) - Opacité 90% */
+        .hover\\:bg-primary\\/90:hover { background-color: rgba(27, 94, 142, 0.9) !important; }
+        .hover\\:bg-secondary\\/90:hover { background-color: rgba(241, 143, 19, 0.9) !important; }
+        .hover\\:bg-green\\/90:hover { background-color: rgba(0, 115, 53, 0.9) !important; }
+        .hover\\:bg-warning\\/90:hover { background-color: rgba(247, 180, 6, 0.9) !important; }
+        .hover\\:text-primary\\/90:hover { color: rgba(27, 94, 142, 0.9) !important; }
+        
+        /* Survol (hover) - Couleur de base */
+        .hover\\:bg-primary:hover { background-color: var(--primary); }
+        .hover\\:text-primary:hover { color: var(--primary); }
+        .hover\\:bg-secondary:hover { background-color: var(--secondary); }
+        .hover\\:text-secondary:hover { color: var(--secondary); }
+        
+        /* Ombres personnalisées pour les boutons */
+        .hover\\:shadow-primary-lg:hover {
+            box-shadow: 0 10px 15px -3px rgba(27, 94, 142, 0.3), 0 4px 6px -2px rgba(27, 94, 142, 0.1);
+        }
+        .hover\\:shadow-secondary-lg:hover {
+            box-shadow: 0 10px 15px -3px rgba(241, 143, 19, 0.3), 0 4px 6px -2px rgba(241, 143, 19, 0.1);
+        }
+        .hover\\:shadow-green-lg:hover {
+            box-shadow: 0 10px 15px -3px rgba(0, 115, 53, 0.3), 0 4px 6px -2px rgba(0, 115, 53, 0.1);
+        }
+        .hover\\:shadow-warning-lg:hover {
+            box-shadow: 0 10px 15px -3px rgba(247, 180, 6, 0.3), 0 4px 6px -2px rgba(247, 180, 6, 0.1);
+        }
+        `}
+      </style>
     </div>
   );
 };

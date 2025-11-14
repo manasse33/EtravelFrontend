@@ -1,5 +1,34 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, X, Globe, Calendar, MapPin, Clock, Users, Phone, Mail, Facebook, Instagram, Twitter, Linkedin, ArrowRight, Loader, AlertCircle, CheckCircle, Building2 } from 'lucide-react';
+import { Menu, X, Globe, Calendar,ChevronLeft,ChevronRight, MapPin, Clock, Users, Phone, Mail, Facebook, Instagram, Twitter, Linkedin, ArrowRight, Loader, AlertCircle, CheckCircle, Building2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
+
+// ============= COMPOSANTS RÉUTILISABLES (Harmonisés) =============
+
+// Composant Button réutilisable
+const Button = ({ children, variant = 'primary', size = 'md', className = '', ...props }) => {
+  const variants = {
+    primary: 'bg-primary text-white hover:bg-primary/90 hover:shadow-primary-lg',
+    secondary: 'bg-secondary text-white hover:bg-secondary/90 hover:shadow-secondary-lg',
+    outline: 'border-2 border-primary text-primary hover:bg-primary hover:text-white',
+    green: 'bg-green text-white hover:bg-green/90 hover:shadow-green-lg',
+    warning: 'bg-warning text-gray-900 hover:bg-warning/90 hover:shadow-warning-lg'
+  };
+
+  const sizes = {
+    sm: 'px-4 py-2 text-sm',
+    md: 'px-6 py-3',
+    lg: 'px-8 py-4 text-lg'
+  };
+
+  return (
+    <button
+      className={`font-bold rounded-full transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 ${variants[variant]} ${sizes[size]} ${className}`}
+      {...props}
+    >
+      {children}
+    </button>
+  );
+};
 
 // Composant de notification moderne
 const Notification = ({ show, message, type, onClose }) => {
@@ -11,6 +40,7 @@ const Notification = ({ show, message, type, onClose }) => {
     warning: <AlertCircle size={24} />
   };
 
+  // Les couleurs des notifications sont conservées pour leur sémantique standard (vert, rouge, jaune)
   const colors = {
     success: 'bg-green-50 border-green-500 text-green-800',
     error: 'bg-red-50 border-red-500 text-red-800',
@@ -31,7 +61,7 @@ const Notification = ({ show, message, type, onClose }) => {
         </div>
         <div className="flex-1">
           <p className="font-semibold mb-1">
-            {type === 'success' ? 'Succès' : type === 'error' ? 'Erreur' : 'Information'}
+            {type === 'success' ? 'Succès' : type === 'error' ? 'Erreur' : 'Attention'}
           </p>
           <p className="text-sm">{message}</p>
         </div>
@@ -43,84 +73,185 @@ const Notification = ({ show, message, type, onClose }) => {
   );
 };
 
+
+// ============= COMPOSANT CALENDRIER DU CITY TOUR =============
+
 const CityTourCalendar = () => {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [cityTours, setCityTours] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [loading, setLoading] = useState(false);
   const [notification, setNotification] = useState({ show: false, message: '', type: '' });
 
-  const showNotification = (message, type = 'success') => {
-    setNotification({ show: true, message, type });
-    setTimeout(() => setNotification({ show: false, message: '', type: '' }), 5000);
+  // Simulation des événements de City Tour (basé sur le 1er et dernier Samedi du mois)
+  const [tourEvents, setTourEvents] = useState([]);
+
+  // Logique pour trouver le 1er et dernier Samedi d'un mois
+  const getMonthlyTourDates = (year, month) => {
+    const dates = [];
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    let firstSaturday = null;
+    let lastSaturday = null;
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = new Date(year, month, day);
+      if (date.getDay() === 6) { // 6 est Samedi
+        if (!firstSaturday) {
+          firstSaturday = date;
+        }
+        lastSaturday = date;
+      }
+    }
+
+    if (firstSaturday) dates.push({ 
+        date: firstSaturday.toISOString().split('T')[0], 
+        title: "City Tour Mensuel (1er Samedi)",
+        country: Math.random() < 0.5 ? 'RC' : 'RDC' // Simulation de la ville
+    });
+    
+    // Assurez-vous que le dernier samedi est différent du premier si le mois a 5 samedis.
+    if (lastSaturday && (!firstSaturday || lastSaturday.getTime() !== firstSaturday.getTime())) {
+        dates.push({ 
+            date: lastSaturday.toISOString().split('T')[0], 
+            title: "City Tour Mensuel (Dernier Samedi)",
+            country: Math.random() < 0.5 ? 'RC' : 'RDC' // Simulation de la ville
+        });
+    }
+
+    // Ajouter un événement spécial simulé pour le 15 du mois
+    const specialDate = new Date(year, month, 15);
+    if (specialDate.getMonth() === month) {
+        dates.push({
+            date: specialDate.toISOString().split('T')[0],
+            title: "Tour Spécial de l'Indépendance",
+            country: 'RC'
+        });
+    }
+
+    return dates;
   };
 
-  // Récupérer les city tours au chargement
   useEffect(() => {
-    fetchCityTours();
+    // Simuler le chargement des événements pour le mois actuel et le mois suivant
+    setLoading(true);
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth();
+
+    const nextMonth = new Date(today.setMonth(today.getMonth() + 1));
+    const nextYear = nextMonth.getFullYear();
+    const nextMonthIndex = nextMonth.getMonth();
+
+
+    const currentMonthEvents = getMonthlyTourDates(currentYear, currentMonth);
+    const nextMonthEvents = getMonthlyTourDates(nextYear, nextMonthIndex);
+
+    const allEvents = [...currentMonthEvents, ...nextMonthEvents];
+
+    setTimeout(() => {
+        setTourEvents(allEvents);
+        setLoading(false);
+    }, 1000);
+
+    const handleScroll = () => setIsScrolled(window.scrollY > 50);
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const fetchCityTours = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await fetch('https://etravelbackend-production.up.railway.app/api/city-tours');
-      if (!response.ok) throw new Error('Erreur de chargement');
-      const data = await response.json();
-      console.log('City tours récupérés:', data);
-      const toursData = Array.isArray(data) ? data : (data.data || []);
-      setCityTours(toursData);
-      setLoading(false);
-    } catch (err) {
-      console.error('Erreur lors de la récupération des city tours:', err);
-      setError('Impossible de charger le calendrier. Veuillez réessayer plus tard.');
-      showNotification('Impossible de charger le calendrier. Veuillez réessayer plus tard.', 'error');
-      setLoading(false);
+  // Gestion du calendrier
+  const goToPreviousMonth = () => {
+    setCurrentDate(new Date(currentDate.setMonth(currentDate.getMonth() - 1)));
+  };
+
+  const goToNextMonth = () => {
+    setCurrentDate(new Date(currentDate.setMonth(currentDate.getMonth() + 1)));
+  };
+
+  const getDaysInMonth = (date) => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const firstDay = new Date(year, month, 1).getDay(); // 0 = Dimanche, 1 = Lundi, etc.
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    
+    // Ajuster le premier jour pour que la semaine commence le Lundi (1)
+    const startDayIndex = (firstDay === 0) ? 6 : firstDay - 1; 
+
+    const days = [];
+    // Ajouter les jours précédents du mois précédent pour aligner la grille
+    const prevMonthDays = new Date(year, month, 0).getDate();
+    for (let i = startDayIndex; i > 0; i--) {
+        days.push({ day: prevMonthDays - i + 1, isCurrentMonth: false, date: new Date(year, month - 1, prevMonthDays - i + 1) });
     }
-  };
 
-  // Grouper les tours par mois
-  const groupByMonth = (tours) => {
-    const grouped = {};
-    tours.forEach(tour => {
-      if (tour.scheduled_date) {
-        const date = new Date(tour.scheduled_date);
-        const monthYear = `${date.toLocaleString('fr-FR', { month: 'long' })} ${date.getFullYear()}`;
-        if (!grouped[monthYear]) {
-          grouped[monthYear] = [];
-        }
-        grouped[monthYear].push(tour);
-      }
-    });
+    // Ajouter les jours du mois actuel
+    for (let i = 1; i <= daysInMonth; i++) {
+        days.push({ day: i, isCurrentMonth: true, date: new Date(year, month, i) });
+    }
+
+    // Remplir le reste de la grille avec les jours du mois suivant
+    const remainingDays = 42 - days.length; // 6 semaines * 7 jours
+    for (let i = 1; i <= remainingDays && days.length < 42; i++) {
+        days.push({ day: i, isCurrentMonth: false, date: new Date(year, month + 1, i) });
+    }
     
-    // Trier par date dans chaque mois
-    Object.keys(grouped).forEach(key => {
-      grouped[key].sort((a, b) => new Date(a.scheduled_date) - new Date(b.scheduled_date));
-    });
-    
-    return grouped;
+    return days;
   };
 
-  const toursByMonth = groupByMonth(cityTours);
-
-  // Formater la date
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return {
-      day: date.toLocaleDateString('fr-FR', { weekday: 'long' }),
-      date: date.getDate(),
-      month: date.toLocaleDateString('fr-FR', { month: 'short' }),
-      fullDate: date.toLocaleDateString('fr-FR', { 
-        weekday: 'long', 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
-      })
-    };
+  const handleDayClick = (dayObject) => {
+    setSelectedDate(dayObject.date);
+    showNotification(`Vous avez sélectionné le ${dayObject.date.toLocaleDateString('fr-FR')}.`, 'success');
   };
+
+  const days = getDaysInMonth(currentDate);
+  const monthName = currentDate.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+  const dayNames = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+
+  // Fonction pour vérifier si une date a un événement
+  const getEventForDate = (date) => {
+    const dateString = date.toISOString().split('T')[0];
+    return tourEvents.find(event => event.date === dateString);
+  };
+
+  // Composant pour afficher un événement spécifique
+  const TourItem = ({ event }) => {
+    const isRC = event.country === 'RC';
+    const bgColor = isRC ? 'bg-green' : 'bg-primary';
+    const textColor = isRC ? 'text-green' : 'text-primary';
+    const countryName = isRC ? 'Brazzaville (RC)' : 'Kinshasa (RDC)';
+    const logoIcon = isRC ? <Building2 size={20} /> : <MapPin size={20} />;
+
+    return (
+      <div className={`p-4 rounded-xl shadow-lg border border-gray-200 transition-all hover:shadow-xl hover:border-primary/50`}>
+        <div className="flex items-center justify-between mb-3">
+          <div className={`px-3 py-1 text-xs font-bold rounded-full text-white ${bgColor}`}>
+            {countryName}
+          </div>
+          <span className={`text-sm font-semibold ${textColor}`}>
+            {event.date ? new Date(event.date).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }) : 'Date à venir'}
+          </span>
+        </div>
+        <h4 className="text-lg font-bold text-gray-900 mb-2 flex items-center gap-2">
+          {logoIcon}
+          {event.title}
+        </h4>
+        <p className="text-gray-600 text-sm mb-4">
+          Découvrez une immersion culturelle inoubliable.
+        </p>
+        <Link to="/city-tour">
+            <button 
+                className={`w-full py-2 font-bold rounded-full text-white transition-all hover:shadow-lg flex items-center justify-center gap-2 ${bgColor} hover:opacity-90`}
+            >
+                Réserver ce tour <ArrowRight size={18} />
+            </button>
+        </Link>
+      </div>
+    );
+  };
+
 
   return (
-    <div className="min-h-screen bg-white overflow-x-hidden">
+    <div className="min-h-screen bg-light-bg">
       {/* Notification */}
       <Notification
         show={notification.show}
@@ -130,25 +261,27 @@ const CityTourCalendar = () => {
       />
 
       {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-white shadow-md">
+      <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled ? 'bg-white shadow-md' : 'bg-white/95'}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-20">
             <div className="flex items-center space-x-3">
-               <img src="logoetravel.jpg" alt="" width={70}/>
+                <img src="logoetravel.jpg" alt="" width={70}/>
               <div>
                 <h1 className="text-2xl font-black text-gray-900">e-TRAVEL WORLD</h1>
-                <p className="text-xs text-gray-500 tracking-wider">AGENCY</p>
+                <p className="text-xs text-primary tracking-wider">AGENCY</p>
               </div>
             </div>
 
             <nav className="hidden md:flex items-center space-x-10">
-              <a href="/" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">Accueil</a>
-              <a href="/about" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">À propos</a>
-              <a href="/weekend" className="px-6 py-2 bg-yellow-400 text-gray-900 font-bold rounded-full hover:bg-yellow-500 transition-all hover:shadow-lg">
-                OUIKENAC
-              </a>
-              <a href="/city-tour" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">CityTour</a>
-              <a href="#calendrier" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">Calendrier</a>
+              <Link to="/" className="text-gray-700 hover:text-primary transition-colors font-medium">Accueil</Link>
+              <Link to="/about" className="text-gray-700 hover:text-primary transition-colors font-medium">À propos</Link>
+              <Link to="/weekend">
+                <Button variant="warning" size="sm" className="font-extrabold shadow-md hover:shadow-lg">
+                  OUIKENAC
+                </Button>
+              </Link>
+              <Link to="/city-tour" className="text-gray-700 hover:text-primary transition-colors font-medium">CityTour</Link>
+              <a href="#contact" className="text-gray-700 hover:text-primary transition-colors font-medium">Contact</a>
             </nav>
 
             <button onClick={() => setMenuOpen(!menuOpen)} className="md:hidden text-gray-900 p-2">
@@ -160,282 +293,164 @@ const CityTourCalendar = () => {
         {menuOpen && (
           <div className="md:hidden bg-white border-t border-gray-100 shadow-lg">
             <nav className="px-4 py-4 space-y-2">
-              <a 
-                href="/" 
-                className="block text-gray-700 hover:text-blue-600 py-3 text-base font-medium border-b border-gray-100" 
+              <Link 
+                to="/" 
+                className="block text-gray-700 hover:text-primary py-3 text-base font-medium border-b border-gray-100" 
                 onClick={() => setMenuOpen(false)}
               >
                 Accueil
-              </a>
-              <a 
-                href="/about" 
-                className="block text-gray-700 hover:text-blue-600 py-3 text-base font-medium border-b border-gray-100" 
+              </Link>
+              <Link 
+                to="/about" 
+                className="block text-gray-700 hover:text-primary py-3 text-base font-medium border-b border-gray-100" 
                 onClick={() => setMenuOpen(false)}
               >
-                À propos
-              </a>
-              <a 
-                href="/weekend" 
-                className="block text-gray-700 hover:text-blue-600 py-3 text-base font-medium border-b border-gray-100" 
+                A propos
+              </Link>
+              <Link 
+                to="/weekend" 
+                className="block text-warning hover:text-warning/90 py-3 text-base font-extrabold border-b border-gray-100" 
                 onClick={() => setMenuOpen(false)}
               >
-                Ouikenac
-              </a>
-              <a 
-                href="/city-tour" 
-                className="block text-gray-700 hover:text-blue-600 py-3 text-base font-medium border-b border-gray-100" 
+                OUIKENAC
+              </Link>
+              <Link 
+                to="/city-tour" 
+                className="block text-gray-700 hover:text-primary py-3 text-base font-medium border-b border-gray-100" 
                 onClick={() => setMenuOpen(false)}
               >
                 CityTour
-              </a>
-              <a href="#calendrier" className="block text-gray-700 hover:text-blue-600 py-3 text-base font-medium" onClick={() => setMenuOpen(false)}>Calendrier</a>
+              </Link>
+              <a href="#contact" className="block text-gray-700 hover:text-primary py-3 text-base font-medium" onClick={() => setMenuOpen(false)}>Contactez-nous</a>
             </nav>
           </div>
         )}
       </header>
 
-      {/* Hero Section */}
-      <section className="relative h-96 mt-20">
-        <div
-          className="absolute inset-0"
-          style={{
-            backgroundImage: 'linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.6)), url(https://images.unsplash.com/photo-1464207687429-7505649dae38?w=1600)',
-            backgroundSize: 'cover',
-            backgroundPosition: 'center'
-          }}
-        >
-          <div className="relative h-full flex items-center justify-center">
-            <div className="text-center px-4 max-w-4xl">
-              <p className="text-yellow-400 text-sm md:text-base tracking-widest mb-4 uppercase font-bold">Découverte Culturelle</p>
-              <h2 className="text-5xl sm:text-6xl md:text-7xl font-black text-white mb-4 leading-tight">
-                CALENDRIER
-              </h2>
-              <p className="text-2xl sm:text-3xl text-white mb-6 font-light">
-                OUIKENAC City Tour
-              </p>
-              <p className="text-white text-lg max-w-2xl mx-auto">
-                Consultez les dates de nos prochaines visites guidées du patrimoine congolais
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Info Banner */}
-      <section className="py-8 px-4 bg-gradient-to-r from-blue-600 to-blue-700">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center text-white">
-            <div className="flex items-center justify-center gap-3">
-              <Calendar className="flex-shrink-0" size={32} />
-              <div className="text-left">
-                <p className="text-sm opacity-90">Fréquence</p>
-                <p className="font-bold text-lg">1er et dernier samedi</p>
-              </div>
-            </div>
-            <div className="flex items-center justify-center gap-3">
-              <Users className="flex-shrink-0" size={32} />
-              <div className="text-left">
-                <p className="text-sm opacity-90">Visites guidées</p>
-                <p className="font-bold text-lg">Guides certifiés</p>
-              </div>
-            </div>
-            <div className="flex items-center justify-center gap-3">
-              <MapPin className="flex-shrink-0" size={32} />
-              <div className="text-left">
-                <p className="text-sm opacity-90">Patrimoine</p>
-                <p className="font-bold text-lg">Sites authentiques</p>
-              </div>
-            </div>
-          </div>
+      {/* Hero / Title Section */}
+      <section className="pt-32 pb-16 px-4 bg-white shadow-lg">
+        <div className="max-w-4xl mx-auto text-center">
+            {/* Utilisation de la couleur primaire */}
+            <h2 className="text-5xl md:text-6xl font-black text-gray-900 mb-4">
+                Calendrier des Tours
+            </h2>
+            <p className="text-xl text-gray-600">
+                Consultez les dates de nos prochains <strong className="text-primary font-bold">OUIKENAC City Tours</strong>.
+            </p>
         </div>
       </section>
 
       {/* Calendar Section */}
-      <section id="calendrier" className="py-24 px-4 bg-gray-50">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-4">Prochaines Visites</h2>
-            <p className="text-xl text-gray-600">Découvrez notre programme de city tours</p>
-          </div>
-
-          {/* Loading State */}
-          {loading && (
-            <div className="flex flex-col items-center justify-center py-20">
-              <div className="relative">
-                <Loader className="animate-spin h-16 w-16 text-blue-600" />
-                <div className="absolute inset-0 h-16 w-16 border-4 border-blue-200 rounded-full"></div>
-              </div>
-              <p className="text-gray-600 text-lg mt-6">Chargement du calendrier...</p>
-            </div>
-          )}
-
-          {/* Error State */}
-          {error && !loading && (
-            <div className="bg-red-50 border-l-4 border-red-500 p-6 rounded-r-xl mb-8">
-              <div className="flex items-center gap-3">
-                <AlertCircle className="text-red-500" size={24} />
-                <div>
-                  <h3 className="font-bold text-red-800 mb-1">Erreur</h3>
-                  <p className="text-red-700">{error}</p>
+      <section className="py-20 px-4">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-12">
+            
+            {/* Calendar View */}
+            <div className="lg:col-span-2 bg-white p-6 md:p-10 rounded-2xl shadow-xl border border-gray-200">
+                <div className="flex justify-between items-center mb-6">
+                    <button onClick={goToPreviousMonth} className="p-3 rounded-full hover:bg-light-bg transition-colors">
+                        <ChevronLeft size={24} className="text-gray-700" />
+                    </button>
+                    <h3 className="text-2xl font-bold capitalize text-primary">
+                        {monthName}
+                    </h3>
+                    <button onClick={goToNextMonth} className="p-3 rounded-full hover:bg-light-bg transition-colors">
+                        <ChevronRight size={24} className="text-gray-700" />
+                    </button>
                 </div>
-              </div>
-              <button 
-                onClick={fetchCityTours}
-                className="mt-4 px-6 py-2 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 transition-all"
-              >
-                Réessayer
-              </button>
-            </div>
-          )}
 
-          {/* Calendar Display */}
-          {!loading && !error && Object.keys(toursByMonth).length > 0 && (
-            <div className="space-y-16">
-              {Object.entries(toursByMonth).map(([monthYear, tours], index) => (
-                <div key={index} className="mb-12">
-                  {/* Month Header */}
-                  <div className="text-center mb-12">
-                    <div className="inline-block px-8 py-3 bg-blue-600 text-white rounded-full mb-2">
-                      <h3 className="text-3xl md:text-4xl font-black uppercase">{monthYear}</h3>
-                    </div>
-                  </div>
-
-                  {/* Tours Timeline */}
-                  <div className="space-y-8">
-                    {tours.map((tour, tourIndex) => {
-                      const dateInfo = formatDate(tour.scheduled_date);
-                      return (
-                        <div
-                          key={tour.id}
-                          className="group bg-white rounded-2xl overflow-hidden border-2 border-gray-200 hover:border-blue-600 hover:shadow-2xl transition-all duration-500"
-                        >
-                          <div className="flex flex-col md:flex-row">
-                            {/* Date Badge */}
-                            <div className="md:w-48 bg-gradient-to-br from-blue-600 to-blue-700 p-8 flex flex-col items-center justify-center text-white">
-                              <p className="text-sm uppercase tracking-wider mb-2">{dateInfo.day}</p>
-                              <p className="text-6xl font-black mb-2">{dateInfo.date}</p>
-                              <p className="text-xl uppercase tracking-wide">{dateInfo.month}</p>
-                              <div className="mt-4 px-4 py-2 bg-white/20 rounded-full">
-                                <Clock className="inline mr-2" size={16} />
-                                <span className="text-sm font-bold">À venir</span>
-                              </div>
-                            </div>
-
-                            {/* Tour Image */}
-                            <div className="md:w-80 relative overflow-hidden">
-                              <img 
-                                src={tour.image ? `http://127.0.0.1:8000/storage/${tour.image}` : 'https://images.unsplash.com/photo-1523805009345-7448845a9e53?w=800'} 
-                                alt={tour.title}
-                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                                onError={(e) => {
-                                  e.target.src = 'https://images.unsplash.com/photo-1523805009345-7448845a9e53?w=800';
-                                }}
-                              />
-                              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
-                              <div className="absolute bottom-4 left-4 right-4">
-                                {tour.active && (
-                                  <span className="inline-block px-3 py-1 bg-green-500 text-white text-xs font-bold rounded-full">
-                                    Disponible
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Tour Details */}
-                            <div className="flex-1 p-8">
-                              <div className="flex items-start justify-between mb-4">
-                                <div>
-                                  <h4 className="text-3xl font-black text-gray-900 mb-2">{tour.title}</h4>
-                                  <div className="flex items-center gap-4 text-gray-600">
-                                    <div className="flex items-center gap-2">
-                                      <MapPin size={18} className="text-blue-600" />
-                                      <span className="text-sm font-medium">{tour.city?.name || 'Ville'}</span>
-                                    </div>
-                                    {tour.min_people && (
-                                      <div className="flex items-center gap-2">
-                                        <Users size={18} className="text-blue-600" />
-                                        <span className="text-sm font-medium">{tour.min_people}-{tour.max_people || '+'} pers.</span>
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                                <Building2 className="text-blue-600" size={32} />
-                              </div>
-
-                              <p className="text-gray-700 leading-relaxed mb-6">
-                                {tour.description || 'Découvrez le patrimoine culturel et architectural de cette magnifique ville à travers une visite guidée passionnante avec nos guides experts.'}
-                              </p>
-
-                              {/* Program/Details Section */}
-                              <div className="bg-blue-50 border-l-4 border-blue-600 p-4 rounded-r-xl">
-                                <h5 className="font-bold text-blue-900 mb-2 flex items-center gap-2">
-                                  <Calendar size={18} />
-                                  Programme de la visite
-                                </h5>
-                                <ul className="space-y-2 text-sm text-blue-800">
-                                  <li>• Visite guidée du patrimoine historique</li>
-                                  <li>• Découverte des sites emblématiques</li>
-                                  <li>• Narration culturelle par nos experts</li>
-                                  <li>• Moments de détente et rafraîchissements</li>
-                                </ul>
-                              </div>
-
-                              <div className="mt-6 flex items-center justify-between">
-                                <div className="text-sm text-gray-500">
-                                  <p className="font-semibold">Date complète : {dateInfo.fullDate}</p>
-                                </div>
-                                <a 
-                                  href="/city-tour"
-                                  className="px-6 py-3 bg-blue-600 text-white font-bold rounded-full hover:bg-blue-700 transition-all hover:shadow-lg inline-flex items-center gap-2"
-                                >
-                                  Plus d'infos <ArrowRight size={18} />
-                                </a>
-                              </div>
-                            </div>
-                          </div>
+                <div className="grid grid-cols-7 gap-1 text-center">
+                    {dayNames.map(day => (
+                        // Utilisation de la couleur primaire
+                        <div key={day} className="text-sm font-semibold text-primary pb-3 border-b-2 border-primary/20">
+                            {day}
                         </div>
-                      );
-                    })}
-                  </div>
+                    ))}
                 </div>
-              ))}
-            </div>
-          )}
 
-          {/* No Tours State */}
-          {!loading && !error && cityTours.length === 0 && (
-            <div className="text-center py-20 bg-white rounded-2xl border-2 border-gray-200">
-              <Calendar className="mx-auto text-gray-400 mb-6" size={64} />
-              <h3 className="text-2xl font-bold text-gray-900 mb-2">Aucune visite programmée</h3>
-              <p className="text-gray-600 mb-6">
-                Le calendrier des prochaines visites sera bientôt disponible.
-              </p>
-              <a 
-                href="/city-tour"
-                className="inline-flex items-center gap-2 px-8 py-3 bg-blue-600 text-white font-bold rounded-full hover:bg-blue-700 transition-all"
-              >
-                Découvrir nos City Tours <ArrowRight size={20} />
-              </a>
-            </div>
-          )}
-        </div>
-      </section>
+                {loading ? (
+                     <div className="flex flex-col items-center justify-center py-20">
+                        <div className="relative">
+                            <Loader className="animate-spin h-12 w-12 text-primary" />
+                            <div className="absolute inset-0 h-12 w-12 border-4 border-primary/20 rounded-full"></div>
+                        </div>
+                        <p className="text-gray-600 text-lg mt-4">Chargement du calendrier...</p>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-7 gap-1 mt-4">
+                        {days.map((dayObj, index) => {
+                            const isToday = dayObj.isCurrentMonth && dayObj.date.toDateString() === new Date().toDateString();
+                            const isSelected = selectedDate && dayObj.date.toDateString() === selectedDate.toDateString();
+                            const hasEvent = dayObj.isCurrentMonth && getEventForDate(dayObj.date);
+                            const eventCountry = hasEvent ? hasEvent.country : null;
+                            const isRC = eventCountry === 'RC';
+                            const isRDC = eventCountry === 'RDC';
 
-      {/* CTA Section */}
-      <section className="py-20 px-4 bg-gradient-to-r from-green-600 to-green-700">
-        <div className="max-w-5xl mx-auto text-center">
-          <h3 className="text-4xl md:text-5xl font-black text-white mb-6">
-            Rejoignez-nous pour une aventure culturelle unique !
-          </h3>
-          <p className="text-xl text-green-100 mb-8 max-w-3xl mx-auto">
-            Explorez le patrimoine authentique du Congo avec nos guides experts. Chaque visite est une plongée dans l'histoire et la culture congolaise.
-          </p>
-          <a 
-            href="/city-tour"
-            className="inline-flex items-center gap-3 px-10 py-4 bg-white text-green-700 font-bold text-lg rounded-full hover:bg-gray-100 transition-all hover:shadow-2xl hover:scale-105"
-          >
-            Réserver maintenant <ArrowRight size={24} />
-          </a>
+                            return (
+                                <div 
+                                    key={index}
+                                    className={`p-1 flex justify-center items-center h-16 transition-all duration-200 
+                                        ${dayObj.isCurrentMonth ? 'text-gray-900 cursor-pointer hover:bg-primary/10 rounded-lg' : 'text-gray-400'}
+                                        ${isSelected ? 'bg-primary text-white rounded-lg' : ''}
+                                    `}
+                                    onClick={() => dayObj.isCurrentMonth && handleDayClick(dayObj)}
+                                >
+                                    <div className={`flex flex-col items-center justify-center w-full h-full rounded-lg ${isToday && !isSelected ? 'border-2 border-primary' : ''}`}>
+                                        <span className={`text-lg font-semibold ${isSelected ? 'text-white' : (isToday ? 'text-primary' : 'text-gray-900')}`}>
+                                            {dayObj.day}
+                                        </span>
+                                        {hasEvent && (
+                                            <div className="flex gap-1 mt-1">
+                                                <div 
+                                                    className={`w-2 h-2 rounded-full ${isRC ? 'bg-green' : 'bg-primary'} ${isSelected ? 'bg-white' : ''}`}
+                                                    title={isRC ? 'Tour Brazzaville' : 'Tour Kinshasa'}
+                                                ></div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+
+            {/* Event List / Legend */}
+            <div className="lg:col-span-1 space-y-8">
+                <div className="bg-white p-6 rounded-2xl shadow-xl border border-gray-200">
+                    <h4 className="text-xl font-black text-gray-900 mb-6 border-b pb-3">Légende</h4>
+                    <div className="space-y-4">
+                        <div className="flex items-center gap-4">
+                            <div className="w-4 h-4 rounded-full bg-primary flex-shrink-0"></div>
+                            <span className="text-gray-700 font-medium">Kinshasa (RDC) Tour</span>
+                        </div>
+                        <div className="flex items-center gap-4">
+                            <div className="w-4 h-4 rounded-full bg-green flex-shrink-0"></div>
+                            <span className="text-gray-700 font-medium">Brazzaville (RC) Tour</span>
+                        </div>
+                        <div className="flex items-center gap-4">
+                            <div className="w-4 h-4 rounded-full border-2 border-primary flex-shrink-0"></div>
+                            <span className="text-gray-700 font-medium">Aujourd'hui</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="space-y-4">
+                    <h4 className="text-xl font-black text-gray-900 mb-4 border-b pb-3">Événements en cours</h4>
+                    {tourEvents.length > 0 ? (
+                        tourEvents
+                            .filter(e => new Date(e.date) >= new Date(new Date().setHours(0,0,0,0)))
+                            .sort((a, b) => new Date(a.date) - new Date(b.date))
+                            .map((event, index) => (
+                                <TourItem key={index} event={event} />
+                            ))
+                    ) : (
+                        <div className="p-6 bg-white rounded-xl text-center border border-gray-200">
+                            <Calendar className="mx-auto text-gray-400 mb-3" size={32} />
+                            <p className="text-gray-600">Aucun tour planifié pour le moment.</p>
+                        </div>
+                    )}
+                </div>
+            </div>
         </div>
       </section>
 
@@ -445,7 +460,8 @@ const CityTourCalendar = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
             <div>
               <div className="flex items-center space-x-3 mb-6">
-                <Globe className="text-blue-400" size={32} />
+                {/* Utilisation de la couleur secondaire */}
+                <Globe className="text-secondary" size={32} />
                 <div>
                   <h3 className="text-xl font-black">e-TRAVEL WORLD</h3>
                   <p className="text-xs text-gray-400">AGENCY</p>
@@ -453,16 +469,16 @@ const CityTourCalendar = () => {
               </div>
               <p className="text-gray-400 mb-6 leading-relaxed">Votre partenaire voyage de confiance depuis 2019. Excellence et innovation à votre service.</p>
               <div className="flex gap-3">
-                <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-blue-600 transition-all">
+                <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-primary transition-all">
                   <Facebook size={18} />
                 </a>
-                <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-pink-600 transition-all">
+                <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-secondary transition-all">
                   <Instagram size={18} />
                 </a>
-                <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-blue-400 transition-all">
+                <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-primary/90 transition-all">
                   <Twitter size={18} />
                 </a>
-                <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-blue-700 transition-all">
+                <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-primary transition-all">
                   <Linkedin size={18} />
                 </a>
               </div>
@@ -471,19 +487,21 @@ const CityTourCalendar = () => {
             <div>
               <h3 className="text-lg font-bold mb-6">Navigation</h3>
               <div className="space-y-3">
-                <a href="/" className="block text-gray-400 hover:text-white transition-colors">Accueil</a>
-                <a href="/about" className="block text-gray-400 hover:text-white transition-colors">À propos</a>
-                <a href="/city-tour" className="block text-gray-400 hover:text-white transition-colors">City Tours</a>
-                <a href="/weekend" className="block text-gray-400 hover:text-white transition-colors">OUIKENAC</a>
+                <Link to="/" className="block text-gray-400 hover:text-white transition-colors">Accueil</Link>
+                <Link to="/about" className="block text-gray-400 hover:text-white transition-colors">À propos</Link>
+                <Link to="/city-tour" className="block text-gray-400 hover:text-white transition-colors">City Tours</Link>
+                <Link to="/weekend" className="block text-gray-400 hover:text-white transition-colors">OUIKENAC</Link>
+                <a href="#contact" className="block text-gray-400 hover:text-white transition-colors">Contact</a>
               </div>
             </div>
 
             <div>
-              <h3 className="text-lg font-bold mb-6">OUIKENAC</h3>
+              <h3 className="text-lg font-bold mb-6">Informations</h3>
               <div className="space-y-3">
-                <a href="#calendrier" className="block text-gray-400 hover:text-white transition-colors">Calendrier</a>
-                <a href="/city-tour" className="block text-gray-400 hover:text-white transition-colors">Patrimoine</a>
+                <a href="#" className="block text-gray-400 hover:text-white transition-colors">Politique de confidentialité</a>
+                <a href="#" className="block text-gray-400 hover:text-white transition-colors">Conditions générales</a>
                 <a href="#" className="block text-gray-400 hover:text-white transition-colors">FAQ</a>
+                <a href="#" className="block text-gray-400 hover:text-white transition-colors">Blog</a>
               </div>
             </div>
 
@@ -491,19 +509,19 @@ const CityTourCalendar = () => {
               <h3 className="text-lg font-bold mb-6">Contact</h3>
               <div className="space-y-4">
                 <a href="tel:+24206871137" className="flex items-center gap-3 text-gray-400 hover:text-white transition-colors">
-                  <Phone size={18} />
+                  <Phone size={18} className="text-secondary" />
                   <span>(+242) 06 871 13 78</span>
                 </a>
                 <a href="tel:+24205594946" className="flex items-center gap-3 text-gray-400 hover:text-white transition-colors">
-                  <Phone size={18} />
+                  <Phone size={18} className="text-secondary" />
                   <span>(+242) 05 594 94 64</span>
                 </a>
                 <a href="mailto:worldagencyetravel@gmail.com" className="flex items-center gap-3 text-gray-400 hover:text-white transition-colors">
-                  <Mail size={18} />
+                  <Mail size={18} className="text-secondary" />
                   <span className="text-sm">worldagencyetravel@gmail.com</span>
                 </a>
                 <div className="flex items-center gap-3 text-gray-400">
-                  <MapPin size={18} />
+                  <MapPin size={18} className="text-secondary" />
                   <span>Brazzaville, CONGO</span>
                 </div>
               </div>
@@ -513,16 +531,17 @@ const CityTourCalendar = () => {
           <div className="border-t border-gray-800 pt-8">
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
               <p className="text-gray-400 text-sm text-center md:text-left">
-                © 2025 e-TRAVEL WORLD AGENCY. Tous droits réservés.
+                © {new Date().getFullYear()} e-TRAVEL WORLD AGENCY. Tous droits réservés.
               </p>
               <p className="text-gray-500 text-sm">
-                Créé avec passion par <span className="font-bold text-white">ELBO</span>
+                Conçu avec la Charte Graphique GMSS.Agence.
               </p>
             </div>
           </div>
         </div>
       </footer>
 
+      {/* Styles d'animations existants */}
       <style jsx>{`
         @keyframes slide-in {
           from {
@@ -539,6 +558,77 @@ const CityTourCalendar = () => {
           animation: slide-in 0.3s ease-out;
         }
       `}</style>
+      
+      {/* Tailwind Custom Colors (Charte graphique officielle E-TRAVEL WORLD AGENCY) - FIX ROBUSTE */}
+      <style jsx global>
+        {`
+        /* Charte graphique officielle E-TRAVEL WORLD AGENCY */
+        /* Codes Hex: #1b5e8e (Primary/Bleu), #f18f13 (Secondary/Orange), #007335 (Green), #f7b406 (Warning/Jaune) */
+        
+        /* 1. Définition des variables CSS */
+        :root { 
+          --primary: #1b5e8e;
+          --secondary: #f18f13;
+          --green: #007335;
+          --warning: #f7b406;
+          --light-bg: #f5f7f9;
+        }
+
+        /* 2. Classes utilitaires de base (text, bg, border) */
+        .text-primary { color: var(--primary); }
+        .bg-primary { background-color: var(--primary); }
+        .border-primary { border-color: var(--primary); }
+        .focus\\:border-primary:focus { border-color: var(--primary); }
+        
+        .text-secondary { color: var(--secondary); }
+        .bg-secondary { background-color: var(--secondary); }
+        
+        .text-green { color: var(--green); }
+        .bg-green { background-color: var(--green); }
+        .border-green { border-color: var(--green); }
+
+        .text-warning { color: var(--warning); }
+        .bg-warning { background-color: var(--warning); }
+        .fill-warning { fill: var(--warning); }
+        
+        .bg-light-bg { background-color: var(--light-bg); }
+
+
+        /* 3. FIX: Classes d'opacité et de survol manquantes (utiliser rgba pour la robustesse) */
+        
+        /* Opacité 10% / 20% / 30% */
+        .bg-primary\\/10 { background-color: rgba(27, 94, 142, 0.1); }
+        .border-primary\\/20 { border-color: rgba(27, 94, 142, 0.2); }
+        .border-primary\\/30 { border-color: rgba(27, 94, 142, 0.3); }
+
+        /* Survol (hover) - Opacité 90% */
+        .hover\\:bg-primary\\/90:hover { background-color: rgba(27, 94, 142, 0.9) !important; }
+        .hover\\:bg-secondary\\/90:hover { background-color: rgba(241, 143, 19, 0.9) !important; }
+        .hover\\:bg-green\\/90:hover { background-color: rgba(0, 115, 53, 0.9) !important; }
+        .hover\\:bg-warning\\/90:hover { background-color: rgba(247, 180, 6, 0.9) !important; }
+        .hover\\:text-primary\\/90:hover { color: rgba(27, 94, 142, 0.9) !important; }
+
+        /* Survol (hover) - Couleur de base */
+        .hover\\:bg-primary:hover { background-color: var(--primary); }
+        .hover\\:text-primary:hover { color: var(--primary); }
+        .hover\\:bg-secondary:hover { background-color: var(--secondary); }
+        .hover\\:text-secondary:hover { color: var(--secondary); }
+        
+        /* FIX: Ombres personnalisées pour les boutons */
+        .hover\\:shadow-primary-lg:hover {
+            box-shadow: 0 10px 15px -3px rgba(27, 94, 142, 0.3), 0 4px 6px -2px rgba(27, 94, 142, 0.1);
+        }
+        .hover\\:shadow-secondary-lg:hover {
+            box-shadow: 0 10px 15px -3px rgba(241, 143, 19, 0.3), 0 4px 6px -2px rgba(241, 143, 19, 0.1);
+        }
+        .hover\\:shadow-green-lg:hover {
+            box-shadow: 0 10px 15px -3px rgba(0, 115, 53, 0.3), 0 4px 6px -2px rgba(0, 115, 53, 0.1);
+        }
+        .hover\\:shadow-warning-lg:hover {
+            box-shadow: 0 10px 15px -3px rgba(247, 180, 6, 0.3), 0 4px 6px -2px rgba(247, 180, 6, 0.1);
+        }
+        `}
+      </style>
     </div>
   );
 };

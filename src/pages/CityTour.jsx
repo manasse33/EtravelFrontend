@@ -3,6 +3,33 @@ import { Menu, X, Globe, Calendar, MapPin, Clock, Users, Award, Star, Facebook, 
 import axios from 'axios';
 import { Link } from 'react-router-dom';
 
+// Composant Button réutilisable (pour garantir la cohérence des styles)
+const Button = ({ children, variant = 'primary', size = 'md', className = '', ...props }) => {
+  const variants = {
+    primary: 'bg-primary text-white hover:bg-primary/90 hover:shadow-primary-lg',
+    secondary: 'bg-secondary text-white hover:bg-secondary/90 hover:shadow-secondary-lg',
+    outline: 'border-2 border-primary text-primary hover:bg-primary hover:text-white',
+    green: 'bg-green text-white hover:bg-green/90 hover:shadow-green-lg',
+    warning: 'bg-warning text-gray-900 hover:bg-warning/90 hover:shadow-warning-lg'
+  };
+
+  const sizes = {
+    sm: 'px-4 py-2 text-sm',
+    md: 'px-6 py-3',
+    lg: 'px-8 py-4 text-lg'
+  };
+
+  return (
+    <button
+      className={`font-bold rounded-full transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 ${variants[variant]} ${sizes[size]} ${className}`}
+      {...props}
+    >
+      {children}
+    </button>
+  );
+};
+
+
 // Composant de notification moderne
 const Notification = ({ show, message, type, onClose }) => {
   if (!show) return null;
@@ -13,6 +40,7 @@ const Notification = ({ show, message, type, onClose }) => {
     warning: <AlertCircle size={24} />
   };
 
+  // Les couleurs des notifications sont conservées pour leur sémantique standard (vert, rouge, jaune)
   const colors = {
     success: 'bg-green-50 border-green-500 text-green-800',
     error: 'bg-red-50 border-red-500 text-red-800',
@@ -51,12 +79,15 @@ const LoadingOverlay = ({ message = 'Chargement...' }) => (
     <div className="bg-white rounded-2xl p-8 shadow-2xl max-w-sm w-full mx-4">
       <div className="flex flex-col items-center">
         <div className="relative">
-          <Loader className="animate-spin h-16 w-16 text-blue-600" />
-          <div className="absolute inset-0 h-16 w-16 border-4 border-blue-200 rounded-full"></div>
+          {/* Couleur primaire du loader */}
+          <Loader className="animate-spin h-16 w-16 text-primary" />
+          {/* Couleur d'opacité de la couleur primaire */}
+          <div className="absolute inset-0 h-16 w-16 border-4 border-primary/20 rounded-full"></div>
         </div>
         <p className="text-gray-700 font-semibold text-lg mt-6">{message}</p>
         <div className="w-full bg-gray-200 rounded-full h-1 mt-4 overflow-hidden">
-          <div className="h-full bg-blue-600 rounded-full animate-progress"></div>
+          {/* Couleur primaire de la barre de progression */}
+          <div className="h-full bg-primary rounded-full animate-progress"></div>
         </div>
       </div>
     </div>
@@ -291,18 +322,20 @@ const CityTour = () => {
                 <img src="logoetravel.jpg" alt="" width={70}/>
               <div>
                 <h1 className="text-2xl font-black text-gray-900">e-TRAVEL WORLD</h1>
-                <p className="text-xs text-gray-500 tracking-wider">AGENCY</p>
+                <p className="text-xs text-primary tracking-wider">AGENCY</p>
               </div>
             </div>
 
             <nav className="hidden md:flex items-center space-x-10">
-              <Link to="/" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">Accueil</Link>
-              <Link to="/about" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">À propos</Link>
-              <Link to="/weekend" className="px-6 py-2 bg-yellow-400 text-gray-900 font-bold rounded-full hover:bg-yellow-500 transition-all hover:shadow-lg">
-                OUIKENAC
+              <Link to="/" className="text-gray-700 hover:text-primary transition-colors font-medium">Accueil</Link>
+              <Link to="/about" className="text-gray-700 hover:text-primary transition-colors font-medium">À propos</Link>
+              <Link to="/weekend">
+                <Button variant="warning" size="sm" className="font-extrabold shadow-md hover:shadow-lg">
+                  OUIKENAC
+                </Button>
               </Link>
-              <Link to="/city-tour" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">CityTour</Link>
-              <a href="#contact" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">Contact</a>
+              <Link to="/city-tour" className="text-gray-700 hover:text-primary transition-colors font-medium">CityTour</Link>
+              <a href="#contact" className="text-gray-700 hover:text-primary transition-colors font-medium">Contact</a>
             </nav>
 
             <button onClick={() => setMenuOpen(!menuOpen)} className="md:hidden text-gray-900 p-2">
@@ -316,33 +349,33 @@ const CityTour = () => {
             <nav className="px-4 py-4 space-y-2">
               <Link 
                 to="/" 
-                className="block text-gray-700 hover:text-blue-600 py-3 text-base font-medium border-b border-gray-100" 
+                className="block text-gray-700 hover:text-primary py-3 text-base font-medium border-b border-gray-100" 
                 onClick={() => setMenuOpen(false)}
               >
                 Accueil
               </Link>
               <Link 
                 to="/about" 
-                className="block text-gray-700 hover:text-blue-600 py-3 text-base font-medium border-b border-gray-100" 
+                className="block text-gray-700 hover:text-primary py-3 text-base font-medium border-b border-gray-100" 
                 onClick={() => setMenuOpen(false)}
               >
                 A propos
               </Link>
               <Link 
                 to="/weekend" 
-                className="block text-gray-700 hover:text-blue-600 py-3 text-base font-medium border-b border-gray-100" 
+                className="block text-warning hover:text-warning/90 py-3 text-base font-extrabold border-b border-gray-100" 
                 onClick={() => setMenuOpen(false)}
               >
-                Ouikenac
+                OUIKENAC
               </Link>
               <Link 
                 to="/city-tour" 
-                className="block text-gray-700 hover:text-blue-600 py-3 text-base font-medium border-b border-gray-100" 
+                className="block text-gray-700 hover:text-primary py-3 text-base font-medium border-b border-gray-100" 
                 onClick={() => setMenuOpen(false)}
               >
                 CityTour
               </Link>
-              <a href="#contact" className="block text-gray-700 hover:text-blue-600 py-3 text-base font-medium" onClick={() => setMenuOpen(false)}>Contactez-nous</a>
+              <a href="#contact" className="block text-gray-700 hover:text-primary py-3 text-base font-medium" onClick={() => setMenuOpen(false)}>Contactez-nous</a>
             </nav>
           </div>
         )}
@@ -353,14 +386,14 @@ const CityTour = () => {
         <div 
           className="absolute inset-0"
           style={{
-            backgroundImage: 'linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.5)), url(https://images.unsplash.com/photo-1523805009345-7448845a9e53?w=1600)',
+            backgroundImage: 'linear-gradient(rgba(0,0,0,0.2)), url(fleuve2.jpg)',
             backgroundSize: 'cover',
             backgroundPosition: 'center'
           }}
         >
           <div className="relative h-full flex items-center justify-center">
             <div className="text-center px-4 max-w-5xl">
-              <div className="inline-block px-6 py-2 bg-yellow-400 rounded-full mb-6">
+              <div className="inline-block px-6 py-2 bg-warning rounded-full mb-6">
                 <p className="text-gray-900 font-bold tracking-wider uppercase text-sm">Patrimoine & Culture</p>
               </div>
               <h2 className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-black text-white mb-6 leading-tight">
@@ -372,13 +405,15 @@ const CityTour = () => {
               <p className="text-xl md:text-2xl text-white mb-12 max-w-3xl mx-auto leading-relaxed">
                 Découverte guidée du patrimoine culturel et naturel des villes des CONGO
               </p>
-              <button 
+              <Button 
                 onClick={() => document.getElementById('tours')?.scrollIntoView({ behavior: 'smooth' })}
-                className="px-12 py-5 bg-yellow-400 text-gray-900 font-bold text-lg rounded-full hover:bg-yellow-500 transition-all hover:shadow-2xl hover:scale-105 inline-flex items-center gap-3"
+                variant="warning" 
+                size="lg" 
+                className="hover:shadow-2xl hover:scale-105 inline-flex items-center gap-3"
               >
                 <Calendar size={24} />
                 Découvrir les tours
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -390,7 +425,8 @@ const CityTour = () => {
       <section className="py-24 px-4 bg-white">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
-            <p className="text-blue-600 font-semibold text-sm tracking-wider mb-4 uppercase">Pourquoi choisir OUIKENAC</p>
+            {/* Utilisation de la couleur primaire */}
+            <p className="text-primary font-semibold text-sm tracking-wider mb-4 uppercase">Pourquoi choisir OUIKENAC</p>
             <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-4">Une Expérience Unique</h2>
             <p className="text-xl text-gray-600">Tous les 1ers et derniers samedis de chaque mois</p>
           </div>
@@ -399,9 +435,9 @@ const CityTour = () => {
             {features.map((feature, index) => (
               <div
                 key={index}
-                className="group bg-gray-50 rounded-2xl p-8 border border-gray-200 hover:border-yellow-400 hover:shadow-xl transition-all duration-300 hover:-translate-y-2"
+                className="group bg-light-bg rounded-2xl p-8 border border-gray-200 hover:border-warning hover:shadow-xl transition-all duration-300 hover:-translate-y-2"
               >
-                <div className="w-16 h-16 mx-auto mb-6 bg-yellow-400 rounded-xl flex items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-all">
+                <div className="w-16 h-16 mx-auto mb-6 bg-warning rounded-xl flex items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-all">
                   <feature.icon className="text-gray-900" size={32} />
                 </div>
                 <h3 className="text-xl font-bold text-gray-900 text-center mb-3">{feature.title}</h3>
@@ -413,7 +449,7 @@ const CityTour = () => {
       </section>
 
       {/* City Tours Section */}
-      <section id="tours" className="py-24 px-4 bg-gray-50">
+      <section id="tours" className="py-24 px-4 bg-light-bg">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-4">Nos City Tours Disponibles</h2>
@@ -424,8 +460,8 @@ const CityTour = () => {
           {loading && (
             <div className="flex flex-col items-center justify-center py-20">
               <div className="relative">
-                <Loader className="animate-spin h-16 w-16 text-blue-600" />
-                <div className="absolute inset-0 h-16 w-16 border-4 border-blue-200 rounded-full"></div>
+                <Loader className="animate-spin h-16 w-16 text-primary" />
+                <div className="absolute inset-0 h-16 w-16 border-4 border-primary/20 rounded-full"></div>
               </div>
               <p className="text-gray-600 text-lg mt-6">Chargement des city tours...</p>
             </div>
@@ -443,7 +479,7 @@ const CityTour = () => {
               </div>
               <button 
                 onClick={fetchPackages}
-                className="mt-4 px-6 py-2 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 transition-all"
+                className="mt-4 px-6 py-2 bg-primary text-white font-bold rounded-lg hover:bg-primary/90 transition-all"
               >
                 Réessayer
               </button>
@@ -457,7 +493,8 @@ const CityTour = () => {
                 <div
                   key={tour.id}
                   className={`bg-white rounded-2xl overflow-hidden border-2 transition-all duration-500 hover:shadow-2xl hover:-translate-y-2 ${
-                    tour.country?.code === 'RC' ? 'border-green-600' : 'border-blue-600'
+                    // Utilisation des couleurs de la charte
+                    tour.country?.code === 'RC' ? 'border-green' : 'border-primary'
                   }`}
                 >
                   <div className="relative h-64">
@@ -472,12 +509,13 @@ const CityTour = () => {
                     <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent"></div>
                     <div className="absolute top-4 left-4 flex gap-2">
                       <span className={`px-4 py-2 text-sm font-bold rounded-full ${
-                        tour.country?.code === 'RC' ? 'bg-green-600 text-white' : 'bg-blue-600 text-white'
+                        // Utilisation des couleurs de la charte
+                        tour.country?.code === 'RC' ? 'bg-green text-white' : 'bg-primary text-white'
                       }`}>
                         {tour.city?.name || (tour.country?.code === 'RC' ? 'Brazzaville' : 'Kinshasa')}
                       </span>
                       {tour.active && (
-                        <span className="px-3 py-1 text-xs font-bold rounded-full bg-yellow-400 text-gray-900">
+                        <span className="px-3 py-1 text-xs font-bold rounded-full bg-warning text-gray-900">
                           Disponible
                         </span>
                       )}
@@ -506,7 +544,8 @@ const CityTour = () => {
                     {/* Capacité */}
                     {tour.min_people && (
                       <div className="flex items-center gap-2 mb-4 text-sm text-gray-600">
-                        <Users size={16} className="text-blue-600" />
+                        {/* Utilisation de la couleur primaire */}
+                        <Users size={16} className="text-primary" />
                         <span>
                           {tour.min_people} - {tour.max_people || '+'} personnes
                         </span>
@@ -535,8 +574,9 @@ const CityTour = () => {
                       className={`w-full py-4 font-bold rounded-full transition-all hover:shadow-xl flex items-center justify-center gap-2 ${
                         tour.active 
                           ? tour.country?.code === 'RC' 
-                            ? 'bg-green-600 text-white hover:bg-green-700' 
-                            : 'bg-blue-600 text-white hover:bg-blue-700'
+                            // Utilisation des couleurs de la charte
+                            ? 'bg-green text-white hover:bg-green/90' 
+                            : 'bg-primary text-white hover:bg-primary/90'
                           : 'bg-gray-300 text-gray-600 cursor-not-allowed'
                       }`}
                     >
@@ -555,7 +595,7 @@ const CityTour = () => {
               <p className="text-gray-600 text-lg">Aucun city tour disponible pour le moment.</p>
               <button 
                 onClick={fetchPackages}
-                className="mt-4 px-6 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition-all"
+                className="mt-4 px-6 py-2 bg-primary text-white font-bold rounded-lg hover:bg-primary/90 transition-all"
               >
                 Réessayer
               </button>
@@ -570,11 +610,12 @@ const CityTour = () => {
           <div className="grid md:grid-cols-2 gap-16 items-center">
             <div>
               <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 bg-green-600 rounded-full flex items-center justify-center">
+                {/* Utilisation de la couleur verte */}
+                <div className="w-12 h-12 bg-green rounded-full flex items-center justify-center">
                   <MapPin className="text-white" size={24} />
                 </div>
                 <div>
-                  <p className="text-green-600 font-semibold text-sm tracking-wider uppercase">République du Congo</p>
+                  <p className="text-green font-semibold text-sm tracking-wider uppercase">République du Congo</p>
                   <h3 className="text-4xl md:text-5xl font-black text-gray-900">Brazzaville</h3>
                 </div>
               </div>
@@ -594,7 +635,8 @@ const CityTour = () => {
               <div className="space-y-3 mb-8">
                 {brazzavilleHighlights.map((highlight, index) => (
                   <div key={index} className="flex items-start gap-3">
-                    <div className="w-6 h-6 bg-green-600 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                    {/* Utilisation de la couleur verte */}
+                    <div className="w-6 h-6 bg-green rounded-full flex items-center justify-center flex-shrink-0 mt-1">
                       <Landmark className="text-white" size={14} />
                     </div>
                     <span className="text-gray-700">{highlight}</span>
@@ -603,30 +645,33 @@ const CityTour = () => {
               </div>
 
               {brazzavilleTours.length > 0 && (
-                <button 
+                <Button 
                   onClick={() => handlePackageSelect(brazzavilleTours[0].id)}
-                  className="px-8 py-4 bg-green-600 text-white font-bold rounded-full hover:bg-green-700 transition-all hover:shadow-xl hover:scale-105 inline-flex items-center gap-3"
+                  variant="green"
+                  size="lg"
+                  className="inline-flex items-center gap-3"
                 >
                   <Calendar size={20} />
                   Réserver Brazzaville Tour
-                </button>
+                </Button>
               )}
             </div>
 
             <div className="relative">
               <div className="grid grid-cols-2 gap-4">
                 <img 
-                  src="https://images.unsplash.com/photo-1523805009345-7448845a9e53?w=600" 
+                  src="TJ.webp" 
                   alt="Brazzaville architecture" 
                   className="rounded-2xl w-full h-72 object-cover shadow-lg hover:scale-105 transition-transform duration-500"
                 />
                 <img 
-                  src="https://images.unsplash.com/photo-1533929736458-ca588d08c8be?w=600" 
+                  src="BPN.jpg" 
                   alt="Pont du 15 Août" 
                   className="rounded-2xl w-full h-72 object-cover shadow-lg hover:scale-105 transition-transform duration-500 mt-8"
                 />
               </div>
-              <div className="absolute -bottom-6 -left-6 bg-green-600 rounded-xl p-6 shadow-xl">
+              {/* Utilisation de la couleur verte */}
+              <div className="absolute -bottom-6 -left-6 bg-green rounded-xl p-6 shadow-xl">
                 <Building2 className="text-white" size={48} />
               </div>
             </div>
@@ -635,34 +680,36 @@ const CityTour = () => {
       </section>
 
       {/* Kinshasa Section */}
-      <section id="kinshasa" className="py-24 px-4 bg-gray-50">
+      <section id="kinshasa" className="py-24 px-4 bg-light-bg">
         <div className="max-w-7xl mx-auto">
           <div className="grid md:grid-cols-2 gap-16 items-center">
             <div className="order-2 md:order-1 relative">
               <div className="grid grid-cols-2 gap-4">
                 <img 
-                  src="https://images.unsplash.com/photo-1541888946425-d81bb19240f5?w=600" 
+                  src="kin.webp" 
                   alt="Kinshasa cityscape" 
                   className="rounded-2xl w-full h-72 object-cover shadow-lg hover:scale-105 transition-transform duration-500"
                 />
                 <img 
-                  src="https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b?w=600" 
+                  src="tour2.jpg" 
                   alt="Tour Échangeur Limété" 
                   className="rounded-2xl w-full h-72 object-cover shadow-lg hover:scale-105 transition-transform duration-500 mt-8"
                 />
               </div>
-              <div className="absolute -bottom-6 -right-6 bg-blue-600 rounded-xl p-6 shadow-xl">
+              {/* Utilisation de la couleur primaire */}
+              <div className="absolute -bottom-6 -right-6 bg-primary rounded-xl p-6 shadow-xl">
                 <Navigation className="text-white" size={48} />
               </div>
             </div>
 
             <div className="order-1 md:order-2">
               <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center">
+                {/* Utilisation de la couleur primaire */}
+                <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center">
                   <MapPin className="text-white" size={24} />
                 </div>
                 <div>
-                  <p className="text-blue-600 font-semibold text-sm tracking-wider uppercase">République Démocratique du Congo</p>
+                  <p className="text-primary font-semibold text-sm tracking-wider uppercase">République Démocratique du Congo</p>
                   <h3 className="text-4xl md:text-5xl font-black text-gray-900">Kinshasa</h3>
                 </div>
               </div>
@@ -682,7 +729,8 @@ const CityTour = () => {
               <div className="space-y-3 mb-8">
                 {kinshasaHighlights.map((highlight, index) => (
                   <div key={index} className="flex items-start gap-3">
-                    <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                    {/* Utilisation de la couleur primaire */}
+                    <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center flex-shrink-0 mt-1">
                       <Landmark className="text-white" size={14} />
                     </div>
                     <span className="text-gray-700">{highlight}</span>
@@ -691,13 +739,15 @@ const CityTour = () => {
               </div>
 
               {kinshasaTours.length > 0 && (
-                <button 
+                <Button 
                   onClick={() => handlePackageSelect(kinshasaTours[0].id)}
-                  className="px-8 py-4 bg-blue-600 text-white font-bold rounded-full hover:bg-blue-700 transition-all hover:shadow-xl hover:scale-105 inline-flex items-center gap-3"
+                  variant="primary"
+                  size="lg"
+                  className="inline-flex items-center gap-3"
                 >
                   <Calendar size={20} />
                   Réserver Kinshasa Tour
-                </button>
+                </Button>
               )}
             </div>
           </div>
@@ -725,7 +775,7 @@ const CityTour = () => {
             </div>
           )}
 
-          <div className="bg-gray-50 rounded-2xl p-8 md:p-12 border border-gray-200">
+          <div className="bg-light-bg rounded-2xl p-8 md:p-12 border border-gray-200">
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid md:grid-cols-2 gap-6">
                 <input 
@@ -735,7 +785,7 @@ const CityTour = () => {
                   onChange={handleInputChange}
                   placeholder="Nom complet *"
                   required
-                  className="px-6 py-4 bg-white border-2 border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:border-blue-600 focus:outline-none transition-all"
+                  className="px-6 py-4 bg-white border-2 border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:border-primary focus:outline-none transition-all"
                 />
                 <input 
                   type="email" 
@@ -744,7 +794,7 @@ const CityTour = () => {
                   onChange={handleInputChange}
                   placeholder="Adresse email *"
                   required
-                  className="px-6 py-4 bg-white border-2 border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:border-blue-600 focus:outline-none transition-all"
+                  className="px-6 py-4 bg-white border-2 border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:border-primary focus:outline-none transition-all"
                 />
                 <input 
                   type="tel" 
@@ -752,14 +802,14 @@ const CityTour = () => {
                   value={formData.phone}
                   onChange={handleInputChange}
                   placeholder="Téléphone"
-                  className="px-6 py-4 bg-white border-2 border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:border-blue-600 focus:outline-none transition-all"
+                  className="px-6 py-4 bg-white border-2 border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:border-primary focus:outline-none transition-all"
                 />
                 <select 
                   name="reservable_id"
                   value={formData.reservable_id}
                   onChange={handleInputChange}
                   required
-                  className="px-6 py-4 bg-white border-2 border-gray-200 rounded-xl text-gray-900 focus:border-blue-600 focus:outline-none transition-all"
+                  className="px-6 py-4 bg-white border-2 border-gray-200 rounded-xl text-gray-900 focus:border-primary focus:outline-none transition-all"
                 >
                   <option value="">Sélectionner un city tour *</option>
                   {cityTourPackages.map(pkg => (
@@ -775,7 +825,7 @@ const CityTour = () => {
                   value={formData.date_reservation}
                   onChange={handleInputChange}
                   min={new Date().toISOString().split('T')[0]}
-                  className="px-6 py-4 bg-white border-2 border-gray-200 rounded-xl text-gray-900 focus:border-blue-600 focus:outline-none transition-all"
+                  className="px-6 py-4 bg-white border-2 border-gray-200 rounded-xl text-gray-900 focus:border-primary focus:outline-none transition-all"
                 />
                 <input 
                   type="number"
@@ -785,7 +835,7 @@ const CityTour = () => {
                   placeholder="Nombre de participants *"
                   required
                   min="1"
-                  className="px-6 py-4 bg-white border-2 border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:border-blue-600 focus:outline-none transition-all"
+                  className="px-6 py-4 bg-white border-2 border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:border-primary focus:outline-none transition-all"
                 />
               </div>
               
@@ -793,7 +843,7 @@ const CityTour = () => {
                 name="currency"
                 value={formData.currency}
                 onChange={handleInputChange}
-                className="w-full px-6 py-4 bg-white border-2 border-gray-200 rounded-xl text-gray-900 focus:border-blue-600 focus:outline-none transition-all"
+                className="w-full px-6 py-4 bg-white border-2 border-gray-200 rounded-xl text-gray-900 focus:border-primary focus:outline-none transition-all"
               >
                 <option value="CFA">CFA</option>
                 <option value="USD">USD</option>
@@ -806,13 +856,13 @@ const CityTour = () => {
                 value={formData.message}
                 onChange={handleInputChange}
                 placeholder="Message ou demande spécifique..." 
-                className="w-full px-6 py-4 bg-white border-2 border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:border-blue-600 focus:outline-none transition-all resize-none"
+                className="w-full px-6 py-4 bg-white border-2 border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:border-primary focus:outline-none transition-all resize-none"
               />
               
               <button 
                 type="submit"
                 disabled={submitting}
-                className="w-full py-5 bg-gray-900 text-white font-bold text-lg rounded-full hover:bg-blue-600 transition-all hover:shadow-xl hover:scale-105 flex items-center justify-center gap-3 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                className="w-full py-5 bg-primary text-white font-bold text-lg rounded-full hover:bg-primary/90 transition-all hover:shadow-xl hover:scale-105 flex items-center justify-center gap-3 disabled:bg-gray-400 disabled:cursor-not-allowed"
               >
                 {submitting ? (
                   <>
@@ -831,7 +881,7 @@ const CityTour = () => {
       </section>
 
       {/* Promo Banner */}
-      <section className="py-20 px-4 bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600">
+      <section className="py-20 px-4 bg-gradient-to-r from-warning via-warning/90 to-secondary">
         <div className="max-w-5xl mx-auto text-center">
           <p className="text-gray-900 text-2xl md:text-3xl mb-4 font-light">
             Réservez votre <strong className="font-black">OUIKENAC City Tour</strong> maintenant
@@ -839,27 +889,31 @@ const CityTour = () => {
           <p className="text-7xl md:text-8xl font-black text-gray-900 mb-4">20%</p>
           <p className="text-3xl md:text-4xl font-black text-gray-900 mb-6">DE RÉDUCTION</p>
           <p className="text-gray-800 text-lg mb-8">Pour les 100 premiers inscrits</p>
-          <button 
+          <Button 
             onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}
-            className="px-10 py-4 bg-gray-900 text-white font-bold text-lg rounded-full hover:bg-gray-800 transition-all hover:shadow-2xl hover:scale-105 inline-flex items-center gap-3"
+            variant="primary" 
+            size="lg"
+            className="hover:shadow-2xl hover:scale-105 inline-flex items-center gap-3"
           >
             Je réserve maintenant <ArrowRight size={24} />
-          </button>
+          </Button>
         </div>
       </section>
 
       {/* Schedule Info */}
       <section className="py-24 px-4 bg-white">
         <div className="max-w-4xl mx-auto text-center">
-          <div className="bg-gray-50 rounded-2xl p-12 border-2 border-gray-200">
-            <Calendar className="mx-auto text-blue-600 mb-6" size={64} />
+          <div className="bg-light-bg rounded-2xl p-12 border-2 border-gray-200">
+            {/* Utilisation de la couleur primaire */}
+            <Calendar className="mx-auto text-primary mb-6" size={64} />
             <h3 className="text-3xl md:text-4xl font-black text-gray-900 mb-4">
               Fréquence des Tours
             </h3>
             <p className="text-xl text-gray-700 mb-8">
-              Tous les <strong className="text-blue-600">1ers et derniers samedis</strong> de chaque mois
+              Tous les <strong className="text-primary">1ers et derniers samedis</strong> de chaque mois
             </p>
-            <div className="bg-blue-50 border-l-4 border-blue-600 p-6 rounded-r-xl text-left">
+            {/* Utilisation de la couleur primaire avec opacité */}
+            <div className="bg-primary/10 border-l-4 border-primary p-6 rounded-r-xl text-left">
               <p className="text-gray-700 leading-relaxed">
                 <strong className="text-gray-900">Remarque importante :</strong> Les dates exactes des tours peuvent varier selon les événements spéciaux et les jours fériés. Nous vous confirmerons la date exacte lors de votre réservation.
               </p>
@@ -874,7 +928,8 @@ const CityTour = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
             <div>
               <div className="flex items-center space-x-3 mb-6">
-                <Globe className="text-blue-400" size={32} />
+                {/* Utilisation de la couleur secondaire */}
+                <Globe className="text-secondary" size={32} />
                 <div>
                   <h3 className="text-xl font-black">e-TRAVEL WORLD</h3>
                   <p className="text-xs text-gray-400">AGENCY</p>
@@ -882,16 +937,16 @@ const CityTour = () => {
               </div>
               <p className="text-gray-400 mb-6 leading-relaxed">Votre partenaire voyage de confiance depuis 2019. Excellence et innovation à votre service.</p>
               <div className="flex gap-3">
-                <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-blue-600 transition-all">
+                <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-primary transition-all">
                   <Facebook size={18} />
                 </a>
-                <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-pink-600 transition-all">
+                <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-secondary transition-all">
                   <Instagram size={18} />
                 </a>
-                <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-blue-400 transition-all">
+                <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-primary/90 transition-all">
                   <Twitter size={18} />
                 </a>
-                <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-blue-700 transition-all">
+                <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-primary transition-all">
                   <Linkedin size={18} />
                 </a>
               </div>
@@ -922,19 +977,19 @@ const CityTour = () => {
               <h3 className="text-lg font-bold mb-6">Contact</h3>
               <div className="space-y-4">
                 <a href="tel:+24206871137" className="flex items-center gap-3 text-gray-400 hover:text-white transition-colors">
-                  <Phone size={18} />
+                  <Phone size={18} className="text-secondary" />
                   <span>(+242) 06 871 13 78</span>
                 </a>
                 <a href="tel:+24205594946" className="flex items-center gap-3 text-gray-400 hover:text-white transition-colors">
-                  <Phone size={18} />
+                  <Phone size={18} className="text-secondary" />
                   <span>(+242) 05 594 94 64</span>
                 </a>
                 <a href="mailto:worldagencyetravel@gmail.com" className="flex items-center gap-3 text-gray-400 hover:text-white transition-colors">
-                  <Mail size={18} />
+                  <Mail size={18} className="text-secondary" />
                   <span className="text-sm">worldagencyetravel@gmail.com</span>
                 </a>
                 <div className="flex items-center gap-3 text-gray-400">
-                  <MapPin size={18} />
+                  <MapPin size={18} className="text-secondary" />
                   <span>Brazzaville, CONGO</span>
                 </div>
               </div>
@@ -944,10 +999,10 @@ const CityTour = () => {
           <div className="border-t border-gray-800 pt-8">
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
               <p className="text-gray-400 text-sm text-center md:text-left">
-                © 2025 e-TRAVEL WORLD AGENCY. Tous droits réservés.
+                © {new Date().getFullYear()} e-TRAVEL WORLD AGENCY. Tous droits réservés.
               </p>
               <p className="text-gray-500 text-sm">
-                Créé avec passion par <span className="font-bold text-white">ELBO</span>
+                Conçu avec la Charte Graphique GMSS.Agence.
               </p>
             </div>
           </div>
@@ -983,6 +1038,77 @@ const CityTour = () => {
           animation: progress 2s ease-in-out infinite;
         }
       `}</style>
+      
+      {/* Tailwind Custom Colors (Charte graphique officielle E-TRAVEL WORLD AGENCY) - FIX ROBUSTE */}
+      <style jsx global>
+        {`
+        /* Charte graphique officielle E-TRAVEL WORLD AGENCY */
+        /* Codes Hex: #1b5e8e (Primary/Bleu), #f18f13 (Secondary/Orange), #007335 (Green), #f7b406 (Warning/Jaune) */
+        
+        /* 1. Définition des variables CSS */
+        :root { 
+          --primary: #1b5e8e;
+          --secondary: #f18f13;
+          --green: #007335;
+          --warning: #f7b406;
+          --light-bg: #f5f7f9;
+        }
+
+        /* 2. Classes utilitaires de base (text, bg, border) */
+        .text-primary { color: var(--primary); }
+        .bg-primary { background-color: var(--primary); }
+        .border-primary { border-color: var(--primary); }
+        .focus\\:border-primary:focus { border-color: var(--primary); }
+        
+        .text-secondary { color: var(--secondary); }
+        .bg-secondary { background-color: var(--secondary); }
+        
+        .text-green { color: var(--green); }
+        .bg-green { background-color: var(--green); }
+        .border-green { border-color: var(--green); }
+
+        .text-warning { color: var(--warning); }
+        .bg-warning { background-color: var(--warning); }
+        .fill-warning { fill: var(--warning); }
+        
+        .bg-light-bg { background-color: var(--light-bg); }
+
+
+        /* 3. FIX: Classes d'opacité et de survol manquantes (utiliser rgba pour la robustesse) */
+        
+        /* Opacité 10% / 20% / 30% */
+        .bg-primary\\/10 { background-color: rgba(27, 94, 142, 0.1); }
+        .border-primary\\/20 { border-color: rgba(27, 94, 142, 0.2); }
+        .border-primary\\/30 { border-color: rgba(27, 94, 142, 0.3); }
+
+        /* Survol (hover) - Opacité 90% */
+        .hover\\:bg-primary\\/90:hover { background-color: rgba(27, 94, 142, 0.9) !important; }
+        .hover\\:bg-secondary\\/90:hover { background-color: rgba(241, 143, 19, 0.9) !important; }
+        .hover\\:bg-green\\/90:hover { background-color: rgba(0, 115, 53, 0.9) !important; }
+        .hover\\:bg-warning\\/90:hover { background-color: rgba(247, 180, 6, 0.9) !important; }
+        .hover\\:text-primary\\/90:hover { color: rgba(27, 94, 142, 0.9) !important; }
+
+        /* Survol (hover) - Couleur de base */
+        .hover\\:bg-primary:hover { background-color: var(--primary); }
+        .hover\\:text-primary:hover { color: var(--primary); }
+        .hover\\:bg-secondary:hover { background-color: var(--secondary); }
+        .hover\\:text-secondary:hover { color: var(--secondary); }
+        
+        /* FIX: Ombres personnalisées pour les boutons */
+        .hover\\:shadow-primary-lg:hover {
+            box-shadow: 0 10px 15px -3px rgba(27, 94, 142, 0.3), 0 4px 6px -2px rgba(27, 94, 142, 0.1);
+        }
+        .hover\\:shadow-secondary-lg:hover {
+            box-shadow: 0 10px 15px -3px rgba(241, 143, 19, 0.3), 0 4px 6px -2px rgba(241, 143, 19, 0.1);
+        }
+        .hover\\:shadow-green-lg:hover {
+            box-shadow: 0 10px 15px -3px rgba(0, 115, 53, 0.3), 0 4px 6px -2px rgba(0, 115, 53, 0.1);
+        }
+        .hover\\:shadow-warning-lg:hover {
+            box-shadow: 0 10px 15px -3px rgba(247, 180, 6, 0.3), 0 4px 6px -2px rgba(247, 180, 6, 0.1);
+        }
+        `}
+      </style>
     </div>
   );
 };
