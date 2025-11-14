@@ -67,8 +67,8 @@ const LoadingOverlay = ({ message = 'Chargement...' }) => (
         </div>
       </div>
     </div>
-  );
-};
+  </div>
+);
 
 const Button = ({ children, variant = 'primary', size = 'md', className = '', ...props }) => {
   const variants = {
@@ -95,113 +95,99 @@ const Button = ({ children, variant = 'primary', size = 'md', className = '', ..
   );
 };
 
-// MODIFICATION APPORTÉE ICI
-const PackageCard = ({ pkg, selectedCountry, onSelect, onViewDetails, formatPrice, loadingDetails }) => {
-  // Extraction des données standardisées ajoutées dans fetchPackages (voir ci-dessous)
-  const departureCountry = pkg.departure_country || pkg.prices?.[0]?.departure_country;
-  const arrivalCountry = pkg.arrival_country || pkg.prices?.[0]?.arrival_country;
-  const minPeople = pkg.min_people || pkg.prices?.[0]?.min_people;
-  const maxPeople = pkg.max_people || pkg.prices?.[0]?.max_people;
-
-  return (
-    <div className="bg-white rounded-2xl overflow-hidden border-2 border-gray-200 hover:shadow-2xl transition-all hover:-translate-y-2">
-      <div className="relative h-48 overflow-hidden">
-        <img 
-          src={pkg.image || 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=600'} 
-          alt={pkg.title} 
-          className="w-full h-full object-cover hover:scale-110 transition-transform duration-700"
-          onError={(e) => {
-            e.target.src = 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=600';
-          }}
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
-        {/* Affichage du pays de départ basé sur les données standardisées */}
-        {departureCountry && (
-            <div className="absolute top-4 left-4">
-              <span className={`px-3 py-1 text-xs font-bold rounded-full ${departureCountry.code === 'RC' ? 'bg-primary text-white' : 'bg-green text-white'}`}>
-                {departureCountry.name}
-              </span>
-            </div>
-        )}
-        <div className="absolute top-4 right-4">
-          <span className={`px-3 py-1 text-xs font-bold rounded-full ${pkg.active ? 'bg-green text-white' : 'bg-gray-500 text-white'}`}>
-            {pkg.active ? 'Disponible' : 'Indisponible'}
+const PackageCard = ({ pkg, selectedCountry, onSelect, onViewDetails, formatPrice, loadingDetails }) => (
+  <div className="bg-white rounded-2xl overflow-hidden border-2 border-gray-200 hover:shadow-2xl transition-all hover:-translate-y-2">
+    <div className="relative h-48 overflow-hidden">
+      <img 
+        src={pkg.image || 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=600'} 
+        alt={pkg.title} 
+        className="w-full h-full object-cover hover:scale-110 transition-transform duration-700"
+        onError={(e) => {
+          e.target.src = 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=600';
+        }}
+      />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+      <div className="absolute top-4 left-4">
+        <span className={`px-3 py-1 text-xs font-bold rounded-full ${selectedCountry === 'RC' ? 'bg-primary text-white' : 'bg-green text-white'}`}>
+          {pkg.departure_country?.name || selectedCountry}
+        </span>
+      </div>
+      <div className="absolute top-4 right-4">
+        <span className={`px-3 py-1 text-xs font-bold rounded-full ${pkg.active ? 'bg-green text-white' : 'bg-gray-500 text-white'}`}>
+          {pkg.active ? 'Disponible' : 'Indisponible'}
+        </span>
+      </div>
+    </div>
+    
+    <div className="p-6">
+      <h4 className="text-2xl font-black text-gray-900 mb-3">{pkg.title}</h4>
+      <p className="text-gray-600 mb-4 line-clamp-2">{pkg.description || 'Découvrez ce package unique'}</p>
+      
+      {pkg.departure_country && pkg.arrival_country && (
+        <div className="flex items-center gap-2 mb-4 text-sm text-gray-600">
+          <MapPin size={16} className="text-primary" />
+          <span>
+            {pkg.departure_country.name} → {pkg.arrival_country.name}
           </span>
         </div>
-      </div>
-      
-      <div className="p-6">
-        <h4 className="text-2xl font-black text-gray-900 mb-3">{pkg.title}</h4>
-        <p className="text-gray-600 mb-4 line-clamp-2">{pkg.description || 'Découvrez ce package unique'}</p>
-        
-        {/* Affichage du pays de départ -> pays d'arrivée */}
-        {departureCountry && arrivalCountry && (
-          <div className="flex items-center gap-2 mb-4 text-sm text-gray-600">
-            <MapPin size={16} className="text-primary" />
-            <span>
-              {departureCountry.name} → {arrivalCountry.name}
-            </span>
-          </div>
-        )}
+      )}
 
-        {/* Affichage de la capacité min/max */}
-        {minPeople && (
-          <div className="flex items-center gap-2 mb-4 text-sm text-gray-600">
-            <Users size={16} className="text-primary" />
-            <span>
-              {minPeople} - {maxPeople || '+'} personnes
-            </span>
-          </div>
-        )}
-        
-        {pkg.prices && pkg.prices.length > 0 && (
-          <div className="space-y-2 mb-4">
-            {pkg.prices.map((price, idx) => (
-              <div key={idx} className="flex items-center justify-between text-sm bg-light-bg p-3 rounded-lg">
-                <span className="text-gray-700">
-                  {price.min_people} {price.max_people ? `- ${price.max_people}` : '+'} pers.
-                </span>
-                <span className="font-bold text-gray-900">{formatPrice(price.price)} {price.currency}</span>
-              </div>
-            ))}
-          </div>
-        )}
-        
-        <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
-          <div>
-            {pkg.prices && pkg.prices[0] && (
-              <div>
-                <p className="text-sm text-gray-500">À partir de</p>
-                <p className="text-2xl font-black text-primary">
-                  {formatPrice(pkg.prices[0].price)} <span className="text-sm font-bold">{pkg.prices[0].currency}</span>
-                </p>
-              </div>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            <button 
-              onClick={() => onViewDetails(pkg)}
-              disabled={loadingDetails}
-              className="px-3 py-2 bg-gray-100 text-gray-700 font-bold rounded-full text-sm hover:bg-gray-200 transition-all flex items-center gap-1"
-              title="Voir les détails"
-            >
-              <Eye size={16} />
-            </button>
-            <Button 
-              onClick={() => onSelect(pkg.id)}
-              disabled={!pkg.active}
-              variant={pkg.active ? 'warning' : 'outline'}
-              size="sm"
-              className={`${!pkg.active && 'bg-gray-300 cursor-not-allowed hover:scale-100'}`}
-            >
-              {pkg.active ? 'Réserver' : 'Indisponible'}
-            </Button>
-          </div>
+      {pkg.min_people && (
+        <div className="flex items-center gap-2 mb-4 text-sm text-gray-600">
+          <Users size={16} className="text-primary" />
+          <span>
+            {pkg.min_people} - {pkg.max_people || '+'} personnes
+          </span>
+        </div>
+      )}
+      
+      {pkg.prices && pkg.prices.length > 0 && (
+        <div className="space-y-2 mb-4">
+          {pkg.prices.map((price, idx) => (
+            <div key={idx} className="flex items-center justify-between text-sm bg-light-bg p-3 rounded-lg">
+              <span className="text-gray-700">
+                {price.min_people} {price.max_people ? `- ${price.max_people}` : '+'} pers.
+              </span>
+              <span className="font-bold text-gray-900">{formatPrice(price.price)} {price.currency}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      
+      <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
+        <div>
+          {pkg.prices && pkg.prices[0] && (
+            <div>
+              <p className="text-sm text-gray-500">À partir de</p>
+              <p className="text-2xl font-black text-primary">
+                {formatPrice(pkg.prices[0].price)} <span className="text-sm font-bold">{pkg.prices[0].currency}</span>
+              </p>
+            </div>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={() => onViewDetails(pkg)}
+            disabled={loadingDetails}
+            className="px-3 py-2 bg-gray-100 text-gray-700 font-bold rounded-full text-sm hover:bg-gray-200 transition-all flex items-center gap-1"
+            title="Voir les détails"
+          >
+            <Eye size={16} />
+          </button>
+          <Button 
+            onClick={() => onSelect(pkg.id)}
+            disabled={!pkg.active}
+            variant={pkg.active ? 'warning' : 'outline'}
+            size="sm"
+            className={`${!pkg.active && 'bg-gray-300 cursor-not-allowed hover:scale-100'}`}
+          >
+            {pkg.active ? 'Réserver' : 'Indisponible'}
+          </Button>
         </div>
       </div>
     </div>
-  );
-};
+  </div>
+);
 
 // ============= COMPOSANT PRINCIPAL =============
 
@@ -235,8 +221,6 @@ const OuikenacPage = () => {
   });
 
   const formatPrice = (price) => {
-    // Correction: Assurez-vous que price est bien une chaîne ou un nombre avant toFixed
-    if (price === null || price === undefined) return 'N/A';
     return parseFloat(price).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
   };
 
@@ -251,32 +235,15 @@ const OuikenacPage = () => {
     fetchPackages();
   }, []);
 
-  // MODIFICATION APPORTÉE ICI
   const fetchPackages = async () => {
     try {
       setLoading(true);
       setError(null);
       const response = await api.get('/ouikenac');
       console.log('Packages récupérés:', response.data);
-      
+      // console.log(departure_country?.code); // Removed this line: departure_country is not defined here
       const packagesData = Array.isArray(response.data) ? response.data : (response.data.data || []);
-      
-      // Standardisation des données des packages
-      const standardizedPackages = packagesData.map(pkg => {
-        // Récupère les infos de pays et de capacité depuis le premier prix
-        const firstPrice = pkg.prices && pkg.prices.length > 0 ? pkg.prices[0] : {};
-        
-        return {
-          ...pkg,
-          // Ajout direct au package pour une utilisation plus simple dans le filtrage/affichage
-          departure_country: firstPrice.departure_country || pkg.departure_country,
-          arrival_country: firstPrice.arrival_country || pkg.arrival_country,
-          min_people: firstPrice.min_people || pkg.min_people,
-          max_people: firstPrice.max_people || pkg.max_people,
-        };
-      });
-
-      setPackages(standardizedPackages);
+      setPackages(packagesData);
       setLoading(false);
     } catch (err) {
       console.error('Erreur lors de la récupération des packages:', err);
@@ -286,15 +253,11 @@ const OuikenacPage = () => {
     }
   };
 
-  // Correction de la logique de filtrage
   const currentPackages = packages.filter(pkg => {
-    const departureCode = pkg.departure_country?.code;
-    
     if (selectedCountry === 'RC') {
-      return departureCode === 'RC';
+      return pkg.departure_country?.code === 'RC';
     } else if (selectedCountry === 'RDC') {
-      // Utilisez toLowerCase pour la comparaison pour être plus robuste
-      return departureCode?.toLowerCase() === 'rdc';
+      return pkg.departure_country?.code === 'rdc' || pkg.departure_country?.code === 'RDC';
     }
     
     return false;
@@ -358,30 +321,31 @@ const OuikenacPage = () => {
         showNotification(errors[0] || 'Erreur de validation', 'error');
       } else {
         showNotification(
-          err.response?.data?.message || 'Erreur lors de l\'envoi de la réservation. Veuillez réessayer.', 
+          err.response?.data?.message || 'Une erreur est survenue lors de l\'envoi de la réservation.', 
           'error'
         );
       }
-      setError(err.response?.data?.message || 'Erreur lors de l\'envoi de la réservation. Veuillez réessayer.');
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handlePackageSelect = (packageId) => {
-    setFormData(prev => ({ 
-      ...prev, 
-      reservable_id: packageId,
-      type: 'ouikenac-package'
-    }));
-    document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' });
+  const handleSelectPackage = (packageId) => {
+    setFormData(prev => ({ ...prev, reservable_id: packageId }));
+    const pkg = packages.find(p => p.id === packageId);
+    showNotification(`Package "${pkg.title}" sélectionné pour la réservation.`, 'success');
+    // Scroll to form
+    const formElement = document.getElementById('reservation-form');
+    if (formElement) {
+      formElement.scrollIntoView({ behavior: 'smooth' });
+    }
   };
 
-  const handleViewDetails = async (pkg) => {
+  const fetchPackageDetails = async (pkg) => {
+    setLoadingDetails(true);
     try {
-      setLoadingDetails(true);
-      // S'assurer que les données du package dans la modale sont complètes
-      setSelectedPackage(pkg); 
+      const response = await api.get(`/ouikenac/${pkg.id}`);
+      setSelectedPackage(response.data);
       setShowModal(true);
     } catch (err) {
       console.error('Erreur lors de la récupération des détails:', err);
@@ -398,561 +362,522 @@ const OuikenacPage = () => {
 
   return (
     <div className="min-h-screen bg-white overflow-x-hidden">
-      <Notification
-        show={notification.show}
-        message={notification.message}
-        type={notification.type}
-        onClose={() => setNotification({ show: false, message: '', type: '' })}
+      <Notification 
+        show={notification.show} 
+        message={notification.message} 
+        type={notification.type} 
+        onClose={() => setNotification({ show: false, message: '', type: '' })} 
       />
-
       {submitting && <LoadingOverlay message="Envoi de votre réservation..." />}
 
       {/* Header */}
-     <header className="fixed top-0 left-0 right-0 z-50 bg-white shadow-md">
+      <header className="fixed top-0 left-0 right-0 z-50 bg-white shadow-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-20">
             <div className="flex items-center space-x-3">
-                <img src="logoetravel.jpg" alt="" width={70}/>
+              <img src="logoetravel.jpg" alt="Logo e-Travel World" width={70}/>
               <div>
                 <h1 className="text-2xl font-black text-gray-900">e-TRAVEL WORLD</h1>
                 <p className="text-xs text-gray-500 tracking-wider">AGENCY</p>
               </div>
             </div>
-
             <nav className="hidden md:flex items-center space-x-10">
               <Link to="/" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">Accueil</Link>
               <Link to="/about" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">À propos</Link>
-              <Link to="/weekend" className="px-6 py-2 bg-yellow-400 text-gray-900 font-bold rounded-full hover:bg-yellow-500 transition-all hover:shadow-lg">
+              <Link to="/weekend" className="px-6 py-2 bg-yellow-400 text-gray-900 font-bold rounded-full transition-all hover:bg-yellow-500 hover:shadow-lg">
                 OUIKENAC
               </Link>
-              <Link to="/city-tour" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">CityTour</Link>
-              <a href="#contact" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">Contact</a>
             </nav>
-
-            <button onClick={() => setMenuOpen(!menuOpen)} className="md:hidden text-gray-900 p-2">
+            <button 
+              onClick={() => setMenuOpen(!menuOpen)} 
+              className="md:hidden text-gray-700 hover:text-blue-600"
+            >
               {menuOpen ? <X size={28} /> : <Menu size={28} />}
             </button>
           </div>
         </div>
-
-        {menuOpen && (
-          <div className="md:hidden bg-white border-t border-gray-100 shadow-lg">
-            <nav className="px-4 py-4 space-y-2">
-              <Link 
-                to="/" 
-                className="block text-gray-700 hover:text-blue-600 py-3 text-base font-medium border-b border-gray-100" 
-                onClick={() => setMenuOpen(false)}
-              >
-                Accueil
-              </Link>
-              <Link 
-                to="/about" 
-                className="block text-gray-700 hover:text-blue-600 py-3 text-base font-medium border-b border-gray-100" 
-                onClick={() => setMenuOpen(false)}
-              >
-                A propos
-              </Link>
-              <Link 
-                to="/weekend" 
-                className="block text-gray-700 hover:text-blue-600 py-3 text-base font-medium border-b border-gray-100" 
-                onClick={() => setMenuOpen(false)}
-              >
-                Ouikenac
-              </Link>
-              <Link 
-                to="/city-tour" 
-                className="block text-gray-700 hover:text-blue-600 py-3 text-base font-medium border-b border-gray-100" 
-                onClick={() => setMenuOpen(false)}
-              >
-                CityTour
-              </Link>
-              <a href="#contact" className="block text-gray-700 hover:text-blue-600 py-3 text-base font-medium" onClick={() => setMenuOpen(false)}>Contactez-nous</a>
-            </nav>
-          </div>
-        )}
       </header>
 
-      {/* Hero Section */}
-      <section className="relative h-96 mt-20 overflow-hidden">
-        <div 
-          className="absolute inset-0"
-          style={{
-            backgroundImage: 'linear-gradient(rgba(27,94,142,0.7), rgba(0,115,53,0.7)), url(https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=1600)',
-            backgroundSize: 'cover',
-            backgroundPosition: 'center'
-          }}
-        >
-          <div className="relative h-full flex items-center justify-center">
-            <div className="text-center px-4">
-              <div className="inline-block px-6 py-2 bg-warning rounded-full mb-6">
-                <p className="text-gray-900 font-bold tracking-wider uppercase text-sm">Week-End au Congo</p>
-              </div>
-              <h2 className="text-5xl md:text-7xl font-black text-white mb-4">OUIKENAC</h2>
-              <p className="text-xl text-white font-light">Découvrez les deux Congo</p>
+      {/* Mobile Menu */}
+      <div className={`fixed top-20 left-0 right-0 z-40 bg-white shadow-xl md:hidden transition-transform duration-300 ${menuOpen ? 'translate-y-0' : '-translate-y-full'}`}>
+        <nav className="flex flex-col space-y-4 p-6">
+          <Link to="/" className="text-gray-700 hover:text-blue-600 transition-colors font-medium pb-2 border-b border-gray-100" onClick={() => setMenuOpen(false)}>Accueil</Link>
+          <Link to="/about" className="text-gray-700 hover:text-blue-600 transition-colors font-medium pb-2 border-b border-gray-100" onClick={() => setMenuOpen(false)}>À propos</Link>
+          <Link to="/weekend" className="px-4 py-2 bg-yellow-400 text-gray-900 font-bold rounded-full text-center transition-all hover:bg-yellow-500 hover:shadow-lg" onClick={() => setMenuOpen(false)}>
+            OUIKENAC
+          </Link>
+        </nav>
+      </div>
+      
+      <main className="pt-20">
+        {/* Hero Section */}
+        <section className="relative h-[600px] overflow-hidden">
+          <img 
+            src="https://images.unsplash.com/photo-1510414842594-b258387532a7?q=80&w=1932&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D" 
+            alt="Paysage du Congo"
+            className="w-full h-full object-cover brightness-[.65]"
+          />
+          <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+            <div className="text-center p-8 max-w-4xl">
+              <p className="text-yellow-400 text-xl font-bold mb-4">LE WEEK-END DE VOS RÊVES</p>
+              <h2 className="text-6xl md:text-8xl font-black text-white mb-6 leading-tight">
+                OUIKENAC <span className="text-yellow-400">by e-TRAVEL</span>
+              </h2>
+              <p className="text-xl text-gray-200 mb-8">
+                Des packages touristiques uniques pour un week-end d'évasion entre la République du Congo (RC) et la République Démocratique du Congo (RDC).
+              </p>
+              <a href="#packages">
+                <Button variant="warning" size="lg" className="flex items-center justify-center gap-2 mx-auto">
+                  Découvrir les Packages <ArrowRight size={24} />
+                </Button>
+              </a>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Introduction */}
-      <section id="apropos" className="py-20 px-4 bg-white">
-        <div className="max-w-6xl mx-auto">
-          <div className="bg-light-bg rounded-2xl p-8 md:p-12 border-2 border-primary/20">
-            <h2 className="text-3xl md:text-4xl font-black text-gray-900 mb-8 text-center">
-              Qu'est-ce que OUIKENAC ?
-            </h2>
-            <div className="prose prose-lg max-w-none">
-              <p className="text-lg text-gray-700 leading-relaxed mb-6">
-                Un seul peuple, une histoire partagée, des traditions partagées, des langues partagées. <strong className="text-gray-900">Week-End NA CONGO / Week-End AU CONGO</strong> a été pensé pour créer un pont entre les 2 capitales, les 2 pays, en permettant aux populations vivant sur chacune des rives de se mélanger, de se rapprocher le temps d'un week-end dans un mix de tourisme culturel, naturel et ludique.
-              </p>
-              <p className="text-lg text-gray-700 leading-relaxed mb-6">
-                <strong className="text-gray-900">OUIKENAC</strong> est un service dont le but est de contribuer au renforcement identitaire de la destination CONGO en proposant des offres ouvertes tous les week-ends dans un mix d'éco-tourisme, tourisme culturel, culinaire, etc.
-              </p>
-              <p className="text-lg text-gray-700 leading-relaxed">
-                Notre objectif : rendre uniques les week-ends des congolais, des expatriés et autres touristes au travers d'offres de découverte des plus beaux endroits de notre pays, surtout les plus insoupçonnés, de son histoire, de sa culture.
-              </p>
+        {/* About Section */}
+        <section id="about" className="py-20 px-4 bg-white">
+          <div className="max-w-7xl mx-auto">
+            <div className="max-w-3xl mx-auto text-center mb-12">
+              <h2 className="text-4xl font-black text-gray-900 mb-4">Qu'est-ce que OUIKENAC ?</h2>
+              <p className="text-lg text-gray-600">Le concept qui réinvente vos week-ends.</p>
             </div>
-            <div className="mt-8 p-6 bg-yellow-50 border-l-4 border-warning rounded-r-xl">
-              <p className="text-xl font-bold text-gray-900 italic">
-                Grâce à OUIKENAC, vos semaines ne seront plus jamais les mêmes ! ✨
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Country Selection & Packages */}
-      <section id="packages" className="py-20 px-4 bg-light-bg">
-        <div className="max-w-7xl mx-auto">
-          <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-12 text-center">
-            Choisissez Votre Destination
-          </h2>
-          
-          <div className="grid md:grid-cols-2 gap-8 mb-16">
-            {/* République du Congo */}
-            <div 
-              onClick={() => setSelectedCountry('RC')}
-              className={`group cursor-pointer bg-white rounded-2xl overflow-hidden border-2 transition-all hover:shadow-2xl hover:-translate-y-2 ${selectedCountry === 'RC' ? 'border-primary shadow-xl' : 'border-gray-200'}`}
-            >
-              <div className="relative h-64">
+            <div className="grid md:grid-cols-2 gap-12 items-center">
+              <div className="relative h-96 rounded-2xl overflow-hidden shadow-2xl">
                 <img 
-                  src="https://images.unsplash.com/photo-1588013273468-315fd88ea34c?w=800" 
-                  alt="République du Congo" 
+                  src="https://images.unsplash.com/photo-1522204523234-8729aa6e993e?q=80&w=1740&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D" 
+                  alt="Pont entre les capitales" 
                   className="w-full h-full object-cover"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
-                <div className="absolute bottom-0 left-0 right-0 p-6">
-                  <h3 className="text-3xl font-black text-white mb-2">République du CONGO</h3>
-                  <p className="text-white/90">Brazzaville</p>
+                <div className="absolute inset-0 bg-primary/40 flex items-end p-6">
+                  <h3 className="text-3xl font-black text-white">Le pont entre les deux Congos</h3>
                 </div>
               </div>
-              <div className="p-6">
-                <p className="text-gray-700 leading-relaxed mb-4">
-                  La République du CONGO compte 15 départements. Sa capitale est <strong>Brazzaville</strong> depuis le 25 novembre 1958. 
-                  Sa monnaie est le Franc CFA.
+              <div>
+                <p className="text-lg text-gray-700 leading-relaxed mb-6">
+                  Le concept **OUIKENAC** a été pensé pour créer un pont entre les 2 capitales, les 2 pays, en permettant aux populations vivant sur chacune des rives de se mélanger, de se rapprocher le temps d'un week-end dans un mix de tourisme culturel, naturel et ludique.
                 </p>
-                <Button 
-                  onClick={() => setSelectedCountry('RC')}
-                  variant="primary"
-                  className="w-full flex items-center justify-center gap-2"
-                >
-                  Voir les packages RC <ArrowRight size={20} />
-                </Button>
-              </div>
-            </div>
-
-            {/* République Démocratique du Congo */}
-            <div 
-              onClick={() => setSelectedCountry('RDC')}
-              className={`group cursor-pointer bg-white rounded-2xl overflow-hidden border-2 transition-all hover:shadow-2xl hover:-translate-y-2 ${selectedCountry === 'RDC' ? 'border-green shadow-xl' : 'border-gray-200'}`}
-            >
-              <div className="relative h-64">
-                <img 
-                  src="https://images.unsplash.com/photo-1484318571209-661cf29a69c3?w=800" 
-                  alt="République Démocratique du Congo" 
-                  className="w-full h-full object-cover"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
-                <div className="absolute bottom-0 left-0 right-0 p-6">
-                  <h3 className="text-3xl font-black text-white mb-2">République Démocratique du CONGO</h3>
-                  <p className="text-white/90">Kinshasa</p>
+                <p className="text-lg text-gray-700 leading-relaxed mb-6">
+                  <strong className="text-gray-900">OUIKENAC</strong> est un service dont le but est de contribuer au renforcement identitaire de la destination CONGO en proposant des offres ouvertes tous les week-ends dans un mix d'éco-tourisme, tourisme culturel, culinaire, etc.
+                </p>
+                <p className="text-lg text-gray-700 leading-relaxed">
+                  Notre objectif : rendre uniques les week-ends des congolais, des expatriés et autres touristes au travers d'offres de découverte des plus beaux endroits de notre pays, surtout les plus insoupçonnés, de son histoire, de sa culture.
+                </p>
+                <div className="mt-8 p-6 bg-yellow-50 border-l-4 border-warning rounded-r-xl">
+                  <p className="text-xl font-bold text-gray-900 italic">
+                    Grâce à OUIKENAC, vos semaines ne seront plus jamais les mêmes ! ✨
+                  </p>
                 </div>
-              </div>
-              <div className="p-6">
-                <p className="text-gray-700 leading-relaxed mb-4">
-                  La RDC est le quatrième pays le plus peuplé d'Afrique (102 millions d'habitants). 
-                  Découpée en 26 provinces. Monnaie : Franc Congolais.
-                </p>
-                <Button 
-                  onClick={() => setSelectedCountry('RDC')}
-                  variant="green"
-                  className="w-full flex items-center justify-center gap-2"
-                >
-                  Voir les packages RDC <ArrowRight size={20} />
-                </Button>
               </div>
             </div>
           </div>
+        </section>
 
-          {/* Navigation Tabs */}
-          <div className="flex justify-center gap-4 mb-12">
-            <button
-              onClick={() => setSelectedCountry('RC')}
-              className={`px-8 py-3 rounded-full font-bold transition-all ${
-                selectedCountry === 'RC' 
-                  ? 'bg-primary text-white shadow-lg' 
-                  : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-primary'
-              }`}
-            >
-              Packages RC
-            </button>
-            <button
-              onClick={() => setSelectedCountry('RDC')}
-              className={`px-8 py-3 rounded-full font-bold transition-all ${
-                selectedCountry === 'RDC' 
-                  ? 'bg-green text-white shadow-lg' 
-                  : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-green'
-              }`}
-            >
-              Packages RDC
-            </button>
-          </div>
-
-          {/* Loading State */}
-          {loading && (
-            <div className="flex flex-col items-center justify-center py-20">
-              <div className="relative">
-                <Loader className="animate-spin h-16 w-16 text-primary" />
-                <div className="absolute inset-0 h-16 w-16 border-4 border-primary/20 rounded-full"></div>
-              </div>
-              <p className="text-gray-600 text-lg mt-6">Chargement des packages...</p>
+        {/* Country Selection & Packages */}
+        <section id="packages" className="py-20 px-4 bg-light-bg">
+          <div className="max-w-7xl mx-auto">
+            <div className="max-w-3xl mx-auto text-center mb-16">
+              <h2 className="text-4xl font-black text-gray-900 mb-4">Nos Packages Week-end</h2>
+              <p className="text-lg text-gray-600">Choisissez votre destination et évadez-vous pour un week-end inoubliable.</p>
             </div>
-          )}
 
-          {/* Error State */}
-          {error && !loading && (
-            <div className="bg-red-50 border-l-4 border-red-500 p-6 rounded-r-xl mb-8">
-              <div className="flex items-center gap-3">
-                <AlertCircle className="text-red-500" size={24} />
-                <div>
-                  <h3 className="font-bold text-red-800 mb-1">Erreur</h3>
-                  <p className="text-red-700">{error}</p>
-                </div>
-              </div>
-              <Button 
-                onClick={fetchPackages}
-                variant="primary"
-                className="mt-4 bg-red-600 hover:bg-red-700"
-              >
-                Réessayer
-              </Button>
-            </div>
-          )}
-
-          {/* Packages Display */}
-          {!loading && !error && (
-            <div id="packages-list">
-              <h3 className="text-3xl font-black text-gray-900 mb-8 text-center">
-                Nos Packages OUIKENAC - {selectedCountry === 'RC' ? 'République du Congo' : 'République Démocratique du Congo'}
-              </h3>
-              
-              {currentPackages.length === 0 ? (
-                <div className="text-center py-12 bg-white rounded-2xl border-2 border-gray-200">
-                  <MapPin className="mx-auto text-gray-400 mb-4" size={48} />
-                  <p className="text-gray-600 text-lg">Aucun package disponible pour cette destination pour le moment.</p>
+            {/* Country Info Cards (for visibility) */}
+            <div className="grid md:grid-cols-2 gap-8 mb-16">
+              <div className="bg-white rounded-2xl overflow-hidden shadow-lg border-t-4 border-primary">
+                <div className="p-6">
+                  <h3 className="text-2xl font-black text-gray-900 mb-3 flex items-center gap-2">
+                    <Globe size={24} className="text-primary" /> République du Congo (RC)
+                  </h3>
+                  <p className="text-gray-700 leading-relaxed mb-4">
+                    Le Congo, aussi appelé Congo-Brazzaville, est réputé pour sa forêt équatoriale et sa faune. C'est le berceau de l'écotourisme en Afrique centrale. Monnaie : Franc CFA.
+                  </p>
                   <Button 
-                    onClick={fetchPackages}
-                    variant="primary"
-                    className="mt-4"
+                    onClick={() => setSelectedCountry('RC')} 
+                    variant="primary" 
+                    className="w-full flex items-center justify-center gap-2"
                   >
-                    Réessayer
+                    Voir les packages RC <ArrowRight size={20} />
                   </Button>
                 </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                  {currentPackages.map((pkg) => (
-                    <PackageCard
-                      key={pkg.id}
-                      pkg={pkg}
-                      selectedCountry={selectedCountry}
-                      onSelect={handlePackageSelect}
-                      onViewDetails={handleViewDetails}
-                      formatPrice={formatPrice}
-                      loadingDetails={loadingDetails}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* Reservation Form Section */}
-      <section id="contact" className="py-20 px-4 bg-white">
-        <div className="max-w-7xl mx-auto">
-          <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-12 text-center">
-            Réservez Votre Week-End
-          </h2>
-
-          {submitSuccess && (
-            <div className="bg-green-50 border-l-4 border-green-500 p-6 rounded-r-xl mb-8 animate-pulse">
-              <div className="flex items-center gap-3">
-                <CheckCircle className="text-green-500" size={24} />
-                <div>
-                  <h3 className="font-bold text-green-800 mb-1">Réservation envoyée avec succès !</h3>
-                  <p className="text-green-700">Nous vous contacterons très bientôt pour confirmer votre réservation.</p>
-                </div>
-              </div>
-            </div>
-          )}
-          
-          <div className="flex flex-col lg:flex-row gap-12 bg-light-bg p-8 rounded-2xl shadow-xl border-2 border-primary/20">
-            
-            {/* Contact Info */}
-            <div className="lg:w-1/3 space-y-8">
-              <h3 className="text-2xl font-black text-gray-900">Contactez-nous</h3>
-              
-              <div className="space-y-4">
-                <div className="flex items-center gap-4">
-                  <Phone size={24} className="text-primary" />
-                  <div>
-                    <p className="text-gray-500 text-sm">Téléphone</p>
-                    <p className="font-semibold text-gray-800">+242 06 871 13 78</p>
-                    <p className="font-semibold text-gray-800">+242 05 594 94 64</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4">
-                  <Mail size={24} className="text-primary" />
-                  <div>
-                    <p className="text-gray-500 text-sm">Email</p>
-                    <p className="font-semibold text-gray-800">worldagencyetravel@gmail.com</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4">
-                  <MapPin size={24} className="text-primary" />
-                  <div>
-                    <p className="text-gray-500 text-sm">Adresse</p>
-                    <p className="font-semibold text-gray-800">Brazzaville, CONGO</p>
-                  </div>
-                </div>
               </div>
 
-              <div className="flex gap-4 pt-4 border-t border-gray-200">
-                <a href="#" className="text-gray-500 hover:text-primary transition-colors"><Facebook size={24} /></a>
-                <a href="#" className="text-gray-500 hover:text-primary transition-colors"><Instagram size={24} /></a>
-                <a href="#" className="text-gray-500 hover:text-primary transition-colors"><Twitter size={24} /></a>
-                <a href="#" className="text-gray-500 hover:text-primary transition-colors"><Linkedin size={24} /></a>
-              </div>
-            </div>
-
-            {/* Reservation Form */}
-            <form onSubmit={handleSubmit} className="lg:w-2/3 space-y-6">
-              <h3 className="text-2xl font-black text-gray-900">Formulaire de Réservation</h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label htmlFor="full_name" className="block text-sm font-medium text-gray-700 mb-1">Nom complet *</label>
-                  <input 
-                    type="text" 
-                    name="full_name" 
-                    id="full_name" 
-                    required 
-                    value={formData.full_name} 
-                    onChange={handleInputChange} 
-                    className="block w-full border-2 border-gray-200 rounded-lg shadow-sm p-3 focus:ring-primary focus:border-primary" 
-                  />
-                </div>
-                <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
-                  <input 
-                    type="email" 
-                    name="email" 
-                    id="email" 
-                    required 
-                    value={formData.email} 
-                    onChange={handleInputChange} 
-                    className="block w-full border-2 border-gray-200 rounded-lg shadow-sm p-3 focus:ring-primary focus:border-primary" 
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">Téléphone</label>
-                  <input 
-                    type="tel" 
-                    name="phone" 
-                    id="phone" 
-                    value={formData.phone} 
-                    onChange={handleInputChange} 
-                    placeholder="+242 06 XXX XX XX"
-                    className="block w-full border-2 border-gray-200 rounded-lg shadow-sm p-3 focus:ring-primary focus:border-primary" 
-                  />
-                </div>
-                <div>
-                  <label htmlFor="reservable_id" className="block text-sm font-medium text-gray-700 mb-1">Package *</label>
-                  <select 
-                    name="reservable_id" 
-                    id="reservable_id" 
-                    required 
-                    value={formData.reservable_id} 
-                    onChange={handleInputChange}
-                    className="block w-full border-2 border-gray-200 rounded-lg shadow-sm p-3 focus:ring-primary focus:border-primary bg-white"
+              <div className="bg-white rounded-2xl overflow-hidden shadow-lg border-t-4 border-green">
+                <div className="p-6">
+                  <h3 className="text-2xl font-black text-gray-900 mb-3 flex items-center gap-2">
+                    <Globe size={24} className="text-green" /> Rép. Démocratique du Congo (RDC)
+                  </h3>
+                  <p className="text-gray-700 leading-relaxed mb-4">
+                    La RDC est le quatrième pays le plus peuplé d'Afrique (102 millions d'habitants). Découpée en 26 provinces. Monnaie : Franc Congolais.
+                  </p>
+                  <Button 
+                    onClick={() => setSelectedCountry('RDC')} 
+                    variant="green" 
+                    className="w-full flex items-center justify-center gap-2"
                   >
-                    <option value="">Sélectionnez un package</option>
-                    {packages.map(pkg => {
-                        // Utiliser la structure standardisée
-                        const departureName = pkg.departure_country?.name;
-                        const arrivalName = pkg.arrival_country?.name;
-                        const priceInfo = pkg.prices?.[0];
-
-                        return (
-                            <option key={pkg.id} value={pkg.id} disabled={!pkg.active}>
-                              {pkg.title} - {departureName} → {arrivalName}
-                              {priceInfo && ` (${formatPrice(priceInfo.price)} ${priceInfo.currency})`}
-                            </option>
-                        );
-                    })}
-                  </select>
+                    Voir les packages RDC <ArrowRight size={20} />
+                  </Button>
                 </div>
               </div>
+            </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label htmlFor="currency" className="block text-sm font-medium text-gray-700 mb-1">Devise</label>
-                  <select 
-                    name="currency" 
-                    id="currency" 
-                    value={formData.currency} 
-                    onChange={handleInputChange}
-                    className="block w-full border-2 border-gray-200 rounded-lg shadow-sm p-3 focus:ring-primary focus:border-primary bg-white"
-                  >
-                    <option value="CFA">CFA</option>
-                    <option value="USD">USD</option>
-                    <option value="EUR">EUR</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-1">Message / Demandes spécifiques</label>
-                <textarea 
-                  name="message" 
-                  id="message" 
-                  rows="4" 
-                  value={formData.message} 
-                  onChange={handleInputChange} 
-                  className="block w-full border-2 border-gray-200 rounded-lg shadow-sm p-3 focus:ring-primary focus:border-primary" 
-                  placeholder="Ajoutez vos demandes spécifiques ici..."
-                />
-              </div>
-
-              <Button 
-                type="submit" 
-                disabled={submitting}
-                variant="primary"
-                size="lg"
-                className="w-full flex items-center justify-center gap-2 disabled:bg-gray-400 disabled:cursor-not-allowed disabled:hover:scale-100"
+            {/* Navigation Tabs */}
+            <div className="flex justify-center gap-4 mb-12">
+              <button 
+                onClick={() => setSelectedCountry('RC')} 
+                className={`px-8 py-3 rounded-full font-bold transition-all ${
+                  selectedCountry === 'RC' ? 'bg-primary text-white shadow-lg' : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-primary'
+                }`}
               >
-                {submitting ? (
-                  <>
-                    <Loader className="animate-spin" size={20} />
-                    Envoi en cours...
-                  </>
-                ) : (
-                  <>
-                    Envoyer la Réservation <Calendar size={20} />
-                  </>
-                )}
-              </Button>
-            </form>
+                Packages RC
+              </button>
+              <button 
+                onClick={() => setSelectedCountry('RDC')} 
+                className={`px-8 py-3 rounded-full font-bold transition-all ${
+                  selectedCountry === 'RDC' ? 'bg-green text-white shadow-lg' : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-green'
+                }`}
+              >
+                Packages RDC
+              </button>
+            </div>
 
+            {/* Loading State */}
+            {loading && (
+              <div className="flex flex-col items-center justify-center py-20">
+                <div className="relative">
+                  <Loader className="animate-spin h-16 w-16 text-primary" />
+                  <div className="absolute inset-0 h-16 w-16 border-4 border-primary/20 rounded-full"></div>
+                </div>
+                <p className="text-gray-700 font-semibold text-lg mt-6">Chargement des packages...</p>
+              </div>
+            )}
+
+            {/* Error State */}
+            {error && !loading && (
+              <div className="text-center py-20 bg-red-100 rounded-2xl border border-red-300">
+                <XCircle size={48} className="text-red-500 mx-auto mb-4" />
+                <h3 className="text-2xl font-bold text-red-800">Erreur de chargement</h3>
+                <p className="text-red-700">{error}</p>
+              </div>
+            )}
+
+            {/* Packages Grid */}
+            {!loading && !error && currentPackages.length === 0 && (
+              <div className="text-center py-20 bg-yellow-100 rounded-2xl border border-yellow-300">
+                <Info size={48} className="text-yellow-500 mx-auto mb-4" />
+                <h3 className="text-2xl font-bold text-yellow-800">Aucun package disponible</h3>
+                <p className="text-yellow-700">Il n'y a actuellement aucun package OUIKENAC pour la zone {selectedCountry}.</p>
+              </div>
+            )}
+
+            {!loading && !error && currentPackages.length > 0 && (
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {currentPackages.map(pkg => (
+                  <PackageCard 
+                    key={pkg.id} 
+                    pkg={pkg}
+                    selectedCountry={selectedCountry}
+                    onSelect={handleSelectPackage}
+                    onViewDetails={fetchPackageDetails}
+                    formatPrice={formatPrice}
+                    loadingDetails={loadingDetails}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* Reservation Form */}
+        <section id="reservation-form" className="py-20 px-4 bg-white">
+          <div className="max-w-4xl mx-auto">
+            <div className="text-center mb-12">
+              <h2 className="text-4xl font-black text-gray-900 mb-4">Réservez Votre Package</h2>
+              <p className="text-lg text-gray-600">
+                Sélectionnez un package ci-dessus et remplissez ce formulaire pour valider votre réservation.
+              </p>
+            </div>
+            
+            {submitSuccess && (
+              <div className="p-6 mb-8 bg-green-50 rounded-2xl border border-green-300">
+                <div className="flex items-start gap-4">
+                  <CheckCircle size={24} className="text-green-500 flex-shrink-0" />
+                  <div>
+                    <h3 className="text-xl font-bold text-green-800 mb-1">Réservation envoyée !</h3>
+                    <p className="text-green-700">Merci. Notre équipe vous contactera très bientôt pour confirmer votre réservation.</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="flex flex-col lg:flex-row gap-12 bg-light-bg p-8 rounded-2xl shadow-xl border-2 border-primary/20">
+              {/* Contact Info */}
+              <div className="lg:w-1/3 space-y-8">
+                <h3 className="text-2xl font-black text-gray-900">Contactez-nous</h3>
+                <div className="space-y-4">
+                  <div className="flex items-center gap-4">
+                    <Phone size={24} className="text-primary" />
+                    <div>
+                      <p className="text-gray-500 text-sm">Téléphone</p>
+                      <p className="font-semibold text-gray-800">+242 06 871 13 78</p>
+                      <p className="font-semibold text-gray-800">+242 05 594 94 64</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <Mail size={24} className="text-primary" />
+                    <div>
+                      <p className="text-gray-500 text-sm">Email</p>
+                      <p className="font-semibold text-gray-800">worldagencyetravel@gmail.com</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <MapPin size={24} className="text-primary" />
+                    <div>
+                      <p className="text-gray-500 text-sm">Adresse</p>
+                      <p className="font-semibold text-gray-800">Brazzaville, CONGO</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex gap-4 pt-4 border-t border-gray-200">
+                  <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-blue-700 transition-all" aria-label="Facebook">
+                    <Facebook size={18} className="text-white" />
+                  </a>
+                  <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-pink-600 transition-all" aria-label="Instagram">
+                    <Instagram size={18} className="text-white" />
+                  </a>
+                  <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-blue-400 transition-all" aria-label="Twitter">
+                    <Twitter size={18} className="text-white" />
+                  </a>
+                  <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-primary transition-all" aria-label="LinkedIn">
+                    <Linkedin size={18} className="text-white" />
+                  </a>
+                </div>
+              </div>
+              
+              {/* Form */}
+              <div className="lg:w-2/3">
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  <h3 className="text-2xl font-black text-gray-900 mb-4">Informations Personnelles</h3>
+                  <div className="grid md:grid-cols-2 gap-6">
+                    <div>
+                      <label htmlFor="full_name" className="block text-sm font-medium text-gray-700 mb-1">Nom Complet</label>
+                      <input 
+                        type="text" 
+                        id="full_name" 
+                        name="full_name" 
+                        value={formData.full_name} 
+                        onChange={handleInputChange} 
+                        required 
+                        className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-primary focus:border-primary" 
+                        placeholder="Votre nom et prénom"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                      <input 
+                        type="email" 
+                        id="email" 
+                        name="email" 
+                        value={formData.email} 
+                        onChange={handleInputChange} 
+                        required 
+                        className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-primary focus:border-primary" 
+                        placeholder="votre.email@exemple.com"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">Téléphone</label>
+                    <input 
+                      type="tel" 
+                      id="phone" 
+                      name="phone" 
+                      value={formData.phone} 
+                      onChange={handleInputChange} 
+                      required 
+                      className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-primary focus:border-primary" 
+                      placeholder="+242 0x xxx xx xx"
+                    />
+                  </div>
+                  <div className="p-4 bg-warning/20 border border-warning/50 rounded-xl">
+                    <label htmlFor="reservable_id" className="block text-sm font-medium text-gray-900 mb-1 flex items-center gap-2">
+                      <Info size={16} className="text-warning" /> Package Sélectionné (ID)
+                    </label>
+                    <input 
+                      type="text" 
+                      id="reservable_id" 
+                      name="reservable_id" 
+                      value={formData.reservable_id} 
+                      readOnly 
+                      required 
+                      className="w-full p-3 border border-warning bg-white rounded-xl font-bold text-gray-900 cursor-default" 
+                      placeholder="Sélectionnez un package ci-dessus"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-1">Message (optionnel)</label>
+                    <textarea 
+                      id="message" 
+                      name="message" 
+                      value={formData.message} 
+                      onChange={handleInputChange} 
+                      rows="4" 
+                      className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-primary focus:border-primary" 
+                      placeholder="Ajoutez vos demandes spécifiques ici..."
+                    />
+                  </div>
+                  <Button 
+                    type="submit" 
+                    disabled={submitting} 
+                    variant="primary" 
+                    size="lg" 
+                    className="w-full flex items-center justify-center gap-2 disabled:bg-gray-400 disabled:cursor-not-allowed disabled:hover:scale-100" 
+                  >
+                    {submitting ? (
+                      <>
+                        <Loader className="animate-spin" size={20} /> Envoi en cours...
+                      </>
+                    ) : (
+                      <> 
+                        Envoyer la Réservation <Calendar size={20} />
+                      </>
+                    )}
+                  </Button>
+                </form>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Promo Banner */}
+        <section className="py-20 px-4 bg-green-ouik">
+          <div className="max-w-5xl mx-auto text-center">
+            <p className="text-white text-2xl md:text-3xl mb-4 font-light">
+              Réservez votre <strong className="font-black">OUIKENAC</strong> maintenant
+            </p>
+            <p className="text-7xl md:text-8xl font-black text-white mb-4">20%</p>
+            <p className="text-3xl md:text-4xl font-black text-white mb-6">DE RÉDUCTION</p>
+            <p className="text-green-100 text-lg mb-8">Pour les 100 premiers inscrits</p>
+            <a href="#packages" className="inline-flex items-center gap-3 px-10 py-4 bg-gray-900 text-white font-bold text-lg rounded-full hover:bg-gray-800 transition-all hover:shadow-2xl hover:scale-105">
+              Voir les packages <ArrowRight size={24} />
+            </a>
+          </div>
+        </section>
+      </main>
+
+      {/* Footer */}
+      <footer className="bg-gray-900 text-white py-12 px-4">
+        <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8">
+          <div>
+            <div className="flex items-center space-x-3 mb-6">
+              <img src="logoetravel.jpg" alt="Logo e-Travel World" width={40}/>
+              <div>
+                <h3 className="text-xl font-black">e-TRAVEL WORLD</h3>
+                <p className="text-xs text-gray-400">AGENCY</p>
+              </div>
+            </div>
+            <p className="text-gray-400 text-sm">Votre agence de voyage pour des week-ends uniques entre le Congo et la RDC.</p>
+          </div>
+          <div>
+            <h3 className="text-lg font-bold mb-6">Navigation</h3>
+            <div className="space-y-3">
+              <a href="/" className="text-gray-400 hover:text-white transition-colors block">Accueil</a>
+              <a href="/about" className="text-gray-400 hover:text-white transition-colors block">À propos</a>
+              <a href="#packages" className="text-gray-400 hover:text-white transition-colors block">Packages</a>
+              <a href="#reservation-form" className="text-gray-400 hover:text-white transition-colors block">Réservation</a>
+            </div>
+          </div>
+          <div>
+            <h3 className="text-lg font-bold mb-6">Contact</h3>
+            <div className="space-y-3 text-sm">
+              <p className="flex items-center gap-2 text-gray-400">
+                <Phone size={16} className="text-primary" /> +242 06 871 13 78
+              </p>
+              <p className="flex items-center gap-2 text-gray-400">
+                <Mail size={16} className="text-primary" /> worldagencyetravel@gmail.com
+              </p>
+              <p className="flex items-start gap-2 text-gray-400">
+                <MapPin size={16} className="text-primary mt-1" /> Brazzaville, CONGO
+              </p>
+            </div>
+          </div>
+          <div>
+            <h3 className="text-lg font-bold mb-6">Suivez-nous</h3>
+            <div className="flex gap-4">
+              <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-blue-700 transition-all" aria-label="Facebook">
+                <Facebook size={18} />
+              </a>
+              <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-pink-600 transition-all" aria-label="Instagram">
+                <Instagram size={18} />
+              </a>
+              <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-blue-400 transition-all" aria-label="Twitter">
+                <Twitter size={18} />
+              </a>
+              <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-primary transition-all" aria-label="LinkedIn">
+                <Linkedin size={18} />
+              </a>
+            </div>
           </div>
         </div>
-      </section>
-
-      {/* Promo Banner */}
-      <section className="py-20 px-4 bg-green-ouik">
-        <div className="max-w-5xl mx-auto text-center">
-          <p className="text-white text-2xl md:text-3xl mb-4 font-light">
-            Réservez votre <strong className="font-black">OUIKENAC</strong> maintenant
+        <div className="mt-12 pt-8 border-t border-gray-800 text-center">
+          <p className="text-sm text-gray-500">
+            &copy; {new Date().getFullYear()} e-TRAVEL WORLD. Tous droits réservés.
           </p>
-          <p className="text-7xl md:text-8xl font-black text-white mb-4">20%</p>
-          <p className="text-3xl md:text-4xl font-black text-white mb-6">DE RÉDUCTION</p>
-          <p className="text-green-100 text-lg mb-8">Pour les 100 premiers inscrits</p>
-          <a href="#packages" className="inline-flex items-center gap-3 px-10 py-4 bg-gray-900 text-white font-bold text-lg rounded-full hover:bg-gray-800 transition-all hover:shadow-2xl hover:scale-105">
-            Voir les packages <ArrowRight size={24} />
-          </a>
         </div>
-      </section>
+      </footer>
 
-      {/* Modal Détails Package */}
-      {showModal && selectedPackage && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={closeModal}>
-          <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            {/* Header Modal */}
-            <div className="relative h-64 overflow-hidden rounded-t-2xl">
+      {/* Detail Modal */}
+      {selectedPackage && showModal && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={closeModal}>
+          <div className="bg-white rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl relative animate-zoom-in" onClick={e => e.stopPropagation()}>
+            <button 
+              onClick={closeModal} 
+              className="absolute top-4 right-4 bg-gray-100 p-2 rounded-full hover:bg-gray-200 z-10 text-gray-700"
+              aria-label="Fermer"
+            >
+              <X size={24} />
+            </button>
+            
+            <div className="relative h-64 overflow-hidden rounded-t-3xl">
               <img 
-                src={selectedPackage.image || 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=800'} 
-                alt={selectedPackage.title}
+                src={selectedPackage.image || 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=600'} 
+                alt={selectedPackage.title} 
                 className="w-full h-full object-cover"
-                onError={(e) => {
-                  e.target.src = 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=800';
-                }}
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
-              <button 
-                onClick={closeModal}
-                className="absolute top-4 right-4 w-10 h-10 bg-white/90 hover:bg-white rounded-full flex items-center justify-center transition-all"
-              >
-                <X size={24} className="text-gray-900" />
-              </button>
-              <div className="absolute bottom-0 left-0 right-0 p-6">
-                <div className="flex items-center gap-3 mb-2">
-                  <span className={`px-3 py-1 text-xs font-bold rounded-full ${selectedPackage.departure_country?.code === 'RC' ? 'bg-primary text-white' : 'bg-green text-white'}`}>
-                    {selectedPackage.departure_country?.name || 'Départ'}
-                  </span>
-                  <span className="px-3 py-1 text-xs font-bold rounded-full bg-warning text-gray-900">
-                    {selectedPackage.arrival_country?.name || 'Arrivée'}
-                  </span>
-                  <span className={`px-3 py-1 text-xs font-bold rounded-full ${selectedPackage.active ? 'bg-green text-white' : 'bg-gray-500 text-white'}`}>
-                    {selectedPackage.active ? 'Disponible' : 'Indisponible'}
-                  </span>
-                </div>
-                <h2 className="text-4xl font-black text-white mb-2">{selectedPackage.title}</h2>
-              </div>
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
+              <h2 className="absolute bottom-0 left-0 p-6 text-4xl font-black text-white">{selectedPackage.title}</h2>
             </div>
 
-            {/* Content Modal */}
-            <div className="p-8">
+            <div className="p-8 space-y-8">
               {/* Description */}
-              <div className="mb-8">
+              <div className="border-b pb-6">
                 <div className="flex items-center gap-2 mb-3">
                   <Info className="text-primary" size={20} />
-                  <h3 className="text-xl font-bold text-gray-900">Description</h3>
+                  <h3 className="text-xl font-bold text-gray-900">Détails du Package</h3>
                 </div>
-                <p className="text-gray-700 leading-relaxed">{selectedPackage.description || 'Découvrez ce package unique qui vous permettra de vivre une expérience inoubliable au Congo.'}</p>
+                <p className="text-gray-700 leading-relaxed whitespace-pre-line">{selectedPackage.description}</p>
               </div>
 
-              {/* Itinéraire */}
-              <div className="mb-8">
-                <div className="flex items-center gap-2 mb-3">
-                  <MapPin className="text-primary" size={20} />
-                  <h3 className="text-xl font-bold text-gray-900">Itinéraire</h3>
+              {/* Infos Clés */}
+              <div className="grid grid-cols-2 gap-4 md:grid-cols-4 border-b pb-6">
+                <div className="flex flex-col items-center p-3 bg-light-bg rounded-xl">
+                  <Clock size={24} className="text-primary mb-1" />
+                  <p className="text-sm text-gray-500">Durée</p>
+                  <p className="font-bold text-gray-900">{selectedPackage.duration || 'N/A'}</p>
                 </div>
-                <div className="bg-light-bg p-4 rounded-xl">
-                  <div className="flex items-center justify-between">
-                    <div className="text-center flex-1">
-                      <p className="text-sm text-gray-500 mb-1">Départ</p>
-                      <p className="font-bold text-gray-900">{selectedPackage.departure_country?.name}</p>
-                    </div>
-                    <ArrowRight className="text-primary mx-4" size={24} />
-                    <div className="text-center flex-1">
-                      <p className="text-sm text-gray-500 mb-1">Arrivée</p>
-                      <p className="font-bold text-gray-900">{selectedPackage.arrival_country?.name}</p>
-                    </div>
-                  </div>
+                <div className="flex flex-col items-center p-3 bg-light-bg rounded-xl">
+                  <Calendar size={24} className="text-primary mb-1" />
+                  <p className="text-sm text-gray-500">Période</p>
+                  <p className="font-bold text-gray-900">{selectedPackage.period || 'Week-end'}</p>
+                </div>
+                <div className="flex flex-col items-center p-3 bg-light-bg rounded-xl">
+                  <Globe size={24} className="text-primary mb-1" />
+                  <p className="text-sm text-gray-500">Départ</p>
+                  <p className="font-bold text-gray-900">{selectedPackage.departure_country?.name}</p>
+                </div>
+                <div className="flex flex-col items-center p-3 bg-light-bg rounded-xl">
+                  <MapPin size={24} className="text-primary mb-1" />
+                  <p className="text-sm text-gray-500">Arrivée</p>
+                  <p className="font-bold text-gray-900">{selectedPackage.arrival_country?.name}</p>
                 </div>
               </div>
 
@@ -968,8 +893,8 @@ const OuikenacPage = () => {
                       <span className="font-bold text-primary text-2xl">{selectedPackage.min_people}</span> 
                       {selectedPackage.max_people && (
                         <> à <span className="font-bold text-primary text-2xl">{selectedPackage.max_people}</span></>
-                      )}
-                      {!selectedPackage.max_people && '+'}
+                      )} 
+                      {!selectedPackage.max_people && '+'} 
                       <span className="text-gray-700"> personnes</span>
                     </p>
                   </div>
@@ -985,87 +910,36 @@ const OuikenacPage = () => {
                   </div>
                   <div className="space-y-3">
                     {selectedPackage.prices.map((price, idx) => (
-                      <div key={idx} className="flex items-center justify-between p-4 bg-light-bg rounded-xl border-2 border-gray-200">
-                        <div className="flex items-center gap-3">
-                          <Users className="text-gray-600" size={20} />
-                          <div>
-                            <p className="font-bold text-gray-900">
-                              {price.min_people} {price.max_people ? `- ${price.max_people}` : '+'} personnes
-                            </p>
-                            <p className="text-sm text-gray-500">Par personne</p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-2xl font-black text-primary">
-                            {formatPrice(price.price)}
-                          </p>
-                          <p className="text-sm font-bold text-gray-600">{price.currency}</p>
-                        </div>
+                      <div key={idx} className="flex items-center justify-between text-lg p-4 bg-gray-50 rounded-xl border border-gray-200">
+                        <span className="text-gray-700 font-medium">
+                          {price.min_people} {price.max_people ? `- ${price.max_people}` : '+'} personne(s)
+                        </span>
+                        <span className="text-2xl font-black text-primary">
+                          {formatPrice(price.price)} <span className="text-sm font-bold">{price.currency}</span>
+                        </span>
                       </div>
                     ))}
                   </div>
                 </div>
               )}
-
-              {/* Inclusions (Nouveau - Utilise les données fournies dans le JSON) */}
-              {selectedPackage.inclusions && selectedPackage.inclusions.length > 0 && (
-                <div className="mb-8">
-                  <div className="flex items-center gap-2 mb-3">
-                    <CheckCircle className="text-green" size={20} />
-                    <h3 className="text-xl font-bold text-gray-900">Ce qui est inclus</h3>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    {selectedPackage.inclusions.map((inclusion, idx) => (
-                      <div key={idx} className="flex items-center gap-2 p-3 bg-green-50 rounded-lg">
-                        <CheckCircle className="text-green-600 flex-shrink-0" size={16} />
-                        <p className="text-gray-800 text-sm font-medium">{inclusion.name}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Informations supplémentaires */}
-              <div className="bg-blue-50 border-l-4 border-primary p-6 rounded-r-xl mb-8">
-                <div className="flex items-start gap-3">
-                  <Clock className="text-primary flex-shrink-0" size={24} />
-                  <div>
-                    <h4 className="font-bold text-blue-900 mb-2">Informations importantes</h4>
-                    <ul className="space-y-1 text-blue-800 text-sm">
-                      <li>• Réservation obligatoire 48h à l'avance</li>
-                      <li>• Annulation gratuite jusqu'à 24h avant le départ</li>
-                      <li>• Guides professionnels certifiés</li>
-                      <li>• Transport inclus depuis/vers votre hôtel</li>
-                      <li>• Assurance voyage recommandée</li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
 
               {/* Boutons d'action */}
-              <div className="flex gap-4">
-                <button 
-                  onClick={closeModal}
-                  className="flex-1 py-3 bg-gray-200 text-gray-700 font-bold rounded-lg hover:bg-gray-300 transition-all"
+              <div className="flex justify-end gap-4 pt-6 border-t">
+                <Button 
+                  onClick={closeModal} 
+                  variant="outline"
+                  className="bg-white"
                 >
                   Fermer
-                </button>
+                </Button>
                 <Button 
-                  onClick={() => {
-                    handlePackageSelect(selectedPackage.id);
-                    closeModal();
+                  onClick={() => { 
+                    handleSelectPackage(selectedPackage.id); 
+                    closeModal(); 
                   }}
-                  disabled={!selectedPackage.active}
-                  variant={selectedPackage.active ? 'warning' : 'outline'}
-                  className={`flex-1 flex items-center justify-center gap-2 ${!selectedPackage.active && 'bg-gray-300 cursor-not-allowed hover:scale-100'}`}
+                  variant="warning"
                 >
-                  {selectedPackage.active ? (
-                    <>
-                      Réserver ce package <ArrowRight size={20} />
-                    </>
-                  ) : (
-                    'Package indisponible'
-                  )}
+                  Réserver ce Package
                 </Button>
               </div>
             </div>
@@ -1073,135 +947,18 @@ const OuikenacPage = () => {
         </div>
       )}
 
-      {/* Footer */}
-      <footer className="py-16 px-4 bg-gray-900 text-white">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
-            <div>
-              <div className="flex items-center space-x-3 mb-6">
-                <Globe className="text-secondary" size={32} />
-                <div>
-                  <h3 className="text-xl font-black">e-TRAVEL WORLD</h3>
-                  <p className="text-xs text-gray-400">AGENCY</p>
-                </div>
-              </div>
-              <p className="text-gray-400 mb-6 leading-relaxed">Votre partenaire voyage de confiance depuis 2019. Excellence et innovation à votre service.</p>
-              <div className="flex gap-3">
-                <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-primary transition-all">
-                  <Facebook size={18} />
-                </a>
-                <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-pink-600 transition-all">
-                  <Instagram size={18} />
-                </a>
-                <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-blue-400 transition-all">
-                  <Twitter size={18} />
-                </a>
-                <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-primary transition-all">
-                  <Linkedin size={18} />
-                </a>
-              </div>
-            </div>
-
-            <div>
-              <h3 className="text-lg font-bold mb-6">Navigation</h3>
-              <div className="space-y-3">
-                <a href="/" className="block text-gray-400 hover:text-white transition-colors">Accueil</a>
-                <a href="/about" className="block text-gray-400 hover:text-white transition-colors">À propos</a>
-                <a href="#packages" className="block text-gray-400 hover:text-white transition-colors">Packages</a>
-                <a href="#contact" className="block text-gray-400 hover:text-white transition-colors">Contact</a>
-              </div>
-            </div>
-
-            <div>
-              <h3 className="text-lg font-bold mb-6">Informations</h3>
-              <div className="space-y-3">
-                <a href="#" className="block text-gray-400 hover:text-white transition-colors">Politique de confidentialité</a>
-                <a href="#" className="block text-gray-400 hover:text-white transition-colors">Conditions générales</a>
-                <a href="#" className="block text-gray-400 hover:text-white transition-colors">FAQ</a>
-                <a href="#" className="block text-gray-400 hover:text-white transition-colors">Blog</a>
-              </div>
-            </div>
-
-            <div>
-              <h3 className="text-lg font-bold mb-6">Contact</h3>
-              <div className="space-y-4">
-                <a href="tel:+24206871137" className="flex items-center gap-3 text-gray-400 hover:text-white transition-colors">
-                  <Phone size={18} />
-                  <span>(+242) 06 871 13 78</span>
-                </a>
-                <a href="tel:+24205594946" className="flex items-center gap-3 text-gray-400 hover:text-white transition-colors">
-                  <Phone size={18} />
-                  <span>(+242) 05 594 94 64</span>
-                </a>
-                <a href="mailto:worldagencyetravel@gmail.com" className="flex items-center gap-3 text-gray-400 hover:text-white transition-colors">
-                  <Mail size={18} />
-                  <span className="text-sm">worldagencyetravel@gmail.com</span>
-                </a>
-                <div className="flex items-center gap-3 text-gray-400">
-                  <MapPin size={18} />
-                  <span>Brazzaville, CONGO</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="border-t border-gray-800 pt-8">
-            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-              <p className="text-gray-400 text-sm text-center md:text-left">
-                © 2025 e-TRAVEL WORLD AGENCY. Tous droits réservés.
-              </p>
-              <p className="text-gray-500 text-sm">
-                Créé avec passion par <span className="font-bold text-white">ELBO</span>
-              </p>
-            </div>
-          </div>
-        </div>
-      </footer>
-
-      <style jsx>{`
-        @keyframes slide-in {
-          from {
-            transform: translateX(100%);
-            opacity: 0;
-          }
-          to {
-            transform: translateX(0);
-            opacity: 1;
-          }
-        }
-
-        @keyframes progress {
-          0% {
-            width: 0%;
-          }
-          100% {
-            width: 100%;
-          }
-        }
-
-        .animate-slide-in {
-          animation: slide-in 0.3s ease-out;
-        }
-
-        .animate-progress {
-          animation: progress 2s ease-in-out infinite;
-        }
-
-        .line-clamp-2 {
-          display: -webkit-box;
-          -webkit-line-clamp: 2;
-          -webkit-box-orient: vertical;
-          overflow: hidden;
-        }
-
-        /* Charte graphique personnalisée */
+      {/* Tailwind CSS Variables (for local development/extension support) */}
+      <style jsx global>{`
         :root {
-          --primary: #1b5e8e;
-          --secondary: #f18f13;
-          --green: #007335;
-          --warning: #f7b406;
-          --green-ouik: #3fa535;
-          --light-bg: #eee;
+          --primary: #2563eb; /* blue-600 */
+          --secondary: #10b981; /* emerald-500 */
+          --green: #10b981; /* emerald-500 */
+          --warning: #facc15; /* yellow-400 */
+          --light-bg: #f3f4f6; /* gray-100 */
+        }
+        
+        .bg-green-ouik {
+          background-color: var(--green);
         }
 
         .text-primary {
@@ -1216,19 +973,19 @@ const OuikenacPage = () => {
           border-color: var(--primary);
         }
 
-        .hover\:bg-primary:hover {
+        .hover\\:bg-primary:hover {
           background-color: var(--primary);
         }
 
-        .hover\:text-primary:hover {
+        .hover\\:text-primary:hover {
           color: var(--primary);
         }
 
-        .focus\:ring-primary:focus {
+        .focus\\:ring-primary:focus {
           --tw-ring-color: var(--primary);
         }
 
-        .focus\:border-primary:focus {
+        .focus\\:border-primary:focus {
           border-color: var(--primary);
         }
 
@@ -1248,7 +1005,7 @@ const OuikenacPage = () => {
           background-color: var(--green);
         }
 
-        .hover\:border-green:hover {
+        .hover\\:border-green:hover {
           border-color: var(--green);
         }
 
@@ -1264,13 +1021,37 @@ const OuikenacPage = () => {
           border-color: var(--warning);
         }
 
-        .bg-green-ouik {
-          background-color: var(--green-ouik);
-        }
-
         .bg-light-bg {
           background-color: var(--light-bg);
         }
+
+        .animate-progress {
+          animation: progress-bar 1.5s infinite linear;
+        }
+
+        @keyframes progress-bar {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
+
+        .animate-slide-in {
+          animation: slide-in 0.5s ease-out forwards;
+        }
+
+        @keyframes slide-in {
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+
+        .animate-zoom-in {
+          animation: zoom-in 0.3s ease-out forwards;
+        }
+
+        @keyframes zoom-in {
+          from { transform: scale(0.9); opacity: 0; }
+          to { transform: scale(1); opacity: 1; }
+        }
+
       `}</style>
     </div>
   );
