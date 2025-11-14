@@ -86,7 +86,7 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [notification, setNotification] = useState({ show: false, message: '', type: '' });
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // NOUVEAU: État pour la barre latérale mobile
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); 
   
   // Data States
   const [countries, setCountries] = useState([]);
@@ -102,6 +102,9 @@ const AdminDashboard = () => {
   const [isEdit, setIsEdit] = useState(false);
   const [editForm, setEditForm] = useState({});
   const [editRelations, setEditRelations] = useState({ prices: [], additionalCities: [], inclusions: [] }); // Specific for Ouikenac
+  
+  // NOUVEAU: État pour l'ajout de ville dans la modale pays
+  const [newCityForm, setNewCityForm] = useState({ name: '', country_id: null });
 
   const showNotification = (message, type = 'success') => {
     setNotification({ show: true, message, type });
@@ -124,7 +127,8 @@ const AdminDashboard = () => {
     setLoading(true);
     try {
       const [countriesRes, destinationsRes, ouikenacsRes, toursRes, reservationsRes] = await Promise.all([
-        fetch(`${API_BASE}/countries`).then(r => r.ok ? r.json() : Promise.reject(new Error('Erreur pays'))),
+        // S'assurer que les pays chargent bien les villes
+        fetch(`${API_BASE}/countries?with=cities`).then(r => r.ok ? r.json() : Promise.reject(new Error('Erreur pays'))),
         
         // Charger le pays de départ pour les destinations
         fetch(`${API_BASE}/destinations?with=departureCountry`).then(r => r.ok ? r.json() : Promise.reject(new Error('Erreur destinations'))),
@@ -180,6 +184,11 @@ const AdminDashboard = () => {
       // Pour les entités simples
       setEditForm(data);
 
+      // Pour Pays, initialiser la forme d'ajout de ville
+      if (type === 'country') {
+          setNewCityForm({ name: '', country_id: data.id });
+      }
+
       // Pour Ouikenac, initialiser les relations
       if (type === 'ouikenac') {
         setEditRelations({ 
@@ -198,6 +207,7 @@ const AdminDashboard = () => {
       };
       setEditForm(defaultForms[type] || {});
       setEditRelations({ prices: [], additionalCities: [], inclusions: [] });
+      setNewCityForm({ name: '', country_id: null }); // Réinitialiser l'ajout de ville
     }
   };
 
@@ -205,6 +215,7 @@ const AdminDashboard = () => {
     setShowModal(false);
     setEditForm({});
     setEditRelations({ prices: [], additionalCities: [], inclusions: [] });
+    setNewCityForm({ name: '', country_id: null });
     setModalType(null);
   };
   
@@ -248,8 +259,23 @@ const AdminDashboard = () => {
       
       await api({ method, url, data: payload });
       showNotification(successMessage, 'success');
-      closeModal();
-      await loadData();
+      
+      // Si on crée un pays, on ferme la modale. Si on modifie, on recharge pour garder les données à jour
+      // (important si on modifie le nom dans la modale et qu'on veut ajouter une ville après)
+      if (modalType === 'country' && isEdit) {
+          // On recharge les données pour mettre à jour la liste des pays (nécessaire pour la sidebar/table)
+          await loadData();
+          
+          // On met à jour l'état de la modale avec les nouvelles données du pays
+          const updatedCountry = countries.find(c => c.id === data.id);
+          if (updatedCountry) {
+              setEditForm(updatedCountry);
+          }
+      } else {
+          closeModal();
+          await loadData();
+      }
+      
     } catch (error) {
       console.error('Erreur CRUD:', error.response?.data || error);
       showNotification(error.response?.data?.message || 'Erreur lors de l\'opération.', 'error');
@@ -273,8 +299,64 @@ const AdminDashboard = () => {
       setSubmitting(false);
     }
   };
+  
+  // NOUVEAU: CRUD pour les Villes (spécifique à la modale Pays)
+  const handleAddCity = async (countryId, cityName) => {
+    if (!cityName.trim()) {
+        showNotification('Le nom de la ville est requis.', 'warning');
+        return;
+    }
+    setSubmitting(true);
+    try {
+        // Supposons une route Laravel: POST /api/countries/{id}/cities
+        await api.post(`${API_BASE}/countries/${countryId}/cities`, { name: cityName });
+        showNotification('Ville ajoutée avec succès.', 'success');
+        
+        // Rafraîchir les données et mettre à jour l'état de la modale
+        await loadData();
+        
+        // Mettre à jour l'état de la modale avec les données complètes du pays
+        const updatedCountry = countries.find(c => c.id === countryId);
+        if (updatedCountry) {
+            setEditForm(updatedCountry);
+        }
+        
+        setNewCityForm(prev => ({ ...prev, name: '' })); // Vider l'input de la ville
+    } catch (error) {
+        console.error('Erreur Ajout Ville:', error.response?.data || error);
+        showNotification(error.response?.data?.message || 'Erreur lors de l\'ajout de la ville.', 'error');
+    } finally {
+        setSubmitting(false);
+    }
+  };
+
+  const handleDeleteCity = async (cityId) => {
+      if (!window.confirm(`Êtes-vous sûr de vouloir supprimer cette ville (ID: ${cityId}) ?`)) return;
+
+      setSubmitting(true);
+      try {
+          // Supposons une route Laravel: DELETE /api/cities/{id}
+          await api.delete(`${API_BASE}/cities/${cityId}`);
+          showNotification('Ville supprimée.', 'success');
+          
+          // Rafraîchir les données et mettre à jour l'état de la modale
+          await loadData();
+          
+          // Mettre à jour l'état de la modale en filtrant la ville supprimée
+          setEditForm(prev => ({
+              ...prev,
+              cities: prev.cities.filter(c => c.id !== cityId)
+          }));
+      } catch (error) {
+          console.error('Erreur Suppression Ville:', error.response?.data || error);
+          showNotification(error.response?.data?.message || 'Erreur lors de la suppression de la ville.', 'error');
+      } finally {
+          setSubmitting(false);
+      }
+  };
 
   // --- OUICKENAC RELATION MANAGEMENT ---
+  // (Le code de gestion des relations Ouikenac reste inchangé)
 
   const handleAddPrice = () => {
     setEditRelations(prev => ({
@@ -342,13 +424,11 @@ const AdminDashboard = () => {
         additionalCities: prev.additionalCities.filter((_, i) => i !== index)
     }));
   };
-
+  
   // --- RENDER MODAL CONTENT ---
 
   const renderModalContent = () => {
     if (!modalType) return null;
-
-    const baseProps = { value: editForm.name || editForm.title || editForm.description || '', onChange: handleFormChange, disabled: submitting };
 
     const getFormTitle = (type) => isEdit ? `Modifier ${type}` : `Ajouter ${type}`;
     
@@ -367,8 +447,51 @@ const AdminDashboard = () => {
               <input type="text" name="code" value={editForm.code || ''} onChange={handleFormChange} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:border-primary focus:ring-primary" />
             </div>
           </div>
+          
+          {/* NOUVEAU: Gestion des Villes (uniquement en modification) */}
+          {isEdit && (
+              <div className="mt-8 border-t pt-6 border-gray-100">
+                  <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2"><MapPin size={20} className="text-primary" /> Gestion des Villes</h3>
+                  
+                  {/* Liste des villes existantes */}
+                  <div className="space-y-2 mb-4 max-h-40 overflow-y-auto pr-2">
+                      {(editForm.cities || []).length === 0 ? (
+                          <p className="text-sm text-gray-500">Aucune ville n'est encore associée à ce pays.</p>
+                      ) : (
+                          (editForm.cities || []).map(city => (
+                              <div key={city.id} className="flex justify-between items-center p-2 bg-gray-50 rounded-md border border-gray-200">
+                                  <span className="text-gray-700 font-medium">{city.name}</span>
+                                  <button onClick={() => handleDeleteCity(city.id)} disabled={submitting} className="text-red-500 hover:text-red-700 disabled:opacity-50 transition p-1" title="Supprimer la ville">
+                                      <Trash2 size={16} />
+                                  </button>
+                              </div>
+                          ))
+                      )}
+                  </div>
+                  
+                  {/* Formulaire pour ajouter une nouvelle ville */}
+                  <div className="flex gap-2">
+                      <input 
+                          type="text" 
+                          placeholder="Nom de la nouvelle ville"
+                          value={newCityForm.name} 
+                          onChange={(e) => setNewCityForm(prev => ({ ...prev, name: e.target.value }))}
+                          className="flex-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:border-primary focus:ring-primary"
+                      />
+                      <button 
+                          onClick={() => handleAddCity(editForm.id, newCityForm.name)} 
+                          disabled={submitting || !newCityForm.name.trim()}
+                          className="bg-primary text-white px-3 py-2 rounded-lg font-medium transition hover:bg-primary/90 disabled:opacity-50 flex items-center gap-1 text-sm"
+                      >
+                          <Plus size={16} /> Ajouter
+                      </button>
+                  </div>
+              </div>
+          )}
+          {/* Fin NOUVEAU: Gestion des Villes */}
+          
           <button onClick={() => handleCreateOrUpdate('countries', editForm, isEdit ? 'Pays mis à jour.' : 'Pays créé.')} disabled={submitting} className="w-full mt-6 bg-primary text-white py-2 rounded-lg font-medium transition hover:bg-primary/90 disabled:opacity-50">
-            {submitting ? 'Envoi en cours...' : (isEdit ? 'Enregistrer les modifications' : 'Créer le Pays')}
+            {submitting ? 'Envoi en cours...' : (isEdit ? 'Enregistrer les modifications du Pays' : 'Créer le Pays')}
           </button>
         </>
       );
@@ -867,7 +990,7 @@ const AdminDashboard = () => {
     <button
       onClick={() => {
         setActiveTab(tab);
-        setIsSidebarOpen(false); // Ajout: Ferme la sidebar après la sélection sur mobile
+        setIsSidebarOpen(false); // Ferme la sidebar après la sélection sur mobile
       }}
       className={`w-full flex items-center p-3 rounded-xl transition-all duration-200 ${
         activeTab === tab 
@@ -892,7 +1015,7 @@ const AdminDashboard = () => {
 
       <div className="flex">
         
-        {/* NOUVEAU: Sidebar Overlay (Mobile) */}
+        {/* Sidebar Overlay (Mobile) */}
         {isSidebarOpen && (
             <div 
                 className="fixed inset-0 bg-black/50 lg:hidden z-40" 
@@ -907,7 +1030,7 @@ const AdminDashboard = () => {
             transform transition-transform duration-300 
             ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
             lg:translate-x-0 lg:static lg:h-auto lg:shadow-none lg:border-r 
-            lg:flex // FIX: 'hidden' a été retiré ici pour permettre l'affichage sur mobile
+            lg:flex 
         `}>
           <div className="mb-10 text-center">
             <h1 className="text-3xl font-black text-gray-900">e-TRAVEL <span className="text-primary">ADMIN</span></h1>
@@ -936,23 +1059,26 @@ const AdminDashboard = () => {
         </div>
 
         {/* Content */}
-        <div className="flex-1 p-4 sm:p-6 lg:p-8 lg:ml-64"> {/* MODIFIÉ: Ajout de lg:ml-64 et padding responsive */}
-          <header className="mb-10 bg-white p-6 rounded-xl shadow-md sticky top-0 z-40 flex justify-between items-center">
-            {/* NOUVEAU: Menu Toggle Button (Mobile) */}
-            <button 
-                onClick={() => setIsSidebarOpen(true)} 
-                className="text-gray-700 lg:hidden p-2 rounded-lg hover:bg-gray-100"
-                aria-label="Ouvrir le menu"
-            >
-                <Menu size={24} />
-            </button>
-            <h2 className="text-xl md:text-3xl font-bold text-gray-800 capitalize">{activeTab.replace(/([A-Z])/g, ' $1')}</h2>
-            <div className="w-10 lg:hidden"></div> {/* Espaceur pour aligner le titre au centre entre le bouton menu et un espace vide */}
-          </header>
-          
-          <main className="pb-10">
-            {renderTabContent()}
-          </main>
+        {/* MODIFIÉ: Ajout de lg:ml-64 au conteneur parent (plus sémantique) */}
+        <div className="flex-1 lg:ml-64"> 
+          <div className="p-4 sm:p-6 lg:p-8">
+            <header className="mb-10 bg-white p-6 rounded-xl shadow-md sticky top-0 z-40 flex justify-between items-center">
+              {/* Menu Toggle Button (Mobile) */}
+              <button 
+                  onClick={() => setIsSidebarOpen(true)} 
+                  className="text-gray-700 lg:hidden p-2 rounded-lg hover:bg-gray-100"
+                  aria-label="Ouvrir le menu"
+              >
+                  <Menu size={24} />
+              </button>
+              <h2 className="text-xl md:text-3xl font-bold text-gray-800 capitalize">{activeTab.replace(/([A-Z])/g, ' $1')}</h2>
+              <div className="w-10 lg:hidden"></div> {/* Espaceur pour aligner le titre au centre entre le bouton menu et un espace vide */}
+            </header>
+            
+            <main className="pb-10">
+              {renderTabContent()}
+            </main>
+          </div>
         </div>
       </div>
       
@@ -988,10 +1114,10 @@ const AdminDashboard = () => {
         /* Styles pour gérer la sidebar sur les petits écrans quand elle est ouverte */
         @media (max-width: 1023px) { /* lg breakpoint */
             .w-64.bg-white.fixed {
-                width: 100%; /* Full width when open on mobile */
-                max-width: 320px; /* Optional max-width for very large phones */
+                width: 100%; 
+                max-width: 320px; 
             }
-            .lg\\:ml-64 { margin-left: 0; } /* Remove margin on mobile */
+            .lg\\:ml-64 { margin-left: 0; } 
         }
       `}</style>
       
