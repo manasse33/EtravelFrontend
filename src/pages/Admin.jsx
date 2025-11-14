@@ -6,7 +6,6 @@ import axios from 'axios';
 const API_BASE = 'https://etravelbackend-production.up.railway.app/api';
 
 // --- ASSUMPTION & HELPERS ---
-// Détermine le type de package d'une réservation (basé sur une structure Laravel polymorphe courante)
 const getReservationType = (reservation) => {
   if (reservation.reservable_type) {
     if (reservation.reservable_type.includes('DestinationPackage')) return 'Destination';
@@ -22,7 +21,6 @@ const getReservationType = (reservation) => {
 
 const formatPrice = (price) => {
   if (!price) return 'N/A';
-  // Assurez-vous que le prix est un nombre avant d'appeler toFixed
   const numPrice = parseFloat(price);
   if (isNaN(numPrice)) return 'N/A';
   return numPrice.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
@@ -99,15 +97,103 @@ const AdminDashboard = () => {
   const [cityTours, setCityTours] = useState([]);
   const [reservations, setReservations] = useState([]);
 
+  // Mock Dashboard Data (Placeholder for real API)
+  const dashboardData = useMemo(() => {
+    // Calcul de base pour le tableau de bord
+    const totalReservations = reservations.length;
+    
+    // Calcul du revenu estimé (basé sur un prix fixe ou une estimation)
+    const totalRevenue = reservations.reduce((sum, r) => {
+        // Logique de prix simplifiée
+        let price = 0;
+        const type = getReservationType(r);
+        if (type === 'Destination') price = 500000;
+        else if (type === 'Ouikenac') price = 250000;
+        else if (type === 'City Tour') price = 50000;
+        
+        // Simuler un prix si le réservable n'a pas de prix direct
+        return sum + price; 
+    }, 0);
+    
+    const totalPackages = destinations.length + ouikenacs.length + cityTours.length;
+
+    // Données pour le Pie Chart
+    const reservationCounts = reservations.reduce((acc, r) => {
+        const type = getReservationType(r);
+        acc[type] = (acc[type] || 0) + 1;
+        return acc;
+    }, {});
+
+    const chartData = Object.keys(reservationCounts).map(key => ({
+        name: key,
+        value: reservationCounts[key]
+    }));
+    
+    // Données pour le Bar Chart (Packages par Pays)
+    const packagesByCountry = {};
+
+    countries.forEach(country => {
+        packagesByCountry[country.name] = { destinations: 0, ouikenacs: 0, cityTours: 0 };
+    });
+
+    destinations.forEach(d => {
+        if (d.departure_country?.name) {
+            packagesByCountry[d.departure_country.name].destinations += 1;
+        }
+    });
+
+    ouikenacs.forEach(o => {
+        const firstPrice = o.prices?.[0];
+        if (firstPrice && firstPrice.arrivalCountry?.name) {
+             packagesByCountry[firstPrice.arrivalCountry.name].ouikenacs += 1;
+        }
+    });
+
+    cityTours.forEach(t => {
+        if (t.city?.country?.name) {
+            packagesByCountry[t.city.country.name].cityTours += 1;
+        }
+    });
+
+    const packagesByCountryChartData = Object.keys(packagesByCountry)
+        .filter(countryName => 
+             packagesByCountry[countryName].destinations > 0 || 
+             packagesByCountry[countryName].ouikenacs > 0 || 
+             packagesByCountry[countryName].cityTours > 0
+        )
+        .map(countryName => ({
+            name: countryName,
+            ...packagesByCountry[countryName]
+        }));
+        
+    // Données pour le Line Chart (Revenus Mensuels - Simulé)
+    const monthlyRevenueChartData = [
+        { name: 'Jan', Revenue: 4000000 },
+        { name: 'Fev', Revenue: 3000000 },
+        { name: 'Mar', Revenue: 5500000 },
+        { name: 'Avr', Revenue: 6200000 },
+        { name: 'Mai', Revenue: 7800000 },
+        { name: 'Jui', Revenue: 9500000 },
+        { name: 'Jul', Revenue: 8100000 },
+        { name: 'Aou', Revenue: 11000000 },
+        { name: 'Sep', Revenue: 8800000 },
+        { name: 'Oct', Revenue: 12500000 },
+        { name: 'Nov', Revenue: 10200000 },
+        { name: 'Dec', Revenue: 14000000 },
+    ];
+    
+    // Calcul du score de conversion
+    const conversionScore = destinations.length > 0 ? (totalReservations / destinations.length).toFixed(1) : 0;
+
+    return { totalReservations, totalRevenue, totalPackages, chartData, packagesByCountryChartData, monthlyRevenueChartData, conversionScore };
+  }, [reservations, destinations, ouikenacs, cityTours, countries]);
+
   // Modal States
   const [showModal, setShowModal] = useState(false);
-  const [modalType, setModalType] = useState(null); // 'country', 'destination', 'ouikenac', 'cityTour'
+  const [modalType, setModalType] = useState(null); 
   const [isEdit, setIsEdit] = useState(false);
   const [editForm, setEditForm] = useState({});
-  // MISE À JOUR : Ajout des relations ville de départ/arrivée pour OuikenacPrice
-  const [editRelations, setEditRelations] = useState({ prices: [], additionalCities: [], inclusions: [] }); // Specific for Ouikenac
-  
-  // NOUVEAU: État pour l'ajout de ville dans la modale pays
+  const [editRelations, setEditRelations] = useState({ prices: [], additionalCities: [], inclusions: [] }); 
   const [newCityForm, setNewCityForm] = useState({ name: '', country_id: null });
 
   const showNotification = (message, type = 'success') => {
@@ -130,19 +216,12 @@ const AdminDashboard = () => {
   const loadData = async () => {
     setLoading(true);
     try {
+      // NOTE: L'API doit retourner les relations nécessaires (ex: with=cities, with=reservable, etc.)
       const [countriesRes, destinationsRes, ouikenacsRes, toursRes, reservationsRes] = await Promise.all([
-        // S'assurer que les pays chargent bien les villes
         fetch(`${API_BASE}/countries?with=cities`).then(r => r.ok ? r.json() : Promise.reject(new Error('Erreur pays'))),
-        
-        // Charger le pays de départ pour les destinations (et tous les détails si la structure le permet)
         fetch(`${API_BASE}/destinations?with=departureCountry`).then(r => r.ok ? r.json() : Promise.reject(new Error('Erreur destinations'))),
-        
-        // MISE À JOUR : Charger les villes de départ/arrivée pour les prix Ouikenac
         fetch(`${API_BASE}/ouikenac?with=prices.departureCountry,prices.arrivalCountry,prices.departureCity,prices.arrivalCity,additionalCities.city.country,inclusions`).then(r => r.ok ? r.json() : Promise.reject(new Error('Erreur Ouikenac'))),
-        
-        // Charger la ville du City Tour et son pays associé
         fetch(`${API_BASE}/city-tours?with=city.country`).then(r => r.ok ? r.json() : Promise.reject(new Error('Erreur City Tours'))),
-        
         fetch(`${API_BASE}/reservations?with=reservable`).then(r => r.ok ? r.json() : Promise.reject(new Error('Erreur réservations')))
       ]);
       
@@ -161,158 +240,7 @@ const AdminDashboard = () => {
     setLoading(false);
   };
 
-  // --- DASHBOARD DATA ---
-  const dashboardData = useMemo(() => {
-    const totalReservations = reservations.length;
-    const totalRevenue = reservations.reduce((sum, r) => sum + (r.price || 0), 0);
-    const totalPackages = destinations.length + ouikenacs.length + cityTours.length;
-
-    const reservationsByType = reservations.reduce((acc, r) => {
-      const type = getReservationType(r);
-      acc[type] = (acc[type] || 0) + 1;
-      return acc;
-    }, {});
-
-    const chartData = Object.entries(reservationsByType).map(([name, value]) => ({ name, value }));
-    
-    // Packages Count by Country (pour le Bar Chart)
-    const packagesByCountry = {};
-    destinations.forEach(d => {
-        const countryName = d.departure_country?.name || 'Inconnu';
-        if (countryName === 'Inconnu') return;
-        packagesByCountry[countryName] = packagesByCountry[countryName] || { destinations: 0, ouikenacs: 0, cityTours: 0, total: 0 };
-        packagesByCountry[countryName].destinations += 1;
-        packagesByCountry[countryName].total += 1;
-    });
-
-    ouikenacs.forEach(o => {
-        o.prices?.forEach(p => {
-            const depCountryName = p.departure_country?.name || 'Inconnu';
-            const arrCountryName = p.arrival_country?.name || 'Inconnu';
-            
-            if (depCountryName !== 'Inconnu') {
-                packagesByCountry[depCountryName] = packagesByCountry[depCountryName] || { destinations: 0, ouikenacs: 0, cityTours: 0, total: 0 };
-                packagesByCountry[depCountryName].ouikenacs += 1;
-                packagesByCountry[depCountryName].total += 1;
-            }
-
-            if (arrCountryName !== 'Inconnu' && depCountryName !== arrCountryName) {
-                packagesByCountry[arrCountryName] = packagesByCountry[arrCountryName] || { destinations: 0, ouikenacs: 0, cityTours: 0, total: 0 };
-                packagesByCountry[arrCountryName].ouikenacs += 1;
-                packagesByCountry[arrCountryName].total += 1;
-            }
-        });
-    });
-
-    cityTours.forEach(t => {
-        const countryName = t.city?.country?.name || 'Inconnu';
-        if (countryName === 'Inconnu') return;
-        packagesByCountry[countryName] = packagesByCountry[countryName] || { destinations: 0, ouikenacs: 0, cityTours: 0, total: 0 };
-        packagesByCountry[countryName].cityTours += 1;
-        packagesByCountry[countryName].total += 1;
-    });
-    
-    const packagesByCountryChartData = Object.entries(packagesByCountry)
-        .map(([name, data]) => ({ name, ...data }))
-        .sort((a, b) => b.total - a.total);
-        
-    // NOUVEAU: Évolution des Revenus Mensuels Estimés
-    const monthlyRevenue = reservations.reduce((acc, r) => {
-        if (r.created_at && r.price) {
-            const date = new Date(r.created_at);
-            const monthYear = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-            acc[monthYear] = (acc[monthYear] || 0) + parseFloat(r.price);
-        }
-        return acc;
-    }, {});
-
-    const monthlyRevenueChartData = Object.entries(monthlyRevenue)
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([name, revenue]) => ({ 
-            name: new Date(name).toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' }), 
-            Revenue: Math.round(revenue) 
-        }));
-        
-    // NOUVEAU: Taux de Conversion des Destinations (Exemple basé sur les réservations par package)
-    const destinationReservationCounts = reservations.filter(r => getReservationType(r) === 'Destination').reduce((acc, r) => {
-        const packageId = r.reservable?.id;
-        if (packageId) {
-            acc[packageId] = (acc[packageId] || 0) + 1;
-        }
-        return acc;
-    }, {});
-    
-    const maxReservations = Object.values(destinationReservationCounts).length > 0 ? Math.max(...Object.values(destinationReservationCounts)) : 1;
-    // On calcule un "score de popularité" ici, si la vraie conversion (vues/réservation) n'est pas dispo
-    const conversionScore = destinations.reduce((sum, d) => sum + (destinationReservationCounts[d.id] || 0), 0) / (destinations.length || 1);
-
-
-    return { 
-        totalReservations, 
-        totalRevenue, 
-        totalPackages, 
-        reservationsByType, 
-        chartData, 
-        packagesByCountryChartData,
-        monthlyRevenueChartData, // Nouvelle Statistique
-        conversionScore: conversionScore > 0 ? conversionScore.toFixed(1) : '0' // Nouvelle Statistique (Exemple)
-    };
-  }, [reservations, destinations, ouikenacs, cityTours]);
-
-  // --- MODAL & FORM LOGIC ---
-  const openModal = (type, data = null) => {
-    setModalType(type);
-    setIsEdit(!!data);
-    setShowModal(true);
-    
-    if (data) {
-      // Pour les entités simples
-      setEditForm(data);
-
-      // Pour Pays, initialiser la forme d'ajout de ville
-      if (type === 'country') {
-          setNewCityForm({ name: '', country_id: data.id });
-      }
-
-      // Pour Ouikenac, initialiser les relations
-      if (type === 'ouikenac') {
-        setEditRelations({ 
-          prices: data.prices || [], 
-          additionalCities: data.additional_cities || [], 
-          inclusions: data.inclusions || [] 
-        });
-      }
-    } else {
-      // Valeurs par défaut pour la création
-      const defaultForms = {
-        country: { name: '', code: '' },
-        destination: { title: '', description: '', departure_country_id: '' },
-        ouikenac: { title: '', description: 'Package week-end vers une destination de votre choix', active: true }, // 'duration' retiré
-        cityTour: { name: '', description: '', price: 0, currency: 'CFA', country_id: '', city_id: '' }
-      };
-      setEditForm(defaultForms[type] || {});
-      setEditRelations({ prices: [], additionalCities: [], inclusions: [] });
-      setNewCityForm({ name: '', country_id: null }); // Réinitialiser l'ajout de ville
-    }
-  };
-
-  const closeModal = () => {
-    setShowModal(false);
-    setEditForm({});
-    setEditRelations({ prices: [], additionalCities: [], inclusions: [] });
-    setNewCityForm({ name: '', country_id: null });
-    setModalType(null);
-  };
-  
-  const handleFormChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setEditForm(prev => ({ 
-        ...prev, 
-        [name]: type === 'checkbox' ? checked : value 
-    }));
-  };
-
-  // --- CRUD HANDLERS (EXEMPLES) ---
+  // --- CRUD HANDLERS (GÉNÉRIQUES ET SPÉCIFIQUES) ---
 
   const handleCreateOrUpdate = async (endpoint, data, successMessage) => {
     setSubmitting(true);
@@ -320,21 +248,18 @@ const AdminDashboard = () => {
       const method = isEdit ? 'PUT' : 'POST';
       const url = isEdit ? `${API_BASE}/${endpoint}/${data.id}` : `${API_BASE}/${endpoint}`;
       
-      // Ajouter les relations pour Ouikenac
       let payload = data;
       if (modalType === 'ouikenac') {
-        // Enlève le champ 'duration' s'il existe (bien qu'il soit déjà retiré du formulaire)
         const { duration, ...rest } = data; 
         
         payload = {
             ...rest,
             prices: editRelations.prices.map(p => ({
                 ...p,
-                // Assurez-vous que les IDs pays/ville sont des nombres pour le backend
                 departure_country_id: parseInt(p.departure_country_id),
                 arrival_country_id: parseInt(p.arrival_country_id),
-                departure_city_id: parseInt(p.departure_city_id) || null, // NOUVEAU
-                arrival_city_id: parseInt(p.arrival_city_id) || null,     // NOUVEAU
+                departure_city_id: parseInt(p.departure_city_id) || null, 
+                arrival_city_id: parseInt(p.arrival_city_id) || null,     
                 min_people: parseInt(p.min_people),
                 max_people: parseInt(p.max_people),
                 price: parseFloat(p.price),
@@ -384,8 +309,25 @@ const AdminDashboard = () => {
       setSubmitting(false);
     }
   };
+
+  // NOUVEAU: Mettre à jour le statut de la réservation (Valider/Rejeter)
+  const handleUpdateReservationStatus = async (id, status, successMessage) => {
+      if (!window.confirm(`Êtes-vous sûr de vouloir passer la réservation ${id} au statut "${status}" ?`)) return;
+
+      setSubmitting(true);
+      try {
+          // Point de terminaison assumé pour la mise à jour du statut
+          await api.put(`${API_BASE}/reservations/${id}/status`, { status });
+          showNotification(successMessage, 'success');
+          await loadData(); // Recharger les données pour mettre à jour la liste
+      } catch (error) {
+          console.error('Erreur mise à jour statut:', error.response?.data || error);
+          showNotification(error.response?.data?.message || `Erreur lors de la mise à jour du statut.`, 'error');
+      } finally {
+          setSubmitting(false);
+      }
+  };
   
-  // NOUVEAU: CRUD pour les Villes (spécifique à la modale Pays)
   const handleAddCity = async (countryId, cityName) => {
     if (!cityName.trim()) {
         showNotification('Le nom de la ville est requis.', 'warning');
@@ -403,7 +345,7 @@ const AdminDashboard = () => {
             setEditForm(updatedCountry);
         }
         
-        setNewCityForm(prev => ({ ...prev, name: '' })); // Vider l'input de la ville
+        setNewCityForm(prev => ({ ...prev, name: '' })); 
     } catch (error) {
         console.error('Erreur Ajout Ville:', error.response?.data || error);
         showNotification(error.response?.data?.message || 'Erreur lors de l\'ajout de la ville.', 'error');
@@ -434,16 +376,15 @@ const AdminDashboard = () => {
       }
   };
 
-  // --- OUICKENAC RELATION MANAGEMENT ---
-  
+  // --- OUICKENAC RELATION MANAGEMENT (Fonctions conservées) ---
   const handleAddPrice = () => {
     setEditRelations(prev => ({
         ...prev,
         prices: [...prev.prices, { 
             departure_country_id: '', 
             arrival_country_id: '', 
-            departure_city_id: '', // NOUVEAU
-            arrival_city_id: '',     // NOUVEAU
+            departure_city_id: '',
+            arrival_city_id: '',     
             min_people: 1, 
             max_people: 2, 
             price: 0, 
@@ -456,7 +397,6 @@ const AdminDashboard = () => {
     const updatedPrices = [...editRelations.prices];
     updatedPrices[index][field] = value;
     
-    // Si on change le pays de départ/arrivée, on réinitialise la ville correspondante
     if (field === 'departure_country_id') {
         updatedPrices[index].departure_city_id = '';
     }
@@ -513,6 +453,56 @@ const AdminDashboard = () => {
         additionalCities: prev.additionalCities.filter((_, i) => i !== index)
     }));
   };
+  // --- FIN OUICKENAC RELATION MANAGEMENT ---
+
+
+  const openModal = (type, data = null) => {
+    setModalType(type);
+    setIsEdit(!!data);
+    setShowModal(true);
+    
+    if (data) {
+      setEditForm(data);
+
+      if (type === 'country') {
+          setNewCityForm({ name: '', country_id: data.id });
+      }
+
+      if (type === 'ouikenac') {
+        setEditRelations({ 
+          prices: data.prices || [], 
+          additionalCities: data.additional_cities || [], 
+          inclusions: data.inclusions || [] 
+        });
+      }
+    } else {
+      const defaultForms = {
+        country: { name: '', code: '' },
+        destination: { title: '', description: '', departure_country_id: '' },
+        ouikenac: { title: '', description: 'Package week-end vers une destination de votre choix', active: true },
+        cityTour: { name: '', description: '', price: 0, currency: 'CFA', country_id: '', city_id: '' }
+      };
+      setEditForm(defaultForms[type] || {});
+      setEditRelations({ prices: [], additionalCities: [], inclusions: [] });
+      setNewCityForm({ name: '', country_id: null });
+    }
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    setEditForm({});
+    setEditRelations({ prices: [], additionalCities: [], inclusions: [] });
+    setNewCityForm({ name: '', country_id: null });
+    setModalType(null);
+  };
+  
+  const handleFormChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setEditForm(prev => ({ 
+        ...prev, 
+        [name]: type === 'checkbox' ? checked : value 
+    }));
+  };
   
   // Fonction utilitaire pour trouver le pays/ville associé à un ID
   const getCountryName = (id) => countries.find(c => c.id === id)?.name || 'N/A';
@@ -525,8 +515,8 @@ const AdminDashboard = () => {
       
       const depCountry = getCountryName(firstPrice.departure_country_id);
       const arrCountry = getCountryName(firstPrice.arrival_country_id);
-      const depCity = getCityName(firstPrice.departure_city_id); // NOUVEAU
-      const arrCity = getCityName(firstPrice.arrival_city_id);   // NOUVEAU
+      const depCity = getCityName(firstPrice.departure_city_id); 
+      const arrCity = getCityName(firstPrice.arrival_city_id);   
       const priceDisplay = `${formatPrice(firstPrice.price)} ${firstPrice.currency}`;
       
       const depLabel = `${depCity} (${depCountry})`;
@@ -547,8 +537,7 @@ const AdminDashboard = () => {
       if (!id) return [];
       return cities.filter(c => c.country_id === id);
   };
-
-
+  
   // --- RENDER MODAL CONTENT ---
 
   const renderModalContent = () => {
@@ -655,7 +644,7 @@ const AdminDashboard = () => {
             <>
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">{getFormTitle('un Package Ouikenac')}</h2>
                 <div className="space-y-6">
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <label className="block text-sm font-medium text-gray-700">Titre</label>
                             <input type="text" name="title" value={editForm.title || ''} onChange={handleFormChange} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:border-primary focus:ring-primary" />
@@ -678,7 +667,6 @@ const AdminDashboard = () => {
                         <h3 className="text-lg font-bold text-primary mb-3 flex items-center gap-2"><DollarSign size={20} /> Grilles de Prix (Pays/Ville Départ - Pays/Ville Arrivée)</h3>
                         <div className="space-y-4">
                             {editRelations.prices.map((price, index) => {
-                                // Obtenir les villes disponibles pour les pays sélectionnés
                                 const depCities = getCitiesByCountryId(price.departure_country_id);
                                 const arrCities = getCitiesByCountryId(price.arrival_country_id);
 
@@ -686,7 +674,7 @@ const AdminDashboard = () => {
                                     <div key={index} className="bg-white p-3 rounded-lg shadow-sm border border-gray-200">
                                         
                                         {/* Ligne 1: Pays de Départ/Arrivée */}
-                                        <div className="grid grid-cols-2 gap-4 mb-2">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-2">
                                             <div>
                                                 <label className="block text-xs font-medium text-gray-500 mb-1">Pays de Départ</label>
                                                 <select value={price.departure_country_id || ''} onChange={(e) => handleUpdatePrice(index, 'departure_country_id', e.target.value)} required className="block w-full border border-gray-300 rounded-md p-2 text-sm focus:border-primary">
@@ -703,8 +691,8 @@ const AdminDashboard = () => {
                                             </div>
                                         </div>
                                         
-                                        {/* Ligne 2: Villes de Départ/Arrivée (Nouveau) */}
-                                        <div className="grid grid-cols-2 gap-4 mb-3">
+                                        {/* Ligne 2: Villes de Départ/Arrivée */}
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3">
                                             <div>
                                                 <label className="block text-xs font-medium text-gray-500 mb-1">Ville de Départ</label>
                                                 <select value={price.departure_city_id || ''} onChange={(e) => handleUpdatePrice(index, 'departure_city_id', e.target.value)} disabled={!price.departure_country_id} className="block w-full border border-gray-300 rounded-md p-2 text-sm focus:border-primary">
@@ -721,16 +709,16 @@ const AdminDashboard = () => {
                                             </div>
                                         </div>
 
-                                        {/* Ligne 3: Personnes/Prix/Actions */}
+                                        {/* Ligne 3: Personnes/Prix/Actions (plus compacte et responsive) */}
                                         <div className="grid grid-cols-5 gap-2 items-end">
-                                            <input type="number" placeholder="Min Pers." value={price.min_people || 1} onChange={(e) => handleUpdatePrice(index, 'min_people', e.target.value)} required className="col-span-1 block w-full border border-gray-300 rounded-md p-2 text-sm focus:border-primary" />
-                                            <input type="number" placeholder="Max Pers." value={price.max_people || 2} onChange={(e) => handleUpdatePrice(index, 'max_people', e.target.value)} required className="col-span-1 block w-full border border-gray-300 rounded-md p-2 text-sm focus:border-primary" />
-                                            <input type="number" placeholder="Prix" value={price.price || 0} onChange={(e) => handleUpdatePrice(index, 'price', e.target.value)} required className="col-span-1 block w-full border border-gray-300 rounded-md p-2 text-sm focus:border-primary" />
-                                            <select value={price.currency || 'CFA'} onChange={(e) => handleUpdatePrice(index, 'currency', e.target.value)} className="col-span-1 block w-full border border-gray-300 rounded-md p-2 text-sm focus:border-primary">
+                                            <input type="number" placeholder="Min Pers." value={price.min_people || 1} onChange={(e) => handleUpdatePrice(index, 'min_people', e.target.value)} required className="col-span-2 sm:col-span-1 block w-full border border-gray-300 rounded-md p-2 text-sm focus:border-primary" />
+                                            <input type="number" placeholder="Max Pers." value={price.max_people || 2} onChange={(e) => handleUpdatePrice(index, 'max_people', e.target.value)} required className="col-span-2 sm:col-span-1 block w-full border border-gray-300 rounded-md p-2 text-sm focus:border-primary" />
+                                            <input type="number" placeholder="Prix" value={price.price || 0} onChange={(e) => handleUpdatePrice(index, 'price', e.target.value)} required className="col-span-3 sm:col-span-1 block w-full border border-gray-300 rounded-md p-2 text-sm focus:border-primary" />
+                                            <select value={price.currency || 'CFA'} onChange={(e) => handleUpdatePrice(index, 'currency', e.target.value)} className="col-span-2 sm:col-span-1 block w-full border border-gray-300 rounded-md p-2 text-sm focus:border-primary">
                                                 <option value="CFA">CFA</option>
                                                 <option value="USD">USD</option>
                                             </select>
-                                            <button onClick={() => handleRemovePrice(index)} className="col-span-1 bg-red-500 text-white p-2 rounded-md hover:bg-red-600 transition text-sm flex items-center justify-center"><Trash2 size={16} /></button>
+                                            <button onClick={() => handleRemovePrice(index)} className="col-span-5 sm:col-span-1 bg-red-500 text-white p-2 rounded-md hover:bg-red-600 transition text-sm flex items-center justify-center"><Trash2 size={16} /></button>
                                         </div>
                                     </div>
                                 );
@@ -758,12 +746,12 @@ const AdminDashboard = () => {
                         <h3 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2"><MapPin size={20} className="text-warning" /> Villes Supplémentaires (Escales/Visites)</h3>
                         <div className="space-y-2">
                             {editRelations.additionalCities.map((ac, index) => (
-                                <div key={index} className="flex gap-2">
+                                <div key={index} className="flex flex-col sm:flex-row gap-2">
                                     <select value={ac.city_id || ''} onChange={(e) => handleUpdateAdditionalCity(index, 'city_id', e.target.value)} required className="flex-1 block w-full border border-gray-300 rounded-md p-2 text-sm focus:border-warning">
                                         <option value="">Sélectionnez une Ville</option>
                                         {cities.map(city => <option key={city.id} value={city.id}>{city.name} ({getCountryName(city.country_id)})</option>)}
                                     </select>
-                                    <select value={ac.type || 'stopover'} onChange={(e) => handleUpdateAdditionalCity(index, 'type', e.target.value)} required className="block w-40 border border-gray-300 rounded-md p-2 text-sm focus:border-warning">
+                                    <select value={ac.type || 'stopover'} onChange={(e) => handleUpdateAdditionalCity(index, 'type', e.target.value)} required className="block w-full sm:w-40 border border-gray-300 rounded-md p-2 text-sm focus:border-warning">
                                         <option value="stopover">Étape (Escale)</option>
                                         <option value="visit">Visite</option>
                                     </select>
@@ -796,7 +784,7 @@ const AdminDashboard = () => {
                         <label className="block text-sm font-medium text-gray-700">Description (Détails)</label>
                         <textarea name="description" value={editForm.description || ''} onChange={handleFormChange} rows="3" required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:border-primary focus:ring-primary" />
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <label className="block text-sm font-medium text-gray-700">Prix</label>
                             <input type="number" name="price" value={editForm.price || 0} onChange={handleFormChange} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:border-primary focus:ring-primary" />
@@ -809,7 +797,6 @@ const AdminDashboard = () => {
                             </select>
                         </div>
                     </div>
-                    {/* Pour l'édition, on utilise la valeur existante, sinon on utilise country_id pour filtrer */}
                     <div>
                         <label className="block text-sm font-medium text-gray-700">Pays (pour filtrer la ville)</label>
                         <select 
@@ -856,14 +843,13 @@ const AdminDashboard = () => {
         const { totalReservations, totalRevenue, totalPackages, chartData, packagesByCountryChartData, monthlyRevenueChartData, conversionScore } = dashboardData;
         const RADIAN = Math.PI / 180;
         
-        // Custom label for Pie Chart
         const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, index, name }) => {
             const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
             const x = cx + radius * Math.cos(-midAngle * RADIAN);
             const y = cy + radius * Math.sin(-midAngle * RADIAN);
             
             return (
-                <text x={x} y={y} fill="white" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" className="font-bold">
+                <text x={x} y={y} fill="white" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" className="font-bold text-xs sm:text-sm">
                     {`${name} (${(percent * 100).toFixed(0)}%)`}
                 </text>
             );
@@ -871,15 +857,16 @@ const AdminDashboard = () => {
         
         const PIE_COLORS = ['#1b5e8e', '#f18f13', '#007335', '#f7b406'];
         const BAR_COLORS = {
-            destinations: '#1b5e8e', // Primary
-            ouikenacs: '#f18f13',    // Secondary
-            cityTours: '#007335'     // Green
+            destinations: '#1b5e8e', 
+            ouikenacs: '#f18f13',    
+            cityTours: '#007335'     
         };
 
 
         return (
             <div className="space-y-10">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                {/* Stat Cards - Meilleure responsivité */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                     <StatCard 
                         icon={TrendingUp} 
                         title="Réservations Totales" 
@@ -898,7 +885,6 @@ const AdminDashboard = () => {
                         value={totalPackages} 
                         color="secondary" 
                     />
-                    {/* NOUVEAU: Taux de Conversion */}
                     <StatCard 
                         icon={Zap} 
                         title="Score de Conversion" 
@@ -908,7 +894,7 @@ const AdminDashboard = () => {
                     />
                 </div>
                 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-10">
                     {/* Chart 1: Réservations par Type */}
                     <div className="bg-white p-6 rounded-xl shadow-lg lg:col-span-1">
                         <h3 className="text-xl font-bold mb-4 text-gray-800 flex items-center gap-2"><Calendar size={20} className="text-primary" /> Réservations par Type</h3>
@@ -918,7 +904,7 @@ const AdminDashboard = () => {
                                     data={chartData}
                                     cx="50%"
                                     cy="50%"
-                                    outerRadius={120}
+                                    outerRadius={100} // Réduit la taille pour faire de la place pour la légende sur mobile
                                     fill="#8884d8"
                                     dataKey="value"
                                     labelLine={false}
@@ -929,7 +915,7 @@ const AdminDashboard = () => {
                                     ))}
                                 </Pie>
                                 <Tooltip />
-                                <Legend layout="vertical" align="right" verticalAlign="middle" />
+                                <Legend layout="vertical" align="right" verticalAlign="middle" wrapperStyle={{ fontSize: '12px' }}/>
                             </PieChart>
                         </ResponsiveContainer>
                     </div>
@@ -952,7 +938,7 @@ const AdminDashboard = () => {
                     </div>
                 </div>
                 
-                {/* NOUVEAU: Chart 3: Évolution des Revenus Mensuels */}
+                {/* Chart 3: Évolution des Revenus Mensuels */}
                 <div className="bg-white p-6 rounded-xl shadow-lg">
                     <h3 className="text-xl font-bold mb-4 text-gray-800 flex items-center gap-2"><Aperture size={20} className="text-primary" /> Évolution des Revenus Mensuels (Estimé)</h3>
                     <ResponsiveContainer width="100%" height={300}>
@@ -983,13 +969,42 @@ const AdminDashboard = () => {
                         { header: 'Nom', accessor: 'full_name' },
                         { header: 'Email', accessor: 'email' },
                         { header: 'Téléphone', accessor: 'phone' },
+                        { header: 'Statut', accessor: (r) => {
+                            const status = r.status?.toLowerCase();
+                            if (status === 'validated') return <span className="text-green font-semibold">Validée</span>;
+                            if (status === 'rejected') return <span className="text-red-500 font-semibold">Rejetée</span>;
+                            return <span className="text-secondary font-semibold">En Attente</span>;
+                        }},
                         { header: 'Type', accessor: (r) => getReservationType(r) },
                         { header: 'Package', accessor: (r) => getReservationLabel(r.reservable) },
-                        { header: 'Message', accessor: 'message' },
+                        { header: 'Message', accessor: 'message', render: (r) => r.message ? `${r.message.substring(0, 30)}${r.message.length > 30 ? '...' : ''}` : 'N/A' },
                         { header: 'Actions', accessor: 'actions', render: (r) => (
-                            <button onClick={() => handleDelete('reservations', r.id, 'Réservation supprimée.')} disabled={submitting} className="text-red-500 hover:text-red-700 disabled:opacity-50 transition">
-                                <Trash2 size={20} />
-                            </button>
+                            <div className="flex gap-2 min-w-[100px]"> {/* Ajout de min-w pour assurer l'espace des 3 icônes */}
+                                <button 
+                                    onClick={() => handleUpdateReservationStatus(r.id, 'validated', 'Réservation validée.')} 
+                                    disabled={submitting || r.status?.toLowerCase() === 'validated'} 
+                                    className="text-green hover:text-green/90 disabled:opacity-50 transition"
+                                    title="Valider la réservation"
+                                >
+                                    <CheckCircle size={20} />
+                                </button>
+                                <button 
+                                    onClick={() => handleUpdateReservationStatus(r.id, 'rejected', 'Réservation rejetée.')} 
+                                    disabled={submitting || r.status?.toLowerCase() === 'rejected'} 
+                                    className="text-warning hover:text-warning/90 disabled:opacity-50 transition"
+                                    title="Rejeter la réservation"
+                                >
+                                    <XCircle size={20} />
+                                </button>
+                                <button 
+                                    onClick={() => handleDelete('reservations', r.id, 'Réservation supprimée.')} 
+                                    disabled={submitting} 
+                                    className="text-red-500 hover:text-red-700 disabled:opacity-50 transition"
+                                    title="Supprimer la réservation"
+                                >
+                                    <Trash2 size={20} />
+                                </button>
+                            </div>
                         )}
                     ]} 
                     data={reservations} 
@@ -1013,7 +1028,7 @@ const AdminDashboard = () => {
                         { header: 'Code', accessor: 'code' },
                         { header: 'Villes', accessor: (c) => c.cities?.length || 0 },
                         { header: 'Actions', accessor: 'actions', render: (c) => (
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 min-w-[60px]">
                                 <button onClick={() => openModal('country', c)} className="text-primary hover:text-primary/90 transition" title="Modifier le pays et gérer les villes">
                                     <Edit2 size={20} />
                                 </button>
@@ -1041,10 +1056,10 @@ const AdminDashboard = () => {
                     columns={[
                         { header: 'ID', accessor: 'id' },
                         { header: 'Titre', accessor: 'title' },
-                        { header: 'Description', accessor: (d) => `${d.description.substring(0, 80)}...` },
+                        { header: 'Description', accessor: (d) => `${d.description.substring(0, 80)}${d.description.length > 80 ? '...' : ''}` },
                         { header: 'Pays Départ', accessor: (d) => d.departure_country?.name || 'N/A' },
                         { header: 'Actions', accessor: 'actions', render: (d) => (
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 min-w-[60px]">
                                 <button onClick={() => openModal('destination', d)} className="text-primary hover:text-primary/90 transition" title="Modifier la destination">
                                     <Edit2 size={20} />
                                 </button>
@@ -1073,16 +1088,16 @@ const AdminDashboard = () => {
                         { header: 'ID', accessor: 'id' },
                         { header: 'Titre', accessor: 'title' },
                         { header: 'Statut', accessor: (o) => o.active ? <span className="text-green font-semibold">Actif</span> : <span className="text-red-500">Inactif</span> },
-                        { header: 'Détails Liaison', accessor: (o) => {
+                        { header: 'Liaison', accessor: (o) => {
                             const details = getOuikenacPriceDetails(o);
-                            return <span className="font-medium text-primary/80">{details.depCity} ({details.dep}) <CornerDownRight size={14} className="inline-block mx-1" /> {details.arrCity} ({details.arr})</span>;
+                            return <span className="font-medium text-primary/80 text-xs sm:text-sm">{details.depCity} ({details.dep}) <CornerDownRight size={14} className="inline-block mx-1" /> {details.arrCity} ({details.arr})</span>;
                         }},
                         { header: 'Tarif Min', accessor: (o) => {
                             const details = getOuikenacPriceDetails(o);
                             return <span className="font-medium text-secondary">{details.display.split('(')[0].trim()}</span>;
                         }},
                         { header: 'Actions', accessor: 'actions', render: (o) => (
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 min-w-[60px]">
                                 <button onClick={() => openModal('ouikenac', o)} className="text-warning hover:text-warning/90 transition" title="Modifier le package">
                                     <Edit2 size={20} />
                                 </button>
@@ -1110,11 +1125,11 @@ const AdminDashboard = () => {
                     columns={[
                         { header: 'ID', accessor: 'id' },
                         { header: 'Nom', accessor: 'name' },
-                        { header: 'Description', accessor: (t) => `${t.description.substring(0, 50)}...` },
+                        { header: 'Description', accessor: (t) => `${t.description.substring(0, 50)}${t.description.length > 50 ? '...' : ''}` },
                         { header: 'Ville/Pays', accessor: (t) => `${t.city?.name || 'N/A'} (${t.city?.country?.code || 'N/A'})` },
                         { header: 'Prix', accessor: (t) => `${formatPrice(t.price)} ${t.currency}` },
                         { header: 'Actions', accessor: 'actions', render: (t) => (
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 min-w-[60px]">
                                 <button onClick={() => openModal('cityTour', t)} className="text-green hover:text-green/90 transition" title="Modifier le tour">
                                     <Edit2 size={20} />
                                 </button>
@@ -1139,7 +1154,7 @@ const AdminDashboard = () => {
     <div className={`bg-white p-6 rounded-xl shadow-lg border-t-4 border-${color} flex items-center justify-between relative group`}>
       <div>
         <p className="text-sm font-medium text-gray-500">{title}</p>
-        <p className="text-3xl font-bold text-gray-900 mt-1">{value}</p>
+        <p className="text-2xl sm:text-3xl font-bold text-gray-900 mt-1">{value}</p>
       </div>
       <Icon size={40} className={`text-${color}/60`} />
       {tooltip && (
@@ -1160,13 +1175,12 @@ const AdminDashboard = () => {
         );
     }
     return (
-        // Le overflow-x-auto sur le parent gère la réactivité
         <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                     <tr>
                         {columns.map(col => (
-                            <th key={col.header} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th key={col.header} className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 {col.header}
                             </th>
                         ))}
@@ -1176,7 +1190,7 @@ const AdminDashboard = () => {
                     {data.map(row => (
                         <tr key={row.id} className="hover:bg-gray-50 transition">
                             {columns.map(col => (
-                                <td key={col.header} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                <td key={col.header} className="px-4 sm:px-6 py-4 text-sm text-gray-900 align-top">
                                     {col.render ? col.render(row) : (typeof col.accessor === 'function' ? col.accessor(row) : row[col.accessor])}
                                 </td>
                             ))}
@@ -1192,7 +1206,7 @@ const AdminDashboard = () => {
     <button
       onClick={() => {
         setActiveTab(tab);
-        setIsSidebarOpen(false); // Ferme la sidebar après la sélection sur mobile
+        setIsSidebarOpen(false); 
       }}
       className={`w-full flex items-center p-3 rounded-xl transition-all duration-200 ${
         activeTab === tab 
@@ -1238,7 +1252,6 @@ const AdminDashboard = () => {
             <h1 className="text-3xl font-black text-gray-900">e-TRAVEL <span className="text-primary">ADMIN</span></h1>
             <p className="text-xs text-primary tracking-wider">WORLD AGENCY</p>
           </div>
-          {/* Bouton de fermeture sur mobile (visible uniquement si ouvert) */}
           <button 
               onClick={() => setIsSidebarOpen(false)} 
               className="absolute top-4 right-4 text-gray-700 p-2 rounded-full hover:bg-gray-100 lg:hidden" 
@@ -1260,11 +1273,10 @@ const AdminDashboard = () => {
           </nav>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 lg:ml-64"> 
+        {/* Content - Conteneur principal qui s'adapte à la sidebar */}
+        <div className="flex-1 lg:pl-64"> 
           <div className="p-4 sm:p-6 lg:p-8">
-            <header className="mb-10 bg-white p-6 rounded-xl shadow-md sticky top-0 z-40 flex justify-between items-center">
-              {/* Menu Toggle Button (Mobile) */}
+            <header className="mb-10 bg-white p-4 sm:p-6 rounded-xl shadow-md sticky top-0 z-40 flex justify-between items-center">
               <button 
                   onClick={() => setIsSidebarOpen(true)} 
                   className="text-gray-700 lg:hidden p-2 rounded-lg hover:bg-gray-100"
@@ -1272,8 +1284,8 @@ const AdminDashboard = () => {
               >
                   <Menu size={24} />
               </button>
-              <h2 className="text-xl md:text-3xl font-bold text-gray-800 capitalize">{activeTab.replace(/([A-Z])/g, ' $1')}</h2>
-              <div className="w-10 lg:hidden"></div> {/* Espaceur pour aligner le titre au centre entre le bouton menu et un espace vide */}
+              <h2 className="text-xl md:text-3xl font-bold text-gray-800 capitalize flex-1 text-center lg:text-left">{activeTab.replace(/([A-Z])/g, ' $1')}</h2>
+              <div className="w-6 sm:w-8 lg:hidden"></div>
             </header>
             
             <main className="pb-10">
@@ -1312,13 +1324,10 @@ const AdminDashboard = () => {
         .animate-slide-in { animation: slide-in 0.3s ease-out; }
         .animate-scale-in { animation: scale-in 0.2s ease-out; }
         
-        /* Styles pour gérer la sidebar sur les petits écrans quand elle est ouverte */
-        @media (max-width: 1023px) { /* lg breakpoint */
-            .w-64.bg-white.fixed {
-                width: 100%; 
-                max-width: 320px; 
-            }
-            .lg\\:ml-64 { margin-left: 0; } 
+        @media (min-width: 1024px) { /* lg breakpoint */
+            .lg\\:pl-64 { padding-left: 16rem; } /* 64 * 4px = 256px */
+            /* Assurer que la sidebar est visible sur desktop */
+            .lg\\:static { position: static; }
         }
       `}</style>
       
@@ -1334,7 +1343,7 @@ const AdminDashboard = () => {
           --secondary: #f18f13;
           --green: #007335;
           --warning: #f7b406;
-          --red-500: #ef4444; /* Standard Red for Deletion */
+          --red-500: #ef4444; 
         }
 
         /* 2. Classes utilitaires de base (text, bg, border) */
@@ -1361,7 +1370,6 @@ const AdminDashboard = () => {
 
         /* 3. Classes d'opacité et de survol manquantes (utiliser rgba pour la robustesse) */
         
-        /* Opacité 10% / 20% / 30% / 60% */
         .bg-primary\\/10 { background-color: rgba(27, 94, 142, 0.1); }
         .border-primary\\/20 { border-color: rgba(27, 94, 142, 0.2); }
         .shadow-primary\\/30 { --tw-shadow-color: rgba(27, 94, 142, 0.3); --tw-shadow: var(--tw-shadow-color) 0 10px 15px -3px, var(--tw-shadow-color) 0 4px 6px -4px; box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow); }
@@ -1374,7 +1382,7 @@ const AdminDashboard = () => {
         .border-warning\\/50 { border-color: rgba(247, 180, 6, 0.5); }
 
 
-        /* Survol (hover) - Opacité 90% */
+        /* Survol (hover) */
         .hover\\:bg-primary\\/90:hover { background-color: rgba(27, 94, 142, 0.9) !important; }
         .hover\\:bg-secondary\\/90:hover { background-color: rgba(241, 143, 19, 0.9) !important; }
         .hover\\:bg-green\\/90:hover { background-color: rgba(0, 115, 53, 0.9) !important; }

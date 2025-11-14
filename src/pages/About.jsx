@@ -421,9 +421,9 @@ const AboutPage = () => {
               <p className="text-gray-400 text-sm text-center md:text-left">
                 © {new Date().getFullYear()} e-TRAVEL WORLD AGENCY. Tous droits réservés.
               </p>
-              <p className="text-gray-500 text-sm">
+              {/* <p className="text-gray-500 text-sm">
                 Conçu avec la Charte Graphique GMSS.Agence.
-              </p>
+              </p> */}
             </div>
           </div>
         </div>

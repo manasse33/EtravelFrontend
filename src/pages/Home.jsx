@@ -709,7 +709,7 @@ const HomePage = () => {
                 à travers le patrimoine, l'histoire et les lieux secrets.
               </p>
               <div className="mb-10">
-                <Link to="/city-tour">
+                <Link to="/city-tour-calendar">
                   <Button variant="primary" size="md" className="inline-flex items-center gap-2">
                     Explorer les City Tours <ArrowRight size={20} />
                   </Button>
@@ -793,7 +793,7 @@ const HomePage = () => {
 
           <div className="text-center pt-8">
             <p className="text-gray-500 text-sm">© {new Date().getFullYear()} e-TRAVEL WORLD AGENCY. Tous droits réservés.</p>
-            <p className="text-gray-600 text-xs mt-1">Conçu avec la Charte Graphique GMSS.Agence.</p>
+            {/* <p className="text-gray-600 text-xs mt-1">Conçu avec la Charte Graphique GMSS.Agence.</p> */}
           </div>
         </div>
       </footer>

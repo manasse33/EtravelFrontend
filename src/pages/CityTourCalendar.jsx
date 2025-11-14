@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Menu, X, Globe, Calendar,ChevronLeft,ChevronRight, MapPin, Clock, Users, Phone, Mail, Facebook, Instagram, Twitter, Linkedin, ArrowRight, Loader, AlertCircle, CheckCircle, Building2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import axios from 'axios'; // <--- AJOUT POUR LA COMMUNICATION API
+
+// Base URL de l'API (Assumée)
+const API_BASE = 'https://etravelbackend-production.up.railway.app/api'; 
+
 
 // ============= COMPOSANTS RÉUTILISABLES (Harmonisés) =============
 
@@ -74,7 +79,7 @@ const Notification = ({ show, message, type, onClose }) => {
 };
 
 
-// ============= COMPOSANT CALENDRIER DU CITY TOUR =============
+// ============= COMPOSANT CALENDRIER DU CITY TOUR (MISE À JOUR) =============
 
 const CityTourCalendar = () => {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -84,76 +89,52 @@ const CityTourCalendar = () => {
   const [loading, setLoading] = useState(false);
   const [notification, setNotification] = useState({ show: false, message: '', type: '' });
 
-  // Simulation des événements de City Tour (basé sur le 1er et dernier Samedi du mois)
+  // État pour les événements récupérés de la DB
   const [tourEvents, setTourEvents] = useState([]);
 
-  // Logique pour trouver le 1er et dernier Samedi d'un mois
-  const getMonthlyTourDates = (year, month) => {
-    const dates = [];
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    let firstSaturday = null;
-    let lastSaturday = null;
-
-    for (let day = 1; day <= daysInMonth; day++) {
-      const date = new Date(year, month, day);
-      if (date.getDay() === 6) { // 6 est Samedi
-        if (!firstSaturday) {
-          firstSaturday = date;
-        }
-        lastSaturday = date;
-      }
-    }
-
-    if (firstSaturday) dates.push({ 
-        date: firstSaturday.toISOString().split('T')[0], 
-        title: "City Tour Mensuel (1er Samedi)",
-        country: Math.random() < 0.5 ? 'RC' : 'RDC' // Simulation de la ville
-    });
+  // Fonction de notification réutilisable
+  const showNotification = (message, type) => {
+    setNotification({ show: true, message, type });
+    setTimeout(() => setNotification({ show: false, message: '', type: '' }), 4000);
+  };
     
-    // Assurez-vous que le dernier samedi est différent du premier si le mois a 5 samedis.
-    if (lastSaturday && (!firstSaturday || lastSaturday.getTime() !== firstSaturday.getTime())) {
-        dates.push({ 
-            date: lastSaturday.toISOString().split('T')[0], 
-            title: "City Tour Mensuel (Dernier Samedi)",
-            country: Math.random() < 0.5 ? 'RC' : 'RDC' // Simulation de la ville
-        });
-    }
+  // NOUVELLE LOGIQUE: Fonction pour récupérer les événements depuis l'API
+  const fetchTourEvents = async () => {
+    setLoading(true);
+    try {
+        // Appel à l'endpoint de l'API Laravel
+        const response = await axios.get(`${API_BASE}/city-tours`);
+        
+        // Adaptation des données de la DB au format attendu par le calendrier: { date, title, country }
+        // ATTENTION : Les champs 'tour_date' et 'country_code' sont des ASSUMPTIONS de votre schéma de DB. 
+        // Si les noms des champs sont différents (ex: 'date_debut', 'city'), ajustez-les ici.
+        const formattedEvents = response.data.map(event => ({
+            // Utiliser le champ de date de la DB et le formatter en 'YYYY-MM-DD'
+            date: event.tour_date ? new Date(event.tour_date).toISOString().split('T')[0] : (event.date_start ? new Date(event.date_start).toISOString().split('T')[0] : null), 
+            // Utiliser le titre de la DB
+            title: event.title || event.city_name ? `Tour à ${event.city_name}` : 'City Tour Planifié',
+            // Logique RC/RDC: à ajuster selon le schéma réel de votre DB (ex: country_code)
+            country: event.country_code || (event.city_name?.includes('Kinshasa') ? 'RDC' : 'RC'), 
+        })).filter(event => event.date); // S'assurer que chaque événement a une date valide
 
-    // Ajouter un événement spécial simulé pour le 15 du mois
-    const specialDate = new Date(year, month, 15);
-    if (specialDate.getMonth() === month) {
-        dates.push({
-            date: specialDate.toISOString().split('T')[0],
-            title: "Tour Spécial de l'Indépendance",
-            country: 'RC'
-        });
+        setTourEvents(formattedEvents);
+        showNotification(`Succès : ${formattedEvents.length} tours chargés depuis la BD.`, 'success');
+    } catch (error) {
+        console.error("Erreur lors du chargement des événements du City Tour:", error);
+        const errorMessage = error.response ? `Erreur ${error.response.status} : Impossible de connecter à l'API.` : 'Erreur réseau : Vérifiez votre connexion.';
+        showNotification(errorMessage, 'error');
+        setTourEvents([]);
+    } finally {
+        setLoading(false);
     }
-
-    return dates;
   };
 
+
   useEffect(() => {
-    // Simuler le chargement des événements pour le mois actuel et le mois suivant
-    setLoading(true);
-    const today = new Date();
-    const currentYear = today.getFullYear();
-    const currentMonth = today.getMonth();
+    // 1. Charger les événements de la DB au montage du composant
+    fetchTourEvents(); 
 
-    const nextMonth = new Date(today.setMonth(today.getMonth() + 1));
-    const nextYear = nextMonth.getFullYear();
-    const nextMonthIndex = nextMonth.getMonth();
-
-
-    const currentMonthEvents = getMonthlyTourDates(currentYear, currentMonth);
-    const nextMonthEvents = getMonthlyTourDates(nextYear, nextMonthIndex);
-
-    const allEvents = [...currentMonthEvents, ...nextMonthEvents];
-
-    setTimeout(() => {
-        setTourEvents(allEvents);
-        setLoading(false);
-    }, 1000);
-
+    // 2. Gestion du scroll pour le header
     const handleScroll = () => setIsScrolled(window.scrollY > 50);
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
@@ -533,9 +514,9 @@ const CityTourCalendar = () => {
               <p className="text-gray-400 text-sm text-center md:text-left">
                 © {new Date().getFullYear()} e-TRAVEL WORLD AGENCY. Tous droits réservés.
               </p>
-              <p className="text-gray-500 text-sm">
+              {/* <p className="text-gray-500 text-sm">
                 Conçu avec la Charte Graphique GMSS.Agence.
-              </p>
+              </p> */}
             </div>
           </div>
         </div>
@@ -559,7 +540,11 @@ const CityTourCalendar = () => {
         }
       `}</style>
       
-      {/* Tailwind Custom Colors (Charte graphique officielle E-TRAVEL WORLD AGENCY) - FIX ROBUSTE */}
+      {/* ************************************************
+         * BLOC DE STYLE CONFIRMÉ COMME FONCTIONNEL
+         * (Ajout de la classe manquante '.border-primary\/50' pour la robustesse)
+         ************************************************
+      */}
       <style jsx global>
         {`
         /* Charte graphique officielle E-TRAVEL WORLD AGENCY */
@@ -596,12 +581,15 @@ const CityTourCalendar = () => {
 
         /* 3. FIX: Classes d'opacité et de survol manquantes (utiliser rgba pour la robustesse) */
         
-        /* Opacité 10% / 20% / 30% */
+        /* Opacité 10% / 20% / 30% / 50% */
         .bg-primary\\/10 { background-color: rgba(27, 94, 142, 0.1); }
         .border-primary\\/20 { border-color: rgba(27, 94, 142, 0.2); }
         .border-primary\\/30 { border-color: rgba(27, 94, 142, 0.3); }
+        /* CLASSE MANQUANTE AJOUTÉE */
+        .border-primary\\/50 { border-color: rgba(27, 94, 142, 0.5); } 
 
-        /* Survol (hover) - Opacité 90% */
+
+        /* Survol (hover) - Opacité 90% (avec !important conservé) */
         .hover\\:bg-primary\\/90:hover { background-color: rgba(27, 94, 142, 0.9) !important; }
         .hover\\:bg-secondary\\/90:hover { background-color: rgba(241, 143, 19, 0.9) !important; }
         .hover\\:bg-green\\/90:hover { background-color: rgba(0, 115, 53, 0.9) !important; }
