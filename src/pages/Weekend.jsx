@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Globe, Menu, X, ArrowRight, Phone, Mail, MapPin, Facebook, Instagram, Twitter, Linkedin, Calendar, Loader, AlertCircle, CheckCircle, Eye, Users, Clock, DollarSign, Info, XCircle } from 'lucide-react';
 import axios from 'axios';
+import { Link } from 'react-router-dom';
 
 // ============= COMPOSANTS RÉUTILISABLES (Harmonisés) =============
 
@@ -220,6 +221,7 @@ const PackageCard = ({ pkg, selectedCountry, onSelect, onViewDetails, formatPric
 
 const OuikenacPage = () => {
   const [menuOpen, setMenuOpen] = useState(false);
+const [isScrolled, setIsScrolled] = useState(false);
   const [selectedCountry, setSelectedCountry] = useState('RC');
   const [packages, setPackages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -257,6 +259,12 @@ const OuikenacPage = () => {
     setNotification({ show: true, message, type });
     setTimeout(() => setNotification({ show: false, message: '', type: '' }), 5000);
   };
+
+    useEffect(() => {
+      const handleScroll = () => setIsScrolled(window.scrollY > 50);
+      window.addEventListener('scroll', handleScroll);
+      return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
 
   useEffect(() => {
     fetchPackages();
@@ -400,36 +408,53 @@ const OuikenacPage = () => {
       {submitting && <LoadingOverlay message="Envoi de votre réservation..." />}
 
       {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-white shadow-md">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-20">
-            <div className="flex items-center space-x-3">
-              {/* Utilisation de la couleur primaire */}
-              <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center">
-                <Globe className="text-white" size={32} />
-              </div>
-              <div>
-                <h1 className="text-2xl font-black text-gray-900">e-TRAVEL WORLD</h1>
-                <p className="text-xs text-primary tracking-wider">AGENCY</p>
-              </div>
+      <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled ? 'bg-white shadow-lg h-20' : 'bg-white/95 h-24'}`}>
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-full">
+                <div className="flex items-center space-x-3">
+                    <img src="logoetravel.jpg" alt="e-TRAVEL WORLD AGENCY" width={55} className="w-14 h-14 object-contain"/>
+                  <div>
+                    <h1 className="text-2xl font-black text-gray-900 tracking-tight">e-TRAVEL WORLD</h1>
+                    <p className="text-xs text-primary tracking-widest uppercase font-semibold">AGENCY</p>
+                  </div>
+                </div>
+    
+                <nav className="hidden md:flex items-center space-x-8 lg:space-x-12">
+                  <Link to="/" className="text-gray-700 hover:text-primary transition-colors font-semibold text-base">Accueil</Link>
+                  <Link to="/about" className="text-gray-700 hover:text-primary transition-colors font-semibold text-base">À propos</Link>
+                  <Link to="/city-tour" className="text-gray-700 hover:text-primary transition-colors font-semibold text-base">City Tour</Link>
+                  <a href="#contact" className="text-gray-700 hover:text-primary transition-colors font-semibold text-base">Contact</a>
+                </nav>
+                
+                <div className="hidden md:block">
+                  <Link to="/weekend">
+                    <Button variant="warning" size="sm" className="bg-warning text-gray-900 font-extrabold shadow-md hover:shadow-lg">
+                      OUIKENAC
+                    </Button>
+                  </Link>
+                </div>
+    
+                {/* Mobile Menu Button */}
+                <button
+                  className="md:hidden text-gray-900"
+                  onClick={() => setMenuOpen(!menuOpen)}
+                >
+                  {menuOpen ? <X size={28} /> : <Menu size={28} />}
+                </button>
             </div>
-            <nav className="hidden md:flex items-center space-x-10">
-              <a href="#" className="text-gray-700 hover:text-primary transition-colors font-medium">Accueil</a>
-              <a href="#about" className="text-gray-700 hover:text-primary transition-colors font-medium">À propos</a>
-              {/* Utilisation de la couleur warning pour OUIKENAC */}
-              <a href="#packages" className="px-6 py-2 bg-warning text-gray-900 font-bold rounded-full transition-all hover:bg-warning/90 hover:shadow-lg">
-                OUIKENAC
-              </a>
-            </nav>
-            <button 
-              onClick={() => setMenuOpen(!menuOpen)} 
-              className="md:hidden text-gray-700 hover:text-primary"
-            >
-              {menuOpen ? <X size={28} /> : <Menu size={28} />}
-            </button>
-          </div>
-        </div>
-      </header>
+    
+            {/* Mobile Menu */}
+            {menuOpen && (
+              <div className="md:hidden bg-white shadow-xl pt-4 pb-6 px-4 absolute w-full transition-all duration-300 border-t border-gray-100">
+                <nav className="flex flex-col space-y-3">
+                  <Link to="/" className="text-gray-700 hover:text-primary py-3 text-base font-medium" onClick={() => setMenuOpen(false)}>Accueil</Link>
+                  <Link to="/about" className="text-gray-700 hover:text-primary py-3 text-base font-medium" onClick={() => setMenuOpen(false)}>À propos</Link>
+                  <Link to="/weekend" className="text-warning hover:text-warning/80 py-3 text-base font-extrabold" onClick={() => setMenuOpen(false)}>OUIKENAC</Link>
+                  <Link to="/city-tour" className="text-gray-700 hover:text-primary py-3 text-base font-medium" onClick={() => setMenuOpen(false)}>City Tour</Link>
+                  <a href="#contact" className="text-gray-700 hover:text-primary py-3 text-base font-medium" onClick={() => setMenuOpen(false)}>Contactez-nous</a>
+                </nav>
+              </div>
+            )}
+          </header>
 
       {/* Mobile Menu */}
       <div className={`fixed top-20 left-0 right-0 z-40 bg-white shadow-xl md:hidden transition-transform duration-300 ${menuOpen ? 'translate-y-0' : '-translate-y-full'}`}>
