@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Users, Package, MapPin, TrendingUp, DollarSign, Calendar, Settings, Home, Globe, Building, Plane, Compass, Navigation, Menu, X, Upload, Loader2, CheckCircle, AlertCircle, XCircle, Edit2, Trash2, Plus, CornerDownRight, Info } from 'lucide-react';
+import { Users, Package, MapPin, TrendingUp, DollarSign, Calendar, Settings, Home, Globe, Building, Plane, Compass, Navigation, Menu, X, Upload, Loader2, CheckCircle, AlertCircle, XCircle, Edit2, Trash2, Plus, CornerDownRight, Info, Map, Zap, Aperture } from 'lucide-react';
 import axios from 'axios';
 
 const API_BASE = 'https://etravelbackend-production.up.railway.app/api';
@@ -22,7 +22,10 @@ const getReservationType = (reservation) => {
 
 const formatPrice = (price) => {
   if (!price) return 'N/A';
-  return parseFloat(price).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  // Assurez-vous que le prix est un nombre avant d'appeler toFixed
+  const numPrice = parseFloat(price);
+  if (isNaN(numPrice)) return 'N/A';
+  return numPrice.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 };
 
 // --- API CLIENT ---
@@ -101,6 +104,7 @@ const AdminDashboard = () => {
   const [modalType, setModalType] = useState(null); // 'country', 'destination', 'ouikenac', 'cityTour'
   const [isEdit, setIsEdit] = useState(false);
   const [editForm, setEditForm] = useState({});
+  // MISE À JOUR : Ajout des relations ville de départ/arrivée pour OuikenacPrice
   const [editRelations, setEditRelations] = useState({ prices: [], additionalCities: [], inclusions: [] }); // Specific for Ouikenac
   
   // NOUVEAU: État pour l'ajout de ville dans la modale pays
@@ -130,11 +134,11 @@ const AdminDashboard = () => {
         // S'assurer que les pays chargent bien les villes
         fetch(`${API_BASE}/countries?with=cities`).then(r => r.ok ? r.json() : Promise.reject(new Error('Erreur pays'))),
         
-        // Charger le pays de départ pour les destinations
+        // Charger le pays de départ pour les destinations (et tous les détails si la structure le permet)
         fetch(`${API_BASE}/destinations?with=departureCountry`).then(r => r.ok ? r.json() : Promise.reject(new Error('Erreur destinations'))),
         
-        // Charger les relations complexes de Ouikenac
-        fetch(`${API_BASE}/ouikenac?with=prices.departureCountry,prices.arrivalCountry,additionalCities.city.country,inclusions`).then(r => r.ok ? r.json() : Promise.reject(new Error('Erreur Ouikenac'))),
+        // MISE À JOUR : Charger les villes de départ/arrivée pour les prix Ouikenac
+        fetch(`${API_BASE}/ouikenac?with=prices.departureCountry,prices.arrivalCountry,prices.departureCity,prices.arrivalCity,additionalCities.city.country,inclusions`).then(r => r.ok ? r.json() : Promise.reject(new Error('Erreur Ouikenac'))),
         
         // Charger la ville du City Tour et son pays associé
         fetch(`${API_BASE}/city-tours?with=city.country`).then(r => r.ok ? r.json() : Promise.reject(new Error('Erreur City Tours'))),
@@ -171,7 +175,88 @@ const AdminDashboard = () => {
 
     const chartData = Object.entries(reservationsByType).map(([name, value]) => ({ name, value }));
     
-    return { totalReservations, totalRevenue, totalPackages, reservationsByType, chartData };
+    // Packages Count by Country (pour le Bar Chart)
+    const packagesByCountry = {};
+    destinations.forEach(d => {
+        const countryName = d.departure_country?.name || 'Inconnu';
+        if (countryName === 'Inconnu') return;
+        packagesByCountry[countryName] = packagesByCountry[countryName] || { destinations: 0, ouikenacs: 0, cityTours: 0, total: 0 };
+        packagesByCountry[countryName].destinations += 1;
+        packagesByCountry[countryName].total += 1;
+    });
+
+    ouikenacs.forEach(o => {
+        o.prices?.forEach(p => {
+            const depCountryName = p.departure_country?.name || 'Inconnu';
+            const arrCountryName = p.arrival_country?.name || 'Inconnu';
+            
+            if (depCountryName !== 'Inconnu') {
+                packagesByCountry[depCountryName] = packagesByCountry[depCountryName] || { destinations: 0, ouikenacs: 0, cityTours: 0, total: 0 };
+                packagesByCountry[depCountryName].ouikenacs += 1;
+                packagesByCountry[depCountryName].total += 1;
+            }
+
+            if (arrCountryName !== 'Inconnu' && depCountryName !== arrCountryName) {
+                packagesByCountry[arrCountryName] = packagesByCountry[arrCountryName] || { destinations: 0, ouikenacs: 0, cityTours: 0, total: 0 };
+                packagesByCountry[arrCountryName].ouikenacs += 1;
+                packagesByCountry[arrCountryName].total += 1;
+            }
+        });
+    });
+
+    cityTours.forEach(t => {
+        const countryName = t.city?.country?.name || 'Inconnu';
+        if (countryName === 'Inconnu') return;
+        packagesByCountry[countryName] = packagesByCountry[countryName] || { destinations: 0, ouikenacs: 0, cityTours: 0, total: 0 };
+        packagesByCountry[countryName].cityTours += 1;
+        packagesByCountry[countryName].total += 1;
+    });
+    
+    const packagesByCountryChartData = Object.entries(packagesByCountry)
+        .map(([name, data]) => ({ name, ...data }))
+        .sort((a, b) => b.total - a.total);
+        
+    // NOUVEAU: Évolution des Revenus Mensuels Estimés
+    const monthlyRevenue = reservations.reduce((acc, r) => {
+        if (r.created_at && r.price) {
+            const date = new Date(r.created_at);
+            const monthYear = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+            acc[monthYear] = (acc[monthYear] || 0) + parseFloat(r.price);
+        }
+        return acc;
+    }, {});
+
+    const monthlyRevenueChartData = Object.entries(monthlyRevenue)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([name, revenue]) => ({ 
+            name: new Date(name).toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' }), 
+            Revenue: Math.round(revenue) 
+        }));
+        
+    // NOUVEAU: Taux de Conversion des Destinations (Exemple basé sur les réservations par package)
+    const destinationReservationCounts = reservations.filter(r => getReservationType(r) === 'Destination').reduce((acc, r) => {
+        const packageId = r.reservable?.id;
+        if (packageId) {
+            acc[packageId] = (acc[packageId] || 0) + 1;
+        }
+        return acc;
+    }, {});
+    
+    const maxReservations = Object.values(destinationReservationCounts).length > 0 ? Math.max(...Object.values(destinationReservationCounts)) : 1;
+    // On calcule un "score de popularité" ici, si la vraie conversion (vues/réservation) n'est pas dispo
+    const conversionScore = destinations.reduce((sum, d) => sum + (destinationReservationCounts[d.id] || 0), 0) / (destinations.length || 1);
+
+
+    return { 
+        totalReservations, 
+        totalRevenue, 
+        totalPackages, 
+        reservationsByType, 
+        chartData, 
+        packagesByCountryChartData,
+        monthlyRevenueChartData, // Nouvelle Statistique
+        conversionScore: conversionScore > 0 ? conversionScore.toFixed(1) : '0' // Nouvelle Statistique (Exemple)
+    };
   }, [reservations, destinations, ouikenacs, cityTours]);
 
   // --- MODAL & FORM LOGIC ---
@@ -202,7 +287,7 @@ const AdminDashboard = () => {
       const defaultForms = {
         country: { name: '', code: '' },
         destination: { title: '', description: '', departure_country_id: '' },
-        ouikenac: { title: '', description: '', duration: 'Week-end', period: 'Tous les week-ends', active: true },
+        ouikenac: { title: '', description: 'Package week-end vers une destination de votre choix', active: true }, // 'duration' retiré
         cityTour: { name: '', description: '', price: 0, currency: 'CFA', country_id: '', city_id: '' }
       };
       setEditForm(defaultForms[type] || {});
@@ -238,17 +323,22 @@ const AdminDashboard = () => {
       // Ajouter les relations pour Ouikenac
       let payload = data;
       if (modalType === 'ouikenac') {
+        // Enlève le champ 'duration' s'il existe (bien qu'il soit déjà retiré du formulaire)
+        const { duration, ...rest } = data; 
+        
         payload = {
-            ...data,
+            ...rest,
             prices: editRelations.prices.map(p => ({
                 ...p,
-                // Ensure IDs are numbers for the backend
+                // Assurez-vous que les IDs pays/ville sont des nombres pour le backend
                 departure_country_id: parseInt(p.departure_country_id),
                 arrival_country_id: parseInt(p.arrival_country_id),
+                departure_city_id: parseInt(p.departure_city_id) || null, // NOUVEAU
+                arrival_city_id: parseInt(p.arrival_city_id) || null,     // NOUVEAU
                 min_people: parseInt(p.min_people),
                 max_people: parseInt(p.max_people),
                 price: parseFloat(p.price),
-            })),
+            })).filter(p => !isNaN(p.departure_country_id) && !isNaN(p.arrival_country_id) && p.price >= 0),
             additional_cities: editRelations.additionalCities.map(ac => ({
                 ...ac,
                 city_id: parseInt(ac.city_id)
@@ -260,13 +350,8 @@ const AdminDashboard = () => {
       await api({ method, url, data: payload });
       showNotification(successMessage, 'success');
       
-      // Si on crée un pays, on ferme la modale. Si on modifie, on recharge pour garder les données à jour
-      // (important si on modifie le nom dans la modale et qu'on veut ajouter une ville après)
       if (modalType === 'country' && isEdit) {
-          // On recharge les données pour mettre à jour la liste des pays (nécessaire pour la sidebar/table)
           await loadData();
-          
-          // On met à jour l'état de la modale avec les nouvelles données du pays
           const updatedCountry = countries.find(c => c.id === data.id);
           if (updatedCountry) {
               setEditForm(updatedCountry);
@@ -308,14 +393,11 @@ const AdminDashboard = () => {
     }
     setSubmitting(true);
     try {
-        // Supposons une route Laravel: POST /api/countries/{id}/cities
         await api.post(`${API_BASE}/countries/${countryId}/cities`, { name: cityName });
         showNotification('Ville ajoutée avec succès.', 'success');
         
-        // Rafraîchir les données et mettre à jour l'état de la modale
         await loadData();
         
-        // Mettre à jour l'état de la modale avec les données complètes du pays
         const updatedCountry = countries.find(c => c.id === countryId);
         if (updatedCountry) {
             setEditForm(updatedCountry);
@@ -335,14 +417,11 @@ const AdminDashboard = () => {
 
       setSubmitting(true);
       try {
-          // Supposons une route Laravel: DELETE /api/cities/{id}
           await api.delete(`${API_BASE}/cities/${cityId}`);
           showNotification('Ville supprimée.', 'success');
           
-          // Rafraîchir les données et mettre à jour l'état de la modale
           await loadData();
           
-          // Mettre à jour l'état de la modale en filtrant la ville supprimée
           setEditForm(prev => ({
               ...prev,
               cities: prev.cities.filter(c => c.id !== cityId)
@@ -356,14 +435,15 @@ const AdminDashboard = () => {
   };
 
   // --- OUICKENAC RELATION MANAGEMENT ---
-  // (Le code de gestion des relations Ouikenac reste inchangé)
-
+  
   const handleAddPrice = () => {
     setEditRelations(prev => ({
         ...prev,
         prices: [...prev.prices, { 
             departure_country_id: '', 
             arrival_country_id: '', 
+            departure_city_id: '', // NOUVEAU
+            arrival_city_id: '',     // NOUVEAU
             min_people: 1, 
             max_people: 2, 
             price: 0, 
@@ -375,6 +455,15 @@ const AdminDashboard = () => {
   const handleUpdatePrice = (index, field, value) => {
     const updatedPrices = [...editRelations.prices];
     updatedPrices[index][field] = value;
+    
+    // Si on change le pays de départ/arrivée, on réinitialise la ville correspondante
+    if (field === 'departure_country_id') {
+        updatedPrices[index].departure_city_id = '';
+    }
+    if (field === 'arrival_country_id') {
+        updatedPrices[index].arrival_city_id = '';
+    }
+    
     setEditRelations(prev => ({ ...prev, prices: updatedPrices }));
   };
 
@@ -425,6 +514,41 @@ const AdminDashboard = () => {
     }));
   };
   
+  // Fonction utilitaire pour trouver le pays/ville associé à un ID
+  const getCountryName = (id) => countries.find(c => c.id === id)?.name || 'N/A';
+  const getCityName = (id) => cities.find(c => c.id === id)?.name || 'Toutes Villes';
+  
+  // Fonction pour obtenir le pays/ville de départ/arrivée d'un Ouikenac pour l'affichage
+  const getOuikenacPriceDetails = (o) => {
+      const firstPrice = o.prices?.[0];
+      if (!firstPrice) return { display: 'Aucun tarif', dep: 'N/A', arr: 'N/A', depCity: 'N/A', arrCity: 'N/A' };
+      
+      const depCountry = getCountryName(firstPrice.departure_country_id);
+      const arrCountry = getCountryName(firstPrice.arrival_country_id);
+      const depCity = getCityName(firstPrice.departure_city_id); // NOUVEAU
+      const arrCity = getCityName(firstPrice.arrival_city_id);   // NOUVEAU
+      const priceDisplay = `${formatPrice(firstPrice.price)} ${firstPrice.currency}`;
+      
+      const depLabel = `${depCity} (${depCountry})`;
+      const arrLabel = `${arrCity} (${arrCountry})`;
+      
+      return { 
+          display: `${priceDisplay} (De ${depLabel} à ${arrLabel})`, 
+          dep: depCountry, 
+          arr: arrCountry,
+          depCity: depCity,
+          arrCity: arrCity
+      };
+  };
+  
+  // Helper pour filtrer les villes par Pays ID
+  const getCitiesByCountryId = (countryId) => {
+      const id = parseInt(countryId);
+      if (!id) return [];
+      return cities.filter(c => c.country_id === id);
+  };
+
+
   // --- RENDER MODAL CONTENT ---
 
   const renderModalContent = () => {
@@ -448,7 +572,7 @@ const AdminDashboard = () => {
             </div>
           </div>
           
-          {/* NOUVEAU: Gestion des Villes (uniquement en modification) */}
+          {/* Gestion des Villes (uniquement en modification) */}
           {isEdit && (
               <div className="mt-8 border-t pt-6 border-gray-100">
                   <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2"><MapPin size={20} className="text-primary" /> Gestion des Villes</h3>
@@ -488,7 +612,6 @@ const AdminDashboard = () => {
                   </div>
               </div>
           )}
-          {/* Fin NOUVEAU: Gestion des Villes */}
           
           <button onClick={() => handleCreateOrUpdate('countries', editForm, isEdit ? 'Pays mis à jour.' : 'Pays créé.')} disabled={submitting} className="w-full mt-6 bg-primary text-white py-2 rounded-lg font-medium transition hover:bg-primary/90 disabled:opacity-50">
             {submitting ? 'Envoi en cours...' : (isEdit ? 'Enregistrer les modifications du Pays' : 'Créer le Pays')}
@@ -508,17 +631,16 @@ const AdminDashboard = () => {
                         <input type="text" name="title" value={editForm.title || ''} onChange={handleFormChange} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:border-primary focus:ring-primary" />
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-gray-700">Description</label>
+                        <label className="block text-sm font-medium text-gray-700">Description (Détails)</label>
                         <textarea name="description" value={editForm.description || ''} onChange={handleFormChange} rows="3" required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:border-primary focus:ring-primary" />
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-gray-700">Pays de Départ</label>
-                        <select name="departure_country_id" value={editForm.departure_country_id || ''} onChange={handleFormChange} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:border-primary focus:ring-primary">
+                        <label className="block text-sm font-medium text-gray-700">Pays de Départ (Pour la liaison)</label>
+                        <select name="departure_country_id" value={editForm.departure_country_id || editForm.departure_country?.id || ''} onChange={handleFormChange} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:border-primary focus:ring-primary">
                             <option value="">Sélectionnez un pays</option>
                             {countries.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
                     </div>
-                    {/* Add other fields like price, image_url, etc. here if needed */}
                 </div>
                 <button onClick={() => handleCreateOrUpdate('destinations', editForm, isEdit ? 'Destination mise à jour.' : 'Destination créée.')} disabled={submitting} className="w-full mt-6 bg-primary text-white py-2 rounded-lg font-medium transition hover:bg-primary/90 disabled:opacity-50">
                     {submitting ? 'Envoi en cours...' : (isEdit ? 'Enregistrer les modifications' : 'Créer la Destination')}
@@ -550,44 +672,69 @@ const AdminDashboard = () => {
                         <label className="block text-sm font-medium text-gray-700">Description</label>
                         <textarea name="description" value={editForm.description || ''} onChange={handleFormChange} rows="3" required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:border-primary focus:ring-primary" />
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Durée</label>
-                            <input type="text" name="duration" value={editForm.duration || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:border-primary focus:ring-primary" />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Période</label>
-                            <input type="text" name="period" value={editForm.period || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:border-primary focus:ring-primary" />
-                        </div>
-                    </div>
                     
                     {/* Tarifs (Prices) */}
                     <div className="border p-4 rounded-lg bg-primary/10 border-primary/20">
-                        <h3 className="text-lg font-bold text-primary mb-3 flex items-center gap-2"><DollarSign size={20} /> Tarifs (Grilles de Prix)</h3>
+                        <h3 className="text-lg font-bold text-primary mb-3 flex items-center gap-2"><DollarSign size={20} /> Grilles de Prix (Pays/Ville Départ - Pays/Ville Arrivée)</h3>
                         <div className="space-y-4">
-                            {editRelations.prices.map((price, index) => (
-                                <div key={index} className="bg-white p-3 rounded-lg shadow-sm border border-gray-200">
-                                    <div className="grid grid-cols-4 gap-4 mb-2">
-                                        <select value={price.departure_country_id || ''} onChange={(e) => handleUpdatePrice(index, 'departure_country_id', e.target.value)} required className="col-span-2 block w-full border border-gray-300 rounded-md p-2 text-sm focus:border-primary">
-                                            <option value="">Départ</option>
-                                            {countries.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                        </select>
-                                        <select value={price.arrival_country_id || ''} onChange={(e) => handleUpdatePrice(index, 'arrival_country_id', e.target.value)} required className="col-span-2 block w-full border border-gray-300 rounded-md p-2 text-sm focus:border-primary">
-                                            <option value="">Arrivée</option>
-                                            {countries.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                        </select>
+                            {editRelations.prices.map((price, index) => {
+                                // Obtenir les villes disponibles pour les pays sélectionnés
+                                const depCities = getCitiesByCountryId(price.departure_country_id);
+                                const arrCities = getCitiesByCountryId(price.arrival_country_id);
+
+                                return (
+                                    <div key={index} className="bg-white p-3 rounded-lg shadow-sm border border-gray-200">
                                         
-                                        <input type="number" placeholder="Min Pers." value={price.min_people || 1} onChange={(e) => handleUpdatePrice(index, 'min_people', e.target.value)} required className="col-span-1 block w-full border border-gray-300 rounded-md p-2 text-sm focus:border-primary" />
-                                        <input type="number" placeholder="Max Pers." value={price.max_people || 2} onChange={(e) => handleUpdatePrice(index, 'max_people', e.target.value)} required className="col-span-1 block w-full border border-gray-300 rounded-md p-2 text-sm focus:border-primary" />
-                                        <input type="number" placeholder="Prix" value={price.price || 0} onChange={(e) => handleUpdatePrice(index, 'price', e.target.value)} required className="col-span-1 block w-full border border-gray-300 rounded-md p-2 text-sm focus:border-primary" />
-                                        <select value={price.currency || 'CFA'} onChange={(e) => handleUpdatePrice(index, 'currency', e.target.value)} className="col-span-1 block w-full border border-gray-300 rounded-md p-2 text-sm focus:border-primary">
-                                            <option value="CFA">CFA</option>
-                                            <option value="USD">USD</option>
-                                        </select>
-                                        <button onClick={() => handleRemovePrice(index)} className="col-span-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition text-sm">Supprimer</button>
+                                        {/* Ligne 1: Pays de Départ/Arrivée */}
+                                        <div className="grid grid-cols-2 gap-4 mb-2">
+                                            <div>
+                                                <label className="block text-xs font-medium text-gray-500 mb-1">Pays de Départ</label>
+                                                <select value={price.departure_country_id || ''} onChange={(e) => handleUpdatePrice(index, 'departure_country_id', e.target.value)} required className="block w-full border border-gray-300 rounded-md p-2 text-sm focus:border-primary">
+                                                    <option value="">Pays de Départ *</option>
+                                                    {countries.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-medium text-gray-500 mb-1">Pays d'Arrivée</label>
+                                                <select value={price.arrival_country_id || ''} onChange={(e) => handleUpdatePrice(index, 'arrival_country_id', e.target.value)} required className="block w-full border border-gray-300 rounded-md p-2 text-sm focus:border-primary">
+                                                    <option value="">Pays d'Arrivée *</option>
+                                                    {countries.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                                </select>
+                                            </div>
+                                        </div>
+                                        
+                                        {/* Ligne 2: Villes de Départ/Arrivée (Nouveau) */}
+                                        <div className="grid grid-cols-2 gap-4 mb-3">
+                                            <div>
+                                                <label className="block text-xs font-medium text-gray-500 mb-1">Ville de Départ</label>
+                                                <select value={price.departure_city_id || ''} onChange={(e) => handleUpdatePrice(index, 'departure_city_id', e.target.value)} disabled={!price.departure_country_id} className="block w-full border border-gray-300 rounded-md p-2 text-sm focus:border-primary">
+                                                    <option value="">Toutes Villes du Pays</option>
+                                                    {depCities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-medium text-gray-500 mb-1">Ville d'Arrivée</label>
+                                                <select value={price.arrival_city_id || ''} onChange={(e) => handleUpdatePrice(index, 'arrival_city_id', e.target.value)} disabled={!price.arrival_country_id} className="block w-full border border-gray-300 rounded-md p-2 text-sm focus:border-primary">
+                                                    <option value="">Toutes Villes du Pays</option>
+                                                    {arrCities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        {/* Ligne 3: Personnes/Prix/Actions */}
+                                        <div className="grid grid-cols-5 gap-2 items-end">
+                                            <input type="number" placeholder="Min Pers." value={price.min_people || 1} onChange={(e) => handleUpdatePrice(index, 'min_people', e.target.value)} required className="col-span-1 block w-full border border-gray-300 rounded-md p-2 text-sm focus:border-primary" />
+                                            <input type="number" placeholder="Max Pers." value={price.max_people || 2} onChange={(e) => handleUpdatePrice(index, 'max_people', e.target.value)} required className="col-span-1 block w-full border border-gray-300 rounded-md p-2 text-sm focus:border-primary" />
+                                            <input type="number" placeholder="Prix" value={price.price || 0} onChange={(e) => handleUpdatePrice(index, 'price', e.target.value)} required className="col-span-1 block w-full border border-gray-300 rounded-md p-2 text-sm focus:border-primary" />
+                                            <select value={price.currency || 'CFA'} onChange={(e) => handleUpdatePrice(index, 'currency', e.target.value)} className="col-span-1 block w-full border border-gray-300 rounded-md p-2 text-sm focus:border-primary">
+                                                <option value="CFA">CFA</option>
+                                                <option value="USD">USD</option>
+                                            </select>
+                                            <button onClick={() => handleRemovePrice(index)} className="col-span-1 bg-red-500 text-white p-2 rounded-md hover:bg-red-600 transition text-sm flex items-center justify-center"><Trash2 size={16} /></button>
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                             <button onClick={handleAddPrice} className="w-full bg-secondary text-white py-2 rounded-lg font-medium transition hover:bg-secondary/90 flex items-center justify-center gap-2"><Plus size={16} /> Ajouter Tarif</button>
                         </div>
                     </div>
@@ -606,18 +753,18 @@ const AdminDashboard = () => {
                         </div>
                     </div>
                     
-                    {/* Villes Additionnelles */}
+                    {/* Villes Additionnelles (escales / visites) */}
                     <div className="border p-4 rounded-lg bg-warning/20 border-warning/50">
-                        <h3 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2"><MapPin size={20} className="text-warning" /> Villes Supplémentaires</h3>
+                        <h3 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2"><MapPin size={20} className="text-warning" /> Villes Supplémentaires (Escales/Visites)</h3>
                         <div className="space-y-2">
                             {editRelations.additionalCities.map((ac, index) => (
                                 <div key={index} className="flex gap-2">
                                     <select value={ac.city_id || ''} onChange={(e) => handleUpdateAdditionalCity(index, 'city_id', e.target.value)} required className="flex-1 block w-full border border-gray-300 rounded-md p-2 text-sm focus:border-warning">
                                         <option value="">Sélectionnez une Ville</option>
-                                        {cities.map(city => <option key={city.id} value={city.id}>{city.name} ({countries.find(c => c.id === city.country_id)?.code})</option>)}
+                                        {cities.map(city => <option key={city.id} value={city.id}>{city.name} ({getCountryName(city.country_id)})</option>)}
                                     </select>
                                     <select value={ac.type || 'stopover'} onChange={(e) => handleUpdateAdditionalCity(index, 'type', e.target.value)} required className="block w-40 border border-gray-300 rounded-md p-2 text-sm focus:border-warning">
-                                        <option value="stopover">Étape</option>
+                                        <option value="stopover">Étape (Escale)</option>
                                         <option value="visit">Visite</option>
                                     </select>
                                     <button onClick={() => handleRemoveAdditionalCity(index)} className="bg-red-500 text-white p-2 rounded-md hover:bg-red-600 transition"><Trash2 size={16} /></button>
@@ -646,7 +793,7 @@ const AdminDashboard = () => {
                         <input type="text" name="name" value={editForm.name || ''} onChange={handleFormChange} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:border-primary focus:ring-primary" />
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-gray-700">Description</label>
+                        <label className="block text-sm font-medium text-gray-700">Description (Détails)</label>
                         <textarea name="description" value={editForm.description || ''} onChange={handleFormChange} rows="3" required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:border-primary focus:ring-primary" />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
@@ -662,6 +809,7 @@ const AdminDashboard = () => {
                             </select>
                         </div>
                     </div>
+                    {/* Pour l'édition, on utilise la valeur existante, sinon on utilise country_id pour filtrer */}
                     <div>
                         <label className="block text-sm font-medium text-gray-700">Pays (pour filtrer la ville)</label>
                         <select 
@@ -677,9 +825,16 @@ const AdminDashboard = () => {
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700">Ville du Tour</label>
-                        <select name="city_id" value={editForm.city_id || editForm.city?.id || ''} onChange={handleFormChange} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:border-primary focus:ring-primary" disabled={!editForm.country_id && !editForm.city?.country_id}>
+                        <select 
+                            name="city_id" 
+                            value={editForm.city_id || editForm.city?.id || ''} 
+                            onChange={handleFormChange} 
+                            required 
+                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:border-primary focus:ring-primary" 
+                            disabled={!editForm.country_id && !editForm.city?.country_id}
+                        >
                             <option value="">Sélectionnez la ville *</option>
-                            {cities.filter(c => c.country_id === (editForm.country_id || editForm.city?.country_id)).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                            {cities.filter(c => c.country_id === (parseInt(editForm.country_id) || editForm.city?.country_id)).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
                     </div>
                 </div>
@@ -698,8 +853,10 @@ const AdminDashboard = () => {
     
     // --- DASHBOARD VIEW ---
     if (activeTab === 'dashboard') {
-        const { totalReservations, totalRevenue, totalPackages, chartData } = dashboardData;
+        const { totalReservations, totalRevenue, totalPackages, chartData, packagesByCountryChartData, monthlyRevenueChartData, conversionScore } = dashboardData;
         const RADIAN = Math.PI / 180;
+        
+        // Custom label for Pie Chart
         const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, index, name }) => {
             const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
             const x = cx + radius * Math.cos(-midAngle * RADIAN);
@@ -713,6 +870,12 @@ const AdminDashboard = () => {
         };
         
         const PIE_COLORS = ['#1b5e8e', '#f18f13', '#007335', '#f7b406'];
+        const BAR_COLORS = {
+            destinations: '#1b5e8e', // Primary
+            ouikenacs: '#f18f13',    // Secondary
+            cityTours: '#007335'     // Green
+        };
+
 
         return (
             <div className="space-y-10">
@@ -735,16 +898,19 @@ const AdminDashboard = () => {
                         value={totalPackages} 
                         color="secondary" 
                     />
+                    {/* NOUVEAU: Taux de Conversion */}
                     <StatCard 
-                        icon={Users} 
-                        title="Utilisateurs" 
-                        value="N/A" 
+                        icon={Zap} 
+                        title="Score de Conversion" 
+                        value={`${conversionScore} / Destination`} 
                         color="warning" 
+                        tooltip="Nombre moyen de réservations par Destination (Indice de popularité)"
                     />
                 </div>
                 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-                    <div className="bg-white p-6 rounded-xl shadow-lg">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+                    {/* Chart 1: Réservations par Type */}
+                    <div className="bg-white p-6 rounded-xl shadow-lg lg:col-span-1">
                         <h3 className="text-xl font-bold mb-4 text-gray-800 flex items-center gap-2"><Calendar size={20} className="text-primary" /> Réservations par Type</h3>
                         <ResponsiveContainer width="100%" height={300}>
                             <PieChart>
@@ -768,13 +934,37 @@ const AdminDashboard = () => {
                         </ResponsiveContainer>
                     </div>
                     
-                    <div className="bg-white p-6 rounded-xl shadow-lg">
-                        <h3 className="text-xl font-bold mb-4 text-gray-800 flex items-center gap-2"><MapPin size={20} className="text-primary" /> Packages par Pays</h3>
-                        <div className="text-gray-600">
-                            {/* Simple text display for now, can be replaced by a BarChart */}
-                            <p className="p-3 bg-gray-50 rounded-lg">Fonctionnalité de répartition géographique à venir.</p>
-                        </div>
+                    {/* Chart 2: Packages par Pays */}
+                    <div className="bg-white p-6 rounded-xl shadow-lg lg:col-span-2">
+                        <h3 className="text-xl font-bold mb-4 text-gray-800 flex items-center gap-2"><Globe size={20} className="text-primary" /> Packages par Pays</h3>
+                        <ResponsiveContainer width="100%" height={300}>
+                            <BarChart data={packagesByCountryChartData} margin={{ top: 5, right: 30, left: 20, bottom: 50 }}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                <XAxis dataKey="name" angle={-45} textAnchor="end" height={60} interval={0} stroke="#4b5563" style={{ fontSize: '12px' }} />
+                                <YAxis allowDecimals={false} stroke="#4b5563" />
+                                <Tooltip formatter={(value, name) => [value, name.charAt(0).toUpperCase() + name.slice(1)]} />
+                                <Legend wrapperStyle={{ paddingTop: '20px' }} />
+                                <Bar dataKey="destinations" stackId="a" fill={BAR_COLORS.destinations} name="Destinations" />
+                                <Bar dataKey="ouikenacs" stackId="a" fill={BAR_COLORS.ouikenacs} name="Ouikenacs" />
+                                <Bar dataKey="cityTours" stackId="a" fill={BAR_COLORS.cityTours} name="City Tours" />
+                            </BarChart>
+                        </ResponsiveContainer>
                     </div>
+                </div>
+                
+                {/* NOUVEAU: Chart 3: Évolution des Revenus Mensuels */}
+                <div className="bg-white p-6 rounded-xl shadow-lg">
+                    <h3 className="text-xl font-bold mb-4 text-gray-800 flex items-center gap-2"><Aperture size={20} className="text-primary" /> Évolution des Revenus Mensuels (Estimé)</h3>
+                    <ResponsiveContainer width="100%" height={300}>
+                        <LineChart data={monthlyRevenueChartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                            <XAxis dataKey="name" stroke="#4b5563" style={{ fontSize: '12px' }} />
+                            <YAxis tickFormatter={(value) => `${formatPrice(value)} CFA`} stroke="#4b5563" />
+                            <Tooltip formatter={(value) => [`${formatPrice(value)} CFA`, 'Revenu']} />
+                            <Legend />
+                            <Line type="monotone" dataKey="Revenue" stroke="#1b5e8e" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 8 }} />
+                        </LineChart>
+                    </ResponsiveContainer>
                 </div>
             </div>
         );
@@ -824,10 +1014,10 @@ const AdminDashboard = () => {
                         { header: 'Villes', accessor: (c) => c.cities?.length || 0 },
                         { header: 'Actions', accessor: 'actions', render: (c) => (
                             <div className="flex gap-2">
-                                <button onClick={() => openModal('country', c)} className="text-primary hover:text-primary/90 transition">
+                                <button onClick={() => openModal('country', c)} className="text-primary hover:text-primary/90 transition" title="Modifier le pays et gérer les villes">
                                     <Edit2 size={20} />
                                 </button>
-                                <button onClick={() => handleDelete('countries', c.id, 'Pays supprimé.')} disabled={submitting} className="text-red-500 hover:text-red-700 disabled:opacity-50 transition">
+                                <button onClick={() => handleDelete('countries', c.id, 'Pays supprimé.')} disabled={submitting} className="text-red-500 hover:text-red-700 disabled:opacity-50 transition" title="Supprimer le pays">
                                     <Trash2 size={20} />
                                 </button>
                             </div>
@@ -851,14 +1041,14 @@ const AdminDashboard = () => {
                     columns={[
                         { header: 'ID', accessor: 'id' },
                         { header: 'Titre', accessor: 'title' },
-                        { header: 'Description', accessor: (d) => `${d.description.substring(0, 50)}...` },
-                        { header: 'Pays Départ', accessor: (d) => d.departure_country?.code || 'N/A' },
+                        { header: 'Description', accessor: (d) => `${d.description.substring(0, 80)}...` },
+                        { header: 'Pays Départ', accessor: (d) => d.departure_country?.name || 'N/A' },
                         { header: 'Actions', accessor: 'actions', render: (d) => (
                             <div className="flex gap-2">
-                                <button onClick={() => openModal('destination', d)} className="text-primary hover:text-primary/90 transition">
+                                <button onClick={() => openModal('destination', d)} className="text-primary hover:text-primary/90 transition" title="Modifier la destination">
                                     <Edit2 size={20} />
                                 </button>
-                                <button onClick={() => handleDelete('destinations', d.id, 'Destination supprimée.')} disabled={submitting} className="text-red-500 hover:text-red-700 disabled:opacity-50 transition">
+                                <button onClick={() => handleDelete('destinations', d.id, 'Destination supprimée.')} disabled={submitting} className="text-red-500 hover:text-red-700 disabled:opacity-50 transition" title="Supprimer la destination">
                                     <Trash2 size={20} />
                                 </button>
                             </div>
@@ -883,17 +1073,20 @@ const AdminDashboard = () => {
                         { header: 'ID', accessor: 'id' },
                         { header: 'Titre', accessor: 'title' },
                         { header: 'Statut', accessor: (o) => o.active ? <span className="text-green font-semibold">Actif</span> : <span className="text-red-500">Inactif</span> },
-                        { header: 'Prix Min', accessor: (o) => {
-                            const minPrice = o.prices?.length ? o.prices.reduce((min, p) => Math.min(min, p.price), Infinity) : 0;
-                            const currency = o.prices?.[0]?.currency || 'CFA';
-                            return `${formatPrice(minPrice)} ${currency}`;
+                        { header: 'Détails Liaison', accessor: (o) => {
+                            const details = getOuikenacPriceDetails(o);
+                            return <span className="font-medium text-primary/80">{details.depCity} ({details.dep}) <CornerDownRight size={14} className="inline-block mx-1" /> {details.arrCity} ({details.arr})</span>;
+                        }},
+                        { header: 'Tarif Min', accessor: (o) => {
+                            const details = getOuikenacPriceDetails(o);
+                            return <span className="font-medium text-secondary">{details.display.split('(')[0].trim()}</span>;
                         }},
                         { header: 'Actions', accessor: 'actions', render: (o) => (
                             <div className="flex gap-2">
-                                <button onClick={() => openModal('ouikenac', o)} className="text-warning hover:text-warning/90 transition">
+                                <button onClick={() => openModal('ouikenac', o)} className="text-warning hover:text-warning/90 transition" title="Modifier le package">
                                     <Edit2 size={20} />
                                 </button>
-                                <button onClick={() => handleDelete('ouikenac', o.id, 'Ouikenac supprimé.')} disabled={submitting} className="text-red-500 hover:text-red-700 disabled:opacity-50 transition">
+                                <button onClick={() => handleDelete('ouikenac', o.id, 'Ouikenac supprimé.')} disabled={submitting} className="text-red-500 hover:text-red-700 disabled:opacity-50 transition" title="Supprimer le package">
                                     <Trash2 size={20} />
                                 </button>
                             </div>
@@ -917,14 +1110,15 @@ const AdminDashboard = () => {
                     columns={[
                         { header: 'ID', accessor: 'id' },
                         { header: 'Nom', accessor: 'name' },
+                        { header: 'Description', accessor: (t) => `${t.description.substring(0, 50)}...` },
                         { header: 'Ville/Pays', accessor: (t) => `${t.city?.name || 'N/A'} (${t.city?.country?.code || 'N/A'})` },
                         { header: 'Prix', accessor: (t) => `${formatPrice(t.price)} ${t.currency}` },
                         { header: 'Actions', accessor: 'actions', render: (t) => (
                             <div className="flex gap-2">
-                                <button onClick={() => openModal('cityTour', t)} className="text-green hover:text-green/90 transition">
+                                <button onClick={() => openModal('cityTour', t)} className="text-green hover:text-green/90 transition" title="Modifier le tour">
                                     <Edit2 size={20} />
                                 </button>
-                                <button onClick={() => handleDelete('city-tours', t.id, 'City Tour supprimé.')} disabled={submitting} className="text-red-500 hover:text-red-700 disabled:opacity-50 transition">
+                                <button onClick={() => handleDelete('city-tours', t.id, 'City Tour supprimé.')} disabled={submitting} className="text-red-500 hover:text-red-700 disabled:opacity-50 transition" title="Supprimer le tour">
                                     <Trash2 size={20} />
                                 </button>
                             </div>
@@ -941,13 +1135,18 @@ const AdminDashboard = () => {
 
   // --- COMPOSANTS DE PRÉSENTATION ---
 
-  const StatCard = ({ icon: Icon, title, value, color }) => (
-    <div className={`bg-white p-6 rounded-xl shadow-lg border-t-4 border-${color} flex items-center justify-between`}>
+  const StatCard = ({ icon: Icon, title, value, color, tooltip }) => (
+    <div className={`bg-white p-6 rounded-xl shadow-lg border-t-4 border-${color} flex items-center justify-between relative group`}>
       <div>
         <p className="text-sm font-medium text-gray-500">{title}</p>
         <p className="text-3xl font-bold text-gray-900 mt-1">{value}</p>
       </div>
       <Icon size={40} className={`text-${color}/60`} />
+      {tooltip && (
+          <div className="absolute top-full mt-2 hidden group-hover:block bg-gray-800 text-white text-xs rounded py-1 px-2 z-50 whitespace-nowrap">
+              {tooltip}
+          </div>
+      )}
     </div>
   );
 
@@ -961,28 +1160,31 @@ const AdminDashboard = () => {
         );
     }
     return (
-        <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-                <tr>
-                    {columns.map(col => (
-                        <th key={col.header} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            {col.header}
-                        </th>
-                    ))}
-                </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-                {data.map(row => (
-                    <tr key={row.id} className="hover:bg-gray-50 transition">
+        // Le overflow-x-auto sur le parent gère la réactivité
+        <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                    <tr>
                         {columns.map(col => (
-                            <td key={col.header} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                {col.render ? col.render(row) : (typeof col.accessor === 'function' ? col.accessor(row) : row[col.accessor])}
-                            </td>
+                            <th key={col.header} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                {col.header}
+                            </th>
                         ))}
                     </tr>
-                ))}
-            </tbody>
-        </table>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                    {data.map(row => (
+                        <tr key={row.id} className="hover:bg-gray-50 transition">
+                            {columns.map(col => (
+                                <td key={col.header} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    {col.render ? col.render(row) : (typeof col.accessor === 'function' ? col.accessor(row) : row[col.accessor])}
+                                </td>
+                            ))}
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
     );
   };
   
@@ -1059,7 +1261,6 @@ const AdminDashboard = () => {
         </div>
 
         {/* Content */}
-        {/* MODIFIÉ: Ajout de lg:ml-64 au conteneur parent (plus sémantique) */}
         <div className="flex-1 lg:ml-64"> 
           <div className="p-4 sm:p-6 lg:p-8">
             <header className="mb-10 bg-white p-6 rounded-xl shadow-md sticky top-0 z-40 flex justify-between items-center">
