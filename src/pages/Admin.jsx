@@ -1748,7 +1748,7 @@ const Modal = ({ type, item, formData, setFormData, imagePreview, setImagePrevie
                       </div>
                       <FormSelect
                         label="Devise"
-                        value={grid.currency || 'CFA'}
+                        value={grid.currency}
                         onChange={(e) => updateGrid(index, 'currency', e.target.value)}
                         options={[
                           { value: 'CFA', label: 'CFA' },
