@@ -421,16 +421,10 @@ const AdminDashboard = () => {
               onClick={() => { setActiveTab('ouikenac-packages'); setSidebarOpen(false); }}
             />
             <NavItem 
-              icon={<Globe />} 
-              label="Pays" 
-              active={activeTab === 'countries'}
-              onClick={() => { setActiveTab('countries'); setSidebarOpen(false); }}
-            />
-            <NavItem 
               icon={<Building2 />} 
-              label="Villes" 
-              active={activeTab === 'cities'}
-              onClick={() => { setActiveTab('cities'); setSidebarOpen(false); }}
+              label="Configuration" 
+              active={activeTab === 'configuration'}
+              onClick={() => { setActiveTab('configuration'); setSidebarOpen(false); }}
             />
           </nav>
         </aside>
@@ -457,8 +451,7 @@ const AdminDashboard = () => {
           {activeTab === 'city-tours' && <CityToursView tours={cityTours} onEdit={(item) => openModal('city-tour', item)} onDelete={(id) => handleDelete('/city-tours', id, loadCityTours)} onAdd={() => openModal('city-tour')} countries={countries} cities={cities} />}
           {activeTab === 'destination-packages' && <DestinationPackagesView packages={destinationPackages} onEdit={(item) => openModal('destination', item)} onDelete={(id) => handleDelete('/destination-packages', id, loadDestinationPackages)} onAdd={() => openModal('destination')} countries={countries} />}
           {activeTab === 'ouikenac-packages' && <OuikenacPackagesView packages={ouikenacPackages} onEdit={(item) => openModal('ouikenac', item)} onDelete={(id) => handleDelete('/ouikenac-packages', id, loadOuikenacPackages)} onAdd={() => openModal('ouikenac')} countries={countries} cities={cities} />}
-          {activeTab === 'countries' && <CountriesView countries={countries} onEdit={(item) => openModal('country', item)} onDelete={(id) => handleDelete('/countries', id, loadCountries)} onAdd={() => openModal('country')} />}
-          {activeTab === 'cities' && <CitiesView cities={cities} countries={countries} onEdit={(item) => openModal('city', item)} onDelete={(id) => handleDelete('/cities', id, loadCities)} onAdd={() => openModal('city')} />}
+          {activeTab === 'configuration' && <ConfigurationView countries={countries} cities={cities} onEditCountry={(item) => openModal('country', item)} onDeleteCountry={(id) => handleDelete('/countries', id, loadCountries)} onAddCountry={() => openModal('country')} onEditCity={(item) => openModal('city', item)} onDeleteCity={(id) => handleDelete('/cities', id, loadCities)} onAddCity={() => openModal('city')} />}
         </main>
       </div>
 
@@ -871,86 +864,278 @@ const OuikenacPackagesView = ({ packages, onEdit, onDelete, onAdd, countries, ci
   />
 );
 
+// Vue Configuration (Pays et Villes)
+const ConfigurationView = ({ countries, cities, onEditCountry, onDeleteCountry, onAddCountry, onEditCity, onDeleteCity, onAddCity }) => {
+  const [configTab, setConfigTab] = useState('countries');
+
+  return (
+    <div className="space-y-4 lg:space-y-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <h2 className="text-xl lg:text-2xl font-bold text-primary">Configuration</h2>
+      </div>
+
+      {/* Onglets */}
+      <div className="bg-white rounded-lg shadow p-2 flex gap-2">
+        <button
+          onClick={() => setConfigTab('countries')}
+          className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-all duration-200
+                      ${configTab === 'countries' 
+                        ? 'bg-primary text-white shadow-md' 
+                        : 'text-gray-700 hover:bg-primary/10 hover:text-primary'}`}
+        >
+          <Globe size={20} />
+          <span>Pays</span>
+          <span className="px-2 py-0.5 rounded-full text-xs bg-white/20 font-semibold">
+            {countries.length}
+          </span>
+        </button>
+        <button
+          onClick={() => setConfigTab('cities')}
+          className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-all duration-200
+                      ${configTab === 'cities' 
+                        ? 'bg-secondary text-white shadow-md' 
+                        : 'text-gray-700 hover:bg-secondary/10 hover:text-secondary'}`}
+        >
+          <Building2 size={20} />
+          <span>Villes</span>
+          <span className="px-2 py-0.5 rounded-full text-xs bg-white/20 font-semibold">
+            {cities.length}
+          </span>
+        </button>
+      </div>
+
+      {/* Contenu selon l'onglet actif */}
+      {configTab === 'countries' && (
+        <CountriesView 
+          countries={countries} 
+          onEdit={onEditCountry} 
+          onDelete={onDeleteCountry} 
+          onAdd={onAddCountry} 
+        />
+      )}
+
+      {configTab === 'cities' && (
+        <CitiesView 
+          cities={cities} 
+          countries={countries}
+          onEdit={onEditCity} 
+          onDelete={onDeleteCity} 
+          onAdd={onAddCity} 
+        />
+      )}
+    </div>
+  );
+};
+
 // Vue Countries
 const CountriesView = ({ countries, onEdit, onDelete, onAdd }) => (
-  <DataTableView
-    title="Pays"
-    data={countries}
-    onAdd={onAdd}
-    onEdit={onEdit}
-    onDelete={onDelete}
-    renderMobileCard={(country) => (
-      <div className="bg-white rounded-lg shadow p-4 space-y-3">
-        <div className="flex justify-between items-start">
-          <div>
-            <h3 className="font-semibold">{country.name}</h3>
-            <p className="text-sm text-gray-600">Code: {country.code}</p>
-          </div>
-        </div>
-        <div className="flex gap-2 pt-2 border-t">
-          <button
-            onClick={() => onEdit(country)}
-            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors font-medium"
-          >
-            <Edit2 size={16} />
-            Modifier
-          </button>
-          <button
-            onClick={() => onDelete(country.id)}
-            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors font-medium"
-          >
-            <Trash2 size={16} />
-            Supprimer
-          </button>
-        </div>
+  <div className="space-y-4">
+    <div className="flex justify-end">
+      <button 
+        onClick={onAdd}
+        className="flex items-center gap-2 px-4 py-2 rounded-lg text-white bg-primary hover:bg-primary/90 hover:shadow-primary-lg transition-all duration-200 font-medium"
+      >
+        <Plus size={16} />
+        <span className="text-sm">Ajouter un pays</span>
+      </button>
+    </div>
+
+    {/* Table Desktop */}
+    <div className="hidden lg:block bg-white rounded-lg shadow overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Code</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nom</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Villes</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200">
+            {countries.map(country => (
+              <tr key={country.id} className="hover:bg-gray-50 transition-colors">
+                <td className="px-6 py-4 whitespace-nowrap font-medium text-primary">{country.code}</td>
+                <td className="px-6 py-4 whitespace-nowrap">{country.name}</td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span className="px-2 py-1 bg-secondary/10 text-secondary rounded-full text-xs font-medium">
+                    {country.cities?.length || 0} ville(s)
+                  </span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => onEdit(country)}
+                      className="p-1 text-primary hover:bg-primary/10 rounded transition-colors"
+                      title="Modifier"
+                    >
+                      <Edit2 size={18} />
+                    </button>
+                    <button
+                      onClick={() => onDelete(country.id)}
+                      className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
+                      title="Supprimer"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
-    )}
-    columns={[
-      { key: 'code', label: 'Code' },
-      { key: 'name', label: 'Nom' }
-    ]}
-  />
+      {countries.length === 0 && (
+        <div className="p-8 text-center text-gray-500">
+          Aucun pays disponible
+        </div>
+      )}
+    </div>
+
+    {/* Cards Mobile */}
+    <div className="lg:hidden space-y-4">
+      {countries.length === 0 ? (
+        <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">
+          Aucun pays disponible
+        </div>
+      ) : (
+        countries.map(country => (
+          <div key={country.id} className="bg-white rounded-lg shadow p-4 space-y-3">
+            <div className="flex justify-between items-start">
+              <div className="flex-1">
+                <h3 className="font-semibold text-lg">{country.name}</h3>
+                <p className="text-sm text-gray-600">Code: <span className="text-primary font-medium">{country.code}</span></p>
+                <span className="inline-block mt-2 px-2 py-1 bg-secondary/10 text-secondary rounded-full text-xs font-medium">
+                  {country.cities?.length || 0} ville(s)
+                </span>
+              </div>
+            </div>
+            <div className="flex gap-2 pt-2 border-t">
+              <button
+                onClick={() => onEdit(country)}
+                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors font-medium"
+              >
+                <Edit2 size={16} />
+                Modifier
+              </button>
+              <button
+                onClick={() => onDelete(country.id)}
+                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors font-medium"
+              >
+                <Trash2 size={16} />
+                Supprimer
+              </button>
+            </div>
+          </div>
+        ))
+      )}
+    </div>
+  </div>
 );
 
 // Vue Cities
 const CitiesView = ({ cities, countries, onEdit, onDelete, onAdd }) => (
-  <DataTableView
-    title="Villes"
-    data={cities}
-    onAdd={onAdd}
-    onEdit={onEdit}
-    onDelete={onDelete}
-    renderMobileCard={(city) => (
-      <div className="bg-white rounded-lg shadow p-4 space-y-3">
-        <div className="flex justify-between items-start">
-          <div>
-            <h3 className="font-semibold">{city.name}</h3>
-            <p className="text-sm text-gray-600">Pays: {city.country?.name || 'N/A'}</p>
-          </div>
-        </div>
-        <div className="flex gap-2 pt-2 border-t">
-          <button
-            onClick={() => onEdit(city)}
-            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-secondary/10 text-secondary rounded-lg hover:bg-secondary/20 transition-colors font-medium"
-          >
-            <Edit2 size={16} />
-            Modifier
-          </button>
-          <button
-            onClick={() => onDelete(city.id)}
-            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors font-medium"
-          >
-            <Trash2 size={16} />
-            Supprimer
-          </button>
-        </div>
+  <div className="space-y-4">
+    <div className="flex justify-end">
+      <button 
+        onClick={onAdd}
+        className="flex items-center gap-2 px-4 py-2 rounded-lg text-white bg-secondary hover:bg-secondary/90 hover:shadow-secondary-lg transition-all duration-200 font-medium"
+      >
+        <Plus size={16} />
+        <span className="text-sm">Ajouter une ville</span>
+      </button>
+    </div>
+
+    {/* Table Desktop */}
+    <div className="hidden lg:block bg-white rounded-lg shadow overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nom</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Pays</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200">
+            {cities.map(city => (
+              <tr key={city.id} className="hover:bg-gray-50 transition-colors">
+                <td className="px-6 py-4 whitespace-nowrap font-medium">{city.name}</td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span className="px-2 py-1 bg-primary/10 text-primary rounded-full text-xs font-medium">
+                    {city.country?.name || 'N/A'}
+                  </span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => onEdit(city)}
+                      className="p-1 text-secondary hover:bg-secondary/10 rounded transition-colors"
+                      title="Modifier"
+                    >
+                      <Edit2 size={18} />
+                    </button>
+                    <button
+                      onClick={() => onDelete(city.id)}
+                      className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
+                      title="Supprimer"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
-    )}
-    columns={[
-      { key: 'name', label: 'Nom' },
-      { key: 'country.name', label: 'Pays', render: (city) => city.country?.name || 'N/A' }
-    ]}
-  />
+      {cities.length === 0 && (
+        <div className="p-8 text-center text-gray-500">
+          Aucune ville disponible
+        </div>
+      )}
+    </div>
+
+    {/* Cards Mobile */}
+    <div className="lg:hidden space-y-4">
+      {cities.length === 0 ? (
+        <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">
+          Aucune ville disponible
+        </div>
+      ) : (
+        cities.map(city => (
+          <div key={city.id} className="bg-white rounded-lg shadow p-4 space-y-3">
+            <div className="flex justify-between items-start">
+              <div className="flex-1">
+                <h3 className="font-semibold text-lg">{city.name}</h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  Pays: <span className="px-2 py-1 bg-primary/10 text-primary rounded-full text-xs font-medium">
+                    {city.country?.name || 'N/A'}
+                  </span>
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2 pt-2 border-t">
+              <button
+                onClick={() => onEdit(city)}
+                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-secondary/10 text-secondary rounded-lg hover:bg-secondary/20 transition-colors font-medium"
+              >
+                <Edit2 size={16} />
+                Modifier
+              </button>
+              <button
+                onClick={() => onDelete(city.id)}
+                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors font-medium"
+              >
+                <Trash2 size={16} />
+                Supprimer
+              </button>
+            </div>
+          </div>
+        ))
+      )}
+    </div>
+  </div>
 );
 
 // Composant générique pour les tables de données
@@ -1292,24 +1477,49 @@ const Modal = ({ type, item, formData, setFormData, imagePreview, setImagePrevie
             </div>
           )}
 
-          {type === 'country' && (
-            <>
-              <FormField
-                label="Code pays"
-                value={formData.code || ''}
-                onChange={(e) => handleChange('code', e.target.value)}
-                required
-                placeholder="Ex: Brazzaville"
-              />
-              <FormSelect
-                label="Pays"
-                value={formData.country_id || ''}
-                onChange={(e) => handleChange('country_id', e.target.value)}
-                options={countries.map(c => ({ value: c.id, label: c.name }))}
-                required
-              />
-            </>
-          )}
+         {/* FORMULAIRE PAYS */}
+            {type === 'country' && (
+              <>
+                {/* Champ 1 : Nom du pays (Nom) */}
+                <FormField 
+                  label="Nom du pays" 
+                  value={formData.name || ''} 
+                  onChange={(e) => handleChange('name', e.target.value)} 
+                  required 
+                  placeholder="Ex: France" 
+                />
+                {/* Champ 2 : Code du pays (Code) */}
+                <FormField 
+                  label="Code pays" 
+                  value={formData.code || ''} 
+                  onChange={(e) => handleChange('code', e.target.value)} 
+                  required 
+                  placeholder="Ex: FR" 
+                />
+              </>
+            )}
+
+            {/* FORMULAIRE VILLE */}
+{type === 'city' && (
+  <>
+    {/* Champ 1 : Nom de la ville */}
+    <FormField 
+      label="Nom de la ville" 
+      value={formData.name || ''} 
+      onChange={(e) => handleChange('name', e.target.value)} 
+      required 
+      placeholder="Ex: Paris" 
+    />
+    {/* Champ 2 : Sélection du pays d'appartenance */}
+    <FormSelect 
+      label="Pays d'appartenance" 
+      value={formData.country_id || ''} 
+      onChange={(e) => handleChange('country_id', e.target.value)} 
+      options={countries.map(c => ({ value: c.id, label: c.name }))} 
+      required 
+    />
+  </>
+)}
 
           {type === 'city-tour' && (
             <>
