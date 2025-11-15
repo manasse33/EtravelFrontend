@@ -622,7 +622,7 @@ const ReservationsView = ({ reservations, onUpdateStatus, searchTerm, setSearchT
       </select>
     </div>
 
-   // C'est ce bloc complet qui remplace l'ancien pour les réservations
+   {/* // C'est ce bloc complet qui remplace l'ancien pour les réservations */}
 <div className="hidden lg:block bg-white rounded-lg shadow overflow-hidden">
   <div className="overflow-x-auto">
     <table className="w-full">
