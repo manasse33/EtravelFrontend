@@ -751,7 +751,7 @@ const HomePage = () => {
                  <div className="flex items-center space-x-3 mb-6">
                    {/* Utilisation de la couleur primaire */}
                    <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
-                     <img src="logo.png" alt="" width={70}/>
+                     <img src="logo.png" alt="" width={100}/>
                    </div>
                    <div>
                      <h3 className="text-xl font-black">e-TRAVEL WORLD</h3>

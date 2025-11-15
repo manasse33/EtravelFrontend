@@ -7,6 +7,16 @@ import {
   Filter, Download, RefreshCw, ChevronDown, Menu, X, Upload, Image as ImageIcon
 } from 'lucide-react';
 
+const formatReservationType = (type) => {
+  if (!type) return 'N/A';
+  // Ex: "App\Models\OuikenacPackage" -> "Ouikenac"
+  const parts = type.split('\\');
+  const lastPart = parts[parts.length - 1];
+  if (lastPart === 'OuikenacPackage') return 'Ouikenac';
+  if (lastPart === 'DestinationPackage') return 'Destination';
+  if (lastPart === 'CityTour') return 'City Tour';
+  return lastPart.replace('Package', '');
+};
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [loading, setLoading] = useState(false);
@@ -612,62 +622,120 @@ const ReservationsView = ({ reservations, onUpdateStatus, searchTerm, setSearchT
       </select>
     </div>
 
-    <div className="hidden lg:block bg-white rounded-lg shadow overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Client</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contact</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Voyageurs</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Statut</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            {reservations.map(r => (
-              <tr key={r.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap font-medium">{r.full_name}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{r.email}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm">{r.created_at}</td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <StatusBadge status={r.status} />
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex gap-2">
-                    {r.status === 'pending' && (
-                      <>
-                        <button
-                          onClick={() => onUpdateStatus(r.id, 'approved')}
-                          className="p-1 text-green hover:bg-green/10 rounded transition-colors"
-                          title="Approuver"
-                        >
-                          <CheckCircle size={18} />
-                        </button>
-                        <button
-                          onClick={() => onUpdateStatus(r.id, 'rejected')}
-                          className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
-                          title="Rejeter"
-                        >
-                          <XCircle size={18} />
-                        </button>
-                      </>
-                    )}
-                    <button className="p-1 text-primary hover:bg-primary/10 rounded transition-colors" title="Voir">
-                      <Eye size={18} />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
+   // C'est ce bloc complet qui remplace l'ancien pour les réservations
+<div className="hidden lg:block bg-white rounded-lg shadow overflow-hidden">
+  <div className="overflow-x-auto">
+    <table className="w-full">
+      <thead className="bg-gray-50">
+        <tr>
+          {/* Nouveau: Forfait (Titre du package) */}
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Forfait</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Client</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contact</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Voyageurs</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Période</th>
+          {/* Nouveau: Prix Total */}
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Prix Total</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Statut</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-gray-200">
+        {reservations.map(r => (
+          <tr key={r.id} className="hover:bg-gray-50">
+            
+            {/* Colonne Forfait (Type + Titre du package) */}
+            <td className="px-6 py-4 whitespace-nowrap">
+              <div className="text-sm font-semibold text-primary">
+                {r.reservable?.title || 'N/A'}
+              </div>
+              <div className="text-xs text-gray-500">
+                {formatReservationType(r.reservable_type)}
+              </div>
+            </td>
 
-    <div className="lg:hidden space-y-4">
+            {/* Colonne Client */}
+            <td className="px-6 py-4 whitespace-nowrap font-medium">{r.full_name}</td>
+            
+            {/* Colonne Contact (Email + Téléphone) */}
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+              <div className="font-medium text-gray-800">{r.email}</div>
+              <div className="text-xs text-gray-500">{r.phone || 'N/A'}</div>
+            </td>
+            
+            {/* Colonne Voyageurs */}
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+              {r.travelers || 'Non spécifié'}
+            </td>
+
+            {/* Colonne Période (Date de début à Date de fin) */}
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+              {r.date_from ? (
+                <>
+                  <div className="font-medium">{new Date(r.date_from).toLocaleDateString()}</div>
+                  <div className="text-xs text-gray-500">
+                    au {r.date_to ? new Date(r.date_to).toLocaleDateString() : 'N/A'}
+                  </div>
+                </>
+              ) : (
+                <div className="text-xs text-gray-500">Date non spécifiée</div>
+              )}
+            </td>
+            
+            {/* Nouvelle Colonne Prix Total */}
+            <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold">
+              {r.total_price ? (
+                <span className="text-green-600">
+                  {parseFloat(r.total_price).toLocaleString()} {r.currency || 'CFA'}
+                </span>
+              ) : (
+                <span className="text-gray-400">N/A</span>
+              )}
+            </td>
+
+            {/* Colonne Statut */}
+            <td className="px-6 py-4 whitespace-nowrap">
+              <StatusBadge status={r.status} />
+              <div className="text-xs text-gray-400 mt-1" title="Date de la demande">
+                <Clock size={12} className="inline mr-1" />
+                {new Date(r.created_at).toLocaleDateString()}
+              </div>
+            </td>
+            
+            {/* Colonne Actions */}
+            <td className="px-6 py-4 whitespace-nowrap">
+              <div className="flex gap-2">
+                {r.status === 'pending' && (
+                  <>
+                    <button
+                      onClick={() => onUpdateStatus(r.id, 'approved')}
+                      className="p-1 text-green hover:bg-green/10 rounded transition-colors"
+                      title="Approuver"
+                    >
+                      <CheckCircle size={18} />
+                    </button>
+                    <button
+                      onClick={() => onUpdateStatus(r.id, 'rejected')}
+                      className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
+                      title="Rejeter"
+                    >
+                      <XCircle size={18} />
+                    </button>
+                  </>
+                )}
+                <button className="p-1 text-primary hover:bg-primary/10 rounded transition-colors" title="Voir">
+                  <Eye size={18} />
+                </button>
+              </div>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+    {/* <div className="lg:hidden space-y-4">
       {reservations.map(r => (
         <div key={r.id} className="bg-white rounded-lg shadow p-4 space-y-3">
           <div className="flex justify-between items-start">
@@ -705,7 +773,7 @@ const ReservationsView = ({ reservations, onUpdateStatus, searchTerm, setSearchT
           )}
         </div>
       ))}
-    </div>
+    </div> */}
   </div>
 );
 
@@ -821,39 +889,82 @@ const OuikenacPackagesView = ({ packages, onEdit, onDelete, onAdd, countries, ci
     onEdit={onEdit}
     onDelete={onDelete}
     renderMobileCard={(pkg) => (
-      <div className="bg-white rounded-lg shadow p-4 space-y-3">
-        {pkg.image && (
-          <img src={pkg.image} alt={pkg.title} className="w-full h-32 object-cover rounded-lg" />
-        )}
-        <h3 className="font-semibold">{pkg.title}</h3>
-        <p className="text-sm text-gray-600">{pkg.description?.substring(0, 100)}...</p>
-        {pkg.prices && pkg.prices.length > 0 && (
-          <div className="text-sm">
-            <span className="text-gray-500">Grilles tarifaires:</span> {pkg.prices.length}
+      <div className="bg-white rounded-lg shadow-xl p-5 space-y-4 border border-primary/10">
+  {/* Image et Titre */}
+  {pkg.image && (
+    <img 
+      // Utilisez le chemin complet si pkg.image est un chemin relatif temporaire ou statique
+      src={pkg.image} 
+      alt={pkg.title} 
+      className="w-full h-40 object-cover rounded-xl" 
+    />
+  )}
+  <h3 className="text-xl font-bold text-primary">{pkg.title}</h3>
+  
+  {/* Description complète (ajustée pour la lisibilité) */}
+  <p className="text-sm text-gray-600 line-clamp-3">{pkg.description}</p>
+
+  {/* Détails des Tarifs (Amélioré) */}
+  {pkg.prices && pkg.prices.length > 0 && (
+    <div className="pt-3 border-t border-dashed border-gray-200">
+      <h4 className="font-semibold text-gray-700 flex items-center mb-2">
+        <DollarSign size={16} className="mr-2 text-green-600" />
+        Grilles Tarifaires ({pkg.prices.length})
+      </h4>
+      
+      <div className="space-y-3 max-h-40 overflow-y-auto pr-2">
+        {pkg.prices.map((price, index) => (
+          <div key={price.id || index} className="bg-gray-50 p-3 rounded-lg border border-gray-100">
+            {/* Montant et Devise */}
+            <p className="text-base font-bold text-green-700">
+              {parseFloat(price.price).toLocaleString()} {price.currency}
+            </p>
+
+            {/* Pays de Départ et d'Arrivée */}
+            <p className="text-xs text-gray-500 mt-1">
+              <MapPin size={12} className="inline mr-1 text-secondary" />
+              De: <span className="font-medium text-gray-800">{price.departure_country?.name || 'Inconnu'}</span> 
+              <span className="mx-1">{"->"}</span>
+              À: <span className="font-medium text-gray-800">{price.arrival_country?.name || 'Inconnu'}</span>
+            </p>
+            
+            {/* Fourchette de Personnes */}
+            <p className="text-xs text-gray-500">
+              <Users size={12} className="inline mr-1 text-primary" />
+              Personnes: {price.min_people} - {price.max_people}
+            </p>
           </div>
-        )}
-        {pkg.inclusions && pkg.inclusions.length > 0 && (
-          <div className="text-sm">
-            <span className="text-gray-500">Inclusions:</span> {pkg.inclusions.length}
-          </div>
-        )}
-        <div className="flex gap-2 pt-2 border-t">
-          <button
-            onClick={() => onEdit(pkg)}
-            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-green/10 text-green rounded-lg hover:bg-green/20 transition-colors font-medium"
-          >
-            <Edit2 size={16} />
-            Modifier
-          </button>
-          <button
-            onClick={() => onDelete(pkg.id)}
-            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors font-medium"
-          >
-            <Trash2 size={16} />
-            Supprimer
-          </button>
-        </div>
+        ))}
       </div>
+    </div>
+  )}
+
+  {/* Compteur d'Inclusions (conservé) */}
+  {pkg.inclusions && pkg.inclusions.length > 0 && (
+    <div className="text-sm border-t border-dashed border-gray-200 pt-3">
+      <span className="text-gray-500 font-medium">Inclusions:</span> 
+      <span className="font-bold text-primary ml-1">{pkg.inclusions.length}</span>
+    </div>
+  )}
+
+  {/* Boutons d'Action (conservé) */}
+  <div className="flex gap-2 pt-2 border-t">
+    <button
+      onClick={() => onEdit(pkg)}
+      className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-secondary/10 text-secondary rounded-lg hover:bg-secondary/20 transition-colors font-medium"
+    >
+      <Edit2 size={16} />
+      Modifier
+    </button>
+    <button
+      onClick={() => onDelete(pkg.id)}
+      className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors font-medium"
+    >
+      <Trash2 size={16} />
+      Supprimer
+    </button>
+  </div>
+</div>
     )}
     columns={[
       { key: 'title', label: 'Titre' },
