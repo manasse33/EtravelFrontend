@@ -99,7 +99,7 @@ const AdminDashboard = () => {
 
   const loadDestinationPackages = async () => {
     try {
-      const res = await fetch(`${API_BASE}/destination-packages`);
+      const res = await fetch(`${API_BASE}/destinations`);
       if (!res.ok) throw new Error('Erreur de chargement');
       const data = await res.json();
       setDestinationPackages(data);
@@ -112,7 +112,7 @@ const AdminDashboard = () => {
 
   const loadOuikenacPackages = async () => {
     try {
-      const res = await fetch(`${API_BASE}/ouikenac-packages`);
+      const res = await fetch(`${API_BASE}/ouikenac`);
       if (!res.ok) throw new Error('Erreur de chargement');
       const data = await res.json();
       setOuikenacPackages(data);
@@ -449,8 +449,8 @@ const AdminDashboard = () => {
           {activeTab === 'dashboard' && <DashboardView stats={stats} monthlyReservations={monthlyReservations} packageDistribution={packageDistribution} />}
           {activeTab === 'reservations' && <ReservationsView reservations={filteredReservations} onUpdateStatus={updateReservationStatus} searchTerm={searchTerm} setSearchTerm={setSearchTerm} filterStatus={filterStatus} setFilterStatus={setFilterStatus} />}
           {activeTab === 'city-tours' && <CityToursView tours={cityTours} onEdit={(item) => openModal('city-tour', item)} onDelete={(id) => handleDelete('/city-tours', id, loadCityTours)} onAdd={() => openModal('city-tour')} countries={countries} cities={cities} />}
-          {activeTab === 'destination-packages' && <DestinationPackagesView packages={destinationPackages} onEdit={(item) => openModal('destination', item)} onDelete={(id) => handleDelete('/destination-packages', id, loadDestinationPackages)} onAdd={() => openModal('destination')} countries={countries} />}
-          {activeTab === 'ouikenac-packages' && <OuikenacPackagesView packages={ouikenacPackages} onEdit={(item) => openModal('ouikenac', item)} onDelete={(id) => handleDelete('/ouikenac-packages', id, loadOuikenacPackages)} onAdd={() => openModal('ouikenac')} countries={countries} cities={cities} />}
+          {activeTab === 'destination-packages' && <DestinationPackagesView packages={destinationPackages} onEdit={(item) => openModal('destination', item)} onDelete={(id) => handleDelete('/destinations', id, loadDestinationPackages)} onAdd={() => openModal('destination')} countries={countries} />}
+          {activeTab === 'ouikenac-packages' && <OuikenacPackagesView packages={ouikenacPackages} onEdit={(item) => openModal('ouikenac', item)} onDelete={(id) => handleDelete('/ouikenac', id, loadOuikenacPackages)} onAdd={() => openModal('ouikenac')} countries={countries} cities={cities} />}
           {activeTab === 'configuration' && <ConfigurationView countries={countries} cities={cities} onEditCountry={(item) => openModal('country', item)} onDeleteCountry={(id) => handleDelete('/countries', id, loadCountries)} onAddCountry={() => openModal('country')} onEditCity={(item) => openModal('city', item)} onDeleteCity={(id) => handleDelete('/cities', id, loadCities)} onAddCity={() => openModal('city')} />}
         </main>
       </div>
@@ -1379,8 +1379,8 @@ const Modal = ({ type, item, formData, setFormData, imagePreview, setImagePrevie
   const getEndpoint = (type) => {
     const endpoints = {
       'city-tour': '/city-tours',
-      'destination': '/destination-packages',
-      'ouikenac': '/ouikenac-packages',
+      'destination': '/destinations',
+      'ouikenac': '/ouikenac',
       'country': '/countries',
       'city': '/cities'
     };
