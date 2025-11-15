@@ -103,7 +103,7 @@ const CityTourCalendar = () => {
     setLoading(true);
     try {
         // Appel à l'endpoint de l'API Laravel
-        const response = await axios.get(`${API_BASE}/city-tours`);
+        const response = await axios.get(`${API_BASE}/city-tour`);
         
         // Adaptation des données de la DB au format attendu par le calendrier: { date, title, country }
         // ATTENTION : Les champs 'tour_date' et 'country_code' sont des ASSUMPTIONS de votre schéma de DB. 
@@ -246,11 +246,11 @@ const CityTourCalendar = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-20">
             <div className="flex items-center space-x-3">
-                <img src="logoetravel.jpg" alt="" width={70}/>
-              <div>
+                <img src="logo.png" alt="" width={70}/>
+              {/* <div>
                 <h1 className="text-2xl font-black text-gray-900">e-TRAVEL WORLD</h1>
                 <p className="text-xs text-primary tracking-wider">AGENCY</p>
-              </div>
+              </div> */}
             </div>
 
             <nav className="hidden md:flex items-center space-x-10">
@@ -436,91 +436,71 @@ const CityTourCalendar = () => {
       </section>
 
       {/* Footer */}
-      <footer className="py-16 px-4 bg-gray-900 text-white">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
-            <div>
-              <div className="flex items-center space-x-3 mb-6">
-                {/* Utilisation de la couleur secondaire */}
-                <Globe className="text-secondary" size={32} />
-                <div>
-                  <h3 className="text-xl font-black">e-TRAVEL WORLD</h3>
-                  <p className="text-xs text-gray-400">AGENCY</p>
-                </div>
-              </div>
-              <p className="text-gray-400 mb-6 leading-relaxed">Votre partenaire voyage de confiance depuis 2019. Excellence et innovation à votre service.</p>
-              <div className="flex gap-3">
-                <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-primary transition-all">
-                  <Facebook size={18} />
-                </a>
-                <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-secondary transition-all">
-                  <Instagram size={18} />
-                </a>
-                <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-primary/90 transition-all">
-                  <Twitter size={18} />
-                </a>
-                <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-primary transition-all">
-                  <Linkedin size={18} />
-                </a>
-              </div>
-            </div>
-
-            <div>
-              <h3 className="text-lg font-bold mb-6">Navigation</h3>
-              <div className="space-y-3">
-                <Link to="/" className="block text-gray-400 hover:text-white transition-colors">Accueil</Link>
-                <Link to="/about" className="block text-gray-400 hover:text-white transition-colors">À propos</Link>
-                <Link to="/city-tour" className="block text-gray-400 hover:text-white transition-colors">City Tours</Link>
-                <Link to="/weekend" className="block text-gray-400 hover:text-white transition-colors">OUIKENAC</Link>
-                <a href="#contact" className="block text-gray-400 hover:text-white transition-colors">Contact</a>
-              </div>
-            </div>
-
-            <div>
-              <h3 className="text-lg font-bold mb-6">Informations</h3>
-              <div className="space-y-3">
-                <a href="#" className="block text-gray-400 hover:text-white transition-colors">Politique de confidentialité</a>
-                <a href="#" className="block text-gray-400 hover:text-white transition-colors">Conditions générales</a>
-                <a href="#" className="block text-gray-400 hover:text-white transition-colors">FAQ</a>
-                <a href="#" className="block text-gray-400 hover:text-white transition-colors">Blog</a>
-              </div>
-            </div>
-
-            <div>
-              <h3 className="text-lg font-bold mb-6">Contact</h3>
-              <div className="space-y-4">
-                <a href="tel:+24206871137" className="flex items-center gap-3 text-gray-400 hover:text-white transition-colors">
-                  <Phone size={18} className="text-secondary" />
-                  <span>(+242) 06 871 13 78</span>
-                </a>
-                <a href="tel:+24205594946" className="flex items-center gap-3 text-gray-400 hover:text-white transition-colors">
-                  <Phone size={18} className="text-secondary" />
-                  <span>(+242) 05 594 94 64</span>
-                </a>
-                <a href="mailto:worldagencyetravel@gmail.com" className="flex items-center gap-3 text-gray-400 hover:text-white transition-colors">
-                  <Mail size={18} className="text-secondary" />
-                  <span className="text-sm">worldagencyetravel@gmail.com</span>
-                </a>
-                <div className="flex items-center gap-3 text-gray-400">
-                  <MapPin size={18} className="text-secondary" />
-                  <span>Brazzaville, CONGO</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="border-t border-gray-800 pt-8">
-            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-              <p className="text-gray-400 text-sm text-center md:text-left">
-                © {new Date().getFullYear()} e-TRAVEL WORLD AGENCY. Tous droits réservés.
-              </p>
-              {/* <p className="text-gray-500 text-sm">
-                Conçu avec la Charte Graphique GMSS.Agence.
-              </p> */}
-            </div>
-          </div>
-        </div>
-      </footer>
+        <footer className="bg-gray-900 text-white py-12 px-4">
+             <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8">
+               <div>
+                 <div className="flex items-center space-x-3 mb-6">
+                   {/* Utilisation de la couleur primaire */}
+                   <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
+                     <img src="logo.png" alt="" width={70}/>
+                   </div>
+                   <div>
+                     <h3 className="text-xl font-black">e-TRAVEL WORLD</h3>
+                     <p className="text-xs text-secondary">AGENCY</p>
+                   </div>
+                 </div>
+                 <p className="text-gray-400 text-sm">Votre agence de voyage pour des week-ends uniques entre le Congo et la RDC.</p>
+               </div>
+               <div>
+                 <h3 className="text-lg font-bold mb-6">Navigation</h3>
+                 <div className="space-y-3">
+                   <a href="#" className="text-gray-400 hover:text-white transition-colors block">Accueil</a>
+                   <a href="#about" className="text-gray-400 hover:text-white transition-colors block">À propos</a>
+                   <a href="#packages" className="text-gray-400 hover:text-white transition-colors block">Packages</a>
+                   <a href="#reservation-form" className="text-gray-400 hover:text-white transition-colors block">Réservation</a>
+                 </div>
+               </div>
+               <div>
+                 <h3 className="text-lg font-bold mb-6">Contact</h3>
+                 <div className="space-y-3 text-sm">
+                   <p className="flex items-center gap-2 text-gray-400">
+                     <Phone size={16} className="text-primary" /> +242 06 871 13 78
+                   </p>
+                   <p className="flex items-center gap-2 text-gray-400">
+                     <Phone size={16} className="text-primary" /> +242 05 594 94 64
+                   </p>
+                   <p className="flex items-center gap-2 text-gray-400">
+                     <Mail size={16} className="text-primary" /> worldagencyetravel@gmail.com
+                   </p>
+                   <p className="flex items-start gap-2 text-gray-400">
+                     <MapPin size={16} className="text-primary mt-1" /> Brazzaville, 89 Rue Mouilla Ouenze,Kulunda 
+                   </p>
+                 </div>
+               </div>
+               <div>
+                 <h3 className="text-lg font-bold mb-6">Suivez-nous</h3>
+                 <div className="flex gap-4">
+                   <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-primary transition-all" aria-label="Facebook">
+                     <Facebook size={18} />
+                   </a>
+                   <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-secondary transition-all" aria-label="Instagram">
+                     <Instagram size={18} />
+                   </a>
+                   <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-primary/90 transition-all" aria-label="Twitter">
+                     <Twitter size={18} />
+                   </a>
+                   <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-primary transition-all" aria-label="LinkedIn">
+                     <Linkedin size={18} />
+                   </a>
+                 </div>
+               </div>
+             </div>
+             <div className="mt-12 pt-8 border-t border-gray-800 text-center">
+               <p className="text-sm text-gray-500">
+                 &copy; {new Date().getFullYear()} e-TRAVEL WORLD. Tous droits réservés.
+               </p>
+             </div>
+           </footer>
 
       {/* Styles d'animations existants */}
       <style jsx>{`

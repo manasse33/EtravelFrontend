@@ -408,53 +408,72 @@ const [isScrolled, setIsScrolled] = useState(false);
       {submitting && <LoadingOverlay message="Envoi de votre réservation..." />}
 
       {/* Header */}
-      <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled ? 'bg-white shadow-lg h-20' : 'bg-white/95 h-24'}`}>
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-full">
-                <div className="flex items-center space-x-3">
-                    <img src="logoetravel.jpg" alt="e-TRAVEL WORLD AGENCY" width={55} className="w-14 h-14 object-contain"/>
-                  <div>
-                    <h1 className="text-2xl font-black text-gray-900 tracking-tight">e-TRAVEL WORLD</h1>
-                    <p className="text-xs text-primary tracking-widest uppercase font-semibold">AGENCY</p>
+        {/* Header */}
+            <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled ? 'bg-white shadow-md' : 'bg-white/95'}`}>
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="flex items-center justify-between h-20">
+                  <div className="flex items-center space-x-3">
+                      <img src="logo.png" alt="" width={70}/>
+                    {/* <div>
+                      <h1 className="text-2xl font-black text-gray-900">e-TRAVEL WORLD</h1>
+                      <p className="text-xs text-primary tracking-wider">AGENCY</p>
+                    </div> */}
                   </div>
+      
+                  <nav className="hidden md:flex items-center space-x-10">
+                    <Link to="/" className="text-gray-700 hover:text-primary transition-colors font-medium">Accueil</Link>
+                    <Link to="/about" className="text-gray-700 hover:text-primary transition-colors font-medium">À propos</Link>
+                    <Link to="/weekend">
+                      <Button variant="warning" size="sm" className="font-extrabold shadow-md hover:shadow-lg">
+                        OUIKENAC
+                      </Button>
+                    </Link>
+                    <Link to="/city-tour" className="text-gray-700 hover:text-primary transition-colors font-medium">CityTour</Link>
+                    <a href="#contact" className="text-gray-700 hover:text-primary transition-colors font-medium">Contact</a>
+                  </nav>
+      
+                  <button onClick={() => setMenuOpen(!menuOpen)} className="md:hidden text-gray-900 p-2">
+                    {menuOpen ? <X size={28} /> : <Menu size={28} />}
+                  </button>
                 </div>
-    
-                <nav className="hidden md:flex items-center space-x-8 lg:space-x-12">
-                  <Link to="/" className="text-gray-700 hover:text-primary transition-colors font-semibold text-base">Accueil</Link>
-                  <Link to="/about" className="text-gray-700 hover:text-primary transition-colors font-semibold text-base">À propos</Link>
-                  <Link to="/city-tour" className="text-gray-700 hover:text-primary transition-colors font-semibold text-base">City Tour</Link>
-                  <a href="#contact" className="text-gray-700 hover:text-primary transition-colors font-semibold text-base">Contact</a>
-                </nav>
-                
-                <div className="hidden md:block">
-                  <Link to="/weekend">
-                    <Button variant="warning" size="sm" className="bg-warning text-gray-900 font-extrabold shadow-md hover:shadow-lg">
-                      OUIKENAC
-                    </Button>
-                  </Link>
-                </div>
-    
-                {/* Mobile Menu Button */}
-                <button
-                  className="md:hidden text-gray-900"
-                  onClick={() => setMenuOpen(!menuOpen)}
-                >
-                  {menuOpen ? <X size={28} /> : <Menu size={28} />}
-                </button>
-            </div>
-    
-            {/* Mobile Menu */}
-            {menuOpen && (
-              <div className="md:hidden bg-white shadow-xl pt-4 pb-6 px-4 absolute w-full transition-all duration-300 border-t border-gray-100">
-                <nav className="flex flex-col space-y-3">
-                  <Link to="/" className="text-gray-700 hover:text-primary py-3 text-base font-medium" onClick={() => setMenuOpen(false)}>Accueil</Link>
-                  <Link to="/about" className="text-gray-700 hover:text-primary py-3 text-base font-medium" onClick={() => setMenuOpen(false)}>À propos</Link>
-                  <Link to="/weekend" className="text-warning hover:text-warning/80 py-3 text-base font-extrabold" onClick={() => setMenuOpen(false)}>OUIKENAC</Link>
-                  <Link to="/city-tour" className="text-gray-700 hover:text-primary py-3 text-base font-medium" onClick={() => setMenuOpen(false)}>City Tour</Link>
-                  <a href="#contact" className="text-gray-700 hover:text-primary py-3 text-base font-medium" onClick={() => setMenuOpen(false)}>Contactez-nous</a>
-                </nav>
               </div>
-            )}
-          </header>
+      
+              {menuOpen && (
+                <div className="md:hidden bg-white border-t border-gray-100 shadow-lg">
+                  <nav className="px-4 py-4 space-y-2">
+                    <Link 
+                      to="/" 
+                      className="block text-gray-700 hover:text-primary py-3 text-base font-medium border-b border-gray-100" 
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      Accueil
+                    </Link>
+                    <Link 
+                      to="/about" 
+                      className="block text-gray-700 hover:text-primary py-3 text-base font-medium border-b border-gray-100" 
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      A propos
+                    </Link>
+                    <Link 
+                      to="/weekend" 
+                      className="block text-warning hover:text-warning/90 py-3 text-base font-extrabold border-b border-gray-100" 
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      OUIKENAC
+                    </Link>
+                    <Link 
+                      to="/city-tour" 
+                      className="block text-gray-700 hover:text-primary py-3 text-base font-medium border-b border-gray-100" 
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      CityTour
+                    </Link>
+                    <a href="#contact" className="block text-gray-700 hover:text-primary py-3 text-base font-medium" onClick={() => setMenuOpen(false)}>Contactez-nous</a>
+                  </nav>
+                </div>
+              )}
+            </header>
 
       {/* Mobile Menu */}
       <div className={`fixed top-20 left-0 right-0 z-40 bg-white shadow-xl md:hidden transition-transform duration-300 ${menuOpen ? 'translate-y-0' : '-translate-y-full'}`}>
@@ -836,7 +855,7 @@ const [isScrolled, setIsScrolled] = useState(false);
             <div className="flex items-center space-x-3 mb-6">
               {/* Utilisation de la couleur primaire */}
               <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
-                <Globe className="text-white" size={20} />
+                <img src="logo.png" alt="" width={70}/>
               </div>
               <div>
                 <h3 className="text-xl font-black">e-TRAVEL WORLD</h3>
@@ -861,10 +880,13 @@ const [isScrolled, setIsScrolled] = useState(false);
                 <Phone size={16} className="text-primary" /> +242 06 871 13 78
               </p>
               <p className="flex items-center gap-2 text-gray-400">
+                <Phone size={16} className="text-primary" /> +242 05 594 94 64
+              </p>
+              <p className="flex items-center gap-2 text-gray-400">
                 <Mail size={16} className="text-primary" /> worldagencyetravel@gmail.com
               </p>
               <p className="flex items-start gap-2 text-gray-400">
-                <MapPin size={16} className="text-primary mt-1" /> Brazzaville, CONGO
+                <MapPin size={16} className="text-primary mt-1" /> Brazzaville, 89 Rue Mouilla Ouenze,Kulunda 
               </p>
             </div>
           </div>
