@@ -241,14 +241,123 @@ const AdminDashboard = () => {
   });
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-light-bg">
+      <style jsx>{`
+        .animate-progress {
+          animation: progress-bar 1.5s infinite linear;
+        }
+
+        @keyframes progress-bar {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
+
+        .animate-slide-in {
+          animation: slide-in 0.5s ease-out forwards;
+        }
+
+        @keyframes slide-in {
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+
+        .animate-zoom-in {
+          animation: zoom-in 0.3s ease-out forwards;
+        }
+
+        @keyframes zoom-in {
+          from { transform: scale(0.9); opacity: 0; }
+          to { transform: scale(1); opacity: 1; }
+        }
+
+        .line-clamp-2 {
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
+      `}</style>
+
+      <style jsx global>
+        {`
+        /* Charte graphique officielle E-TRAVEL WORLD AGENCY */
+        :root { 
+          --primary: #1b5e8e;
+          --secondary: #f18f13;
+          --green: #007335;
+          --warning: #f7b406;
+          --light-bg: #f5f7f9;
+        }
+
+        .text-primary { color: var(--primary); }
+        .bg-primary { background-color: var(--primary); }
+        .border-primary { border-color: var(--primary); }
+        .focus\\:border-primary:focus { border-color: var(--primary); }
+        .focus\\:ring-primary:focus { --tw-ring-color: var(--primary); }
+        
+        .text-secondary { color: var(--secondary); }
+        .bg-secondary { background-color: var(--secondary); }
+        
+        .text-green { color: var(--green); }
+        .bg-green { background-color: var(--green); }
+        .border-green { border-color: var(--green); }
+
+        .text-warning { color: var(--warning); }
+        .bg-warning { background-color: var(--warning); }
+        .border-warning { border-color: var(--warning); }
+        .fill-warning { fill: var(--warning); }
+        
+        .bg-light-bg { background-color: var(--light-bg); }
+
+        .bg-primary\\/10 { background-color: rgba(27, 94, 142, 0.1); }
+        .bg-primary\\/5 { background-color: rgba(27, 94, 142, 0.05); }
+        .border-primary\\/20 { border-color: rgba(27, 94, 142, 0.2); }
+        .border-primary\\/30 { border-color: rgba(27, 94, 142, 0.3); }
+
+        .bg-secondary\\/10 { background-color: rgba(241, 143, 19, 0.1); }
+        .bg-secondary\\/20 { background-color: rgba(241, 143, 19, 0.2); }
+        .border-secondary\\/20 { border-color: rgba(241, 143, 19, 0.2); }
+
+        .bg-green\\/10 { background-color: rgba(0, 115, 53, 0.1); }
+        .bg-green\\/20 { background-color: rgba(0, 115, 53, 0.2); }
+        .border-green\\/30 { border-color: rgba(0, 115, 53, 0.3); }
+
+        .bg-warning\\/20 { background-color: rgba(247, 180, 6, 0.2); }
+        .border-warning\\/50 { border-color: rgba(247, 180, 6, 0.5); }
+
+        .hover\\:bg-primary\\/90:hover { background-color: rgba(27, 94, 142, 0.9) !important; }
+        .hover\\:bg-secondary\\/90:hover { background-color: rgba(241, 143, 19, 0.9) !important; }
+        .hover\\:bg-green\\/90:hover { background-color: rgba(0, 115, 53, 0.9) !important; }
+        .hover\\:bg-warning\\/90:hover { background-color: rgba(247, 180, 6, 0.9) !important; }
+        .hover\\:text-primary\\/90:hover { color: rgba(27, 94, 142, 0.9) !important; }
+        
+        .hover\\:bg-primary:hover { background-color: var(--primary); }
+        .hover\\:text-primary:hover { color: var(--primary); }
+        .hover\\:bg-secondary:hover { background-color: var(--secondary); }
+        .hover\\:text-secondary:hover { color: var(--secondary); }
+        
+        .hover\\:shadow-primary-lg:hover {
+            box-shadow: 0 10px 15px -3px rgba(27, 94, 142, 0.3), 0 4px 6px -2px rgba(27, 94, 142, 0.1);
+        }
+        .hover\\:shadow-secondary-lg:hover {
+            box-shadow: 0 10px 15px -3px rgba(241, 143, 19, 0.3), 0 4px 6px -2px rgba(241, 143, 19, 0.1);
+        }
+        .hover\\:shadow-green-lg:hover {
+            box-shadow: 0 10px 15px -3px rgba(0, 115, 53, 0.3), 0 4px 6px -2px rgba(0, 115, 53, 0.1);
+        }
+        .hover\\:shadow-warning-lg:hover {
+            box-shadow: 0 10px 15px -3px rgba(247, 180, 6, 0.3), 0 4px 6px -2px rgba(247, 180, 6, 0.1);
+        }
+        `}
+      </style>
+
       {/* Header */}
       <header className="bg-white shadow-sm border-b sticky top-0 z-40">
         <div className="flex items-center justify-between px-4 lg:px-6 py-4">
           <div className="flex items-center gap-4">
             <button 
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="lg:hidden p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="lg:hidden p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors"
             >
               {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
@@ -259,13 +368,13 @@ const AdminDashboard = () => {
           <div className="flex items-center gap-2 lg:gap-4">
             <button 
               onClick={loadAllData}
-              className="flex items-center gap-2 px-3 lg:px-4 py-2 bg-white border rounded-lg hover:bg-gray-50 transition-colors"
+              className="flex items-center gap-2 px-3 lg:px-4 py-2 bg-white border border-primary/20 text-primary rounded-lg hover:bg-primary/10 transition-colors"
               disabled={loading}
             >
               <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
               <span className="hidden sm:inline">Actualiser</span>
             </button>
-            <div className="w-10 h-10 rounded-full flex items-center justify-center text-white bg-primary">
+            <div className="w-10 h-10 rounded-full flex items-center justify-center text-white bg-primary font-semibold">
               A
             </div>
           </div>
@@ -380,15 +489,17 @@ const AdminDashboard = () => {
 const NavItem = ({ icon, label, active, onClick, badge }) => (
   <button
     onClick={onClick}
-    className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-lg transition-colors
-                ${active ? 'bg-primary text-white' : 'text-gray-700 hover:bg-gray-100'}`}
+    className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-lg transition-all duration-200
+                ${active 
+                  ? 'bg-primary text-white shadow-md' 
+                  : 'text-gray-700 hover:bg-primary/10 hover:text-primary'}`}
   >
     <div className="flex items-center gap-3">
       {icon}
       <span className="font-medium text-sm lg:text-base">{label}</span>
     </div>
     {badge > 0 && (
-      <span className="px-2 py-1 text-xs rounded-full bg-red-500 text-white">
+      <span className="px-2 py-1 text-xs rounded-full bg-warning text-white font-semibold">
         {badge}
       </span>
     )}
@@ -398,7 +509,6 @@ const NavItem = ({ icon, label, active, onClick, badge }) => (
 // Vue Dashboard
 const DashboardView = ({ stats, monthlyReservations, packageDistribution }) => (
   <div className="space-y-6">
-    {/* Cards de statistiques */}
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
       <StatCard 
         icon={<Calendar />} 
@@ -428,7 +538,6 @@ const DashboardView = ({ stats, monthlyReservations, packageDistribution }) => (
       />
     </div>
 
-    {/* Graphiques */}
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
       <ChartCard title="Réservations Mensuelles">
         <ResponsiveContainer width="100%" height={250}>
@@ -465,7 +574,6 @@ const DashboardView = ({ stats, monthlyReservations, packageDistribution }) => (
       </ChartCard>
     </div>
 
-    {/* Statistiques rapides */}
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
       <QuickStat icon={<MapPin />} label="City Tours" value={stats.cityTours} color="#1b5e8e" />
       <QuickStat icon={<Package />} label="Destination Packages" value={stats.destinationPackages} color="#f18f13" />
@@ -478,31 +586,30 @@ const DashboardView = ({ stats, monthlyReservations, packageDistribution }) => (
 const ReservationsView = ({ reservations, onUpdateStatus, searchTerm, setSearchTerm, filterStatus, setFilterStatus }) => (
   <div className="space-y-4 lg:space-y-6">
     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-      <h2 className="text-xl lg:text-2xl font-bold">Réservations</h2>
-      <button className="flex items-center gap-2 px-4 py-2 rounded-lg text-white bg-primary hover:bg-primary/90 transition-colors">
+      <h2 className="text-xl lg:text-2xl font-bold text-primary">Réservations</h2>
+      <button className="flex items-center gap-2 px-4 py-2 rounded-lg text-white bg-secondary hover:bg-secondary/90 hover:shadow-secondary-lg transition-all duration-200 font-medium">
         <Download size={16} />
         <span className="text-sm">Exporter</span>
       </button>
     </div>
 
-    {/* Filtres */}
     <div className="flex flex-col sm:flex-row gap-4">
       <div className="flex-1">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-primary/60" size={20} />
           <input
             type="text"
-            placeholder="Rechercher..."
+            placeholder="Rechercher par nom ou email..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full pl-10 pr-4 py-2 border border-primary/20 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
           />
         </div>
       </div>
       <select
         value={filterStatus}
         onChange={(e) => setFilterStatus(e.target.value)}
-        className="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+        className="px-4 py-2 border border-primary/20 rounded-lg focus:ring-2 focus:ring-primary text-gray-700"
       >
         <option value="all">Tous les statuts</option>
         <option value="pending">En attente</option>
@@ -512,7 +619,6 @@ const ReservationsView = ({ reservations, onUpdateStatus, searchTerm, setSearchT
       </select>
     </div>
 
-    {/* Table - Desktop */}
     <div className="hidden lg:block bg-white rounded-lg shadow overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full">
@@ -532,8 +638,6 @@ const ReservationsView = ({ reservations, onUpdateStatus, searchTerm, setSearchT
               <tr key={r.id} className="hover:bg-gray-50">
                 <td className="px-6 py-4 whitespace-nowrap font-medium">{r.full_name}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{r.email}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm">{r.reservable_type || 'N/A'}</td>
-                <td className="px-6 py-4 whitespace-nowrap">{r.travelers || 1}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm">{r.created_at}</td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <StatusBadge status={r.status} />
@@ -544,7 +648,7 @@ const ReservationsView = ({ reservations, onUpdateStatus, searchTerm, setSearchT
                       <>
                         <button
                           onClick={() => onUpdateStatus(r.id, 'approved')}
-                          className="p-1 text-green-600 hover:bg-green-50 rounded transition-colors"
+                          className="p-1 text-green hover:bg-green/10 rounded transition-colors"
                           title="Approuver"
                         >
                           <CheckCircle size={18} />
@@ -558,7 +662,7 @@ const ReservationsView = ({ reservations, onUpdateStatus, searchTerm, setSearchT
                         </button>
                       </>
                     )}
-                    <button className="p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors" title="Voir">
+                    <button className="p-1 text-primary hover:bg-primary/10 rounded transition-colors" title="Voir">
                       <Eye size={18} />
                     </button>
                   </div>
@@ -570,7 +674,6 @@ const ReservationsView = ({ reservations, onUpdateStatus, searchTerm, setSearchT
       </div>
     </div>
 
-    {/* Cards - Mobile */}
     <div className="lg:hidden space-y-4">
       {reservations.map(r => (
         <div key={r.id} className="bg-white rounded-lg shadow p-4 space-y-3">
@@ -593,14 +696,14 @@ const ReservationsView = ({ reservations, onUpdateStatus, searchTerm, setSearchT
             <div className="flex gap-2 pt-2 border-t">
               <button
                 onClick={() => onUpdateStatus(r.id, 'approved')}
-                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition-colors"
+                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-green/10 text-green rounded-lg hover:bg-green/20 transition-colors font-medium"
               >
                 <CheckCircle size={16} />
                 Approuver
               </button>
               <button
                 onClick={() => onUpdateStatus(r.id, 'rejected')}
-                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 transition-colors"
+                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors font-medium"
               >
                 <XCircle size={16} />
                 Rejeter
@@ -636,14 +739,14 @@ const CityToursView = ({ tours, onEdit, onDelete, onAdd, countries, cities }) =>
         <div className="flex gap-2 pt-2 border-t">
           <button
             onClick={() => onEdit(tour)}
-            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100"
+            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors font-medium"
           >
             <Edit2 size={16} />
             Modifier
           </button>
           <button
             onClick={() => onDelete(tour.id)}
-            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-red-50 text-red-700 rounded-lg hover:bg-red-100"
+            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors font-medium"
           >
             <Trash2 size={16} />
             Supprimer
@@ -692,14 +795,14 @@ const DestinationPackagesView = ({ packages, onEdit, onDelete, onAdd, countries 
         <div className="flex gap-2 pt-2 border-t">
           <button
             onClick={() => onEdit(pkg)}
-            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100"
+            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-secondary/10 text-secondary rounded-lg hover:bg-secondary/20 transition-colors font-medium"
           >
             <Edit2 size={16} />
             Modifier
           </button>
           <button
             onClick={() => onDelete(pkg.id)}
-            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-red-50 text-red-700 rounded-lg hover:bg-red-100"
+            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors font-medium"
           >
             <Trash2 size={16} />
             Supprimer
@@ -744,14 +847,14 @@ const OuikenacPackagesView = ({ packages, onEdit, onDelete, onAdd, countries, ci
         <div className="flex gap-2 pt-2 border-t">
           <button
             onClick={() => onEdit(pkg)}
-            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100"
+            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-green/10 text-green rounded-lg hover:bg-green/20 transition-colors font-medium"
           >
             <Edit2 size={16} />
             Modifier
           </button>
           <button
             onClick={() => onDelete(pkg.id)}
-            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-red-50 text-red-700 rounded-lg hover:bg-red-100"
+            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors font-medium"
           >
             <Trash2 size={16} />
             Supprimer
@@ -787,14 +890,14 @@ const CountriesView = ({ countries, onEdit, onDelete, onAdd }) => (
         <div className="flex gap-2 pt-2 border-t">
           <button
             onClick={() => onEdit(country)}
-            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100"
+            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors font-medium"
           >
             <Edit2 size={16} />
             Modifier
           </button>
           <button
             onClick={() => onDelete(country.id)}
-            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-red-50 text-red-700 rounded-lg hover:bg-red-100"
+            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors font-medium"
           >
             <Trash2 size={16} />
             Supprimer
@@ -828,14 +931,14 @@ const CitiesView = ({ cities, countries, onEdit, onDelete, onAdd }) => (
         <div className="flex gap-2 pt-2 border-t">
           <button
             onClick={() => onEdit(city)}
-            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100"
+            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-secondary/10 text-secondary rounded-lg hover:bg-secondary/20 transition-colors font-medium"
           >
             <Edit2 size={16} />
             Modifier
           </button>
           <button
             onClick={() => onDelete(city.id)}
-            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-red-50 text-red-700 rounded-lg hover:bg-red-100"
+            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors font-medium"
           >
             <Trash2 size={16} />
             Supprimer
@@ -854,17 +957,16 @@ const CitiesView = ({ cities, countries, onEdit, onDelete, onAdd }) => (
 const DataTableView = ({ title, data, onAdd, onEdit, onDelete, columns, renderMobileCard }) => (
   <div className="space-y-4 lg:space-y-6">
     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-      <h2 className="text-xl lg:text-2xl font-bold">{title}</h2>
+      <h2 className="text-xl lg:text-2xl font-bold text-primary">{title}</h2>
       <button 
         onClick={onAdd}
-        className="flex items-center gap-2 px-4 py-2 rounded-lg text-white bg-primary hover:bg-primary/90 transition-colors"
+        className="flex items-center gap-2 px-4 py-2 rounded-lg text-white bg-primary hover:bg-primary/90 hover:shadow-primary-lg transition-all duration-200 font-medium"
       >
         <Plus size={16} />
         <span className="text-sm">Ajouter</span>
       </button>
     </div>
 
-    {/* Table - Desktop */}
     <div className="hidden lg:block bg-white rounded-lg shadow overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full">
@@ -890,7 +992,7 @@ const DataTableView = ({ title, data, onAdd, onEdit, onDelete, columns, renderMo
                   <div className="flex gap-2">
                     <button
                       onClick={() => onEdit(item)}
-                      className="p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                      className="p-1 text-primary hover:bg-primary/10 rounded transition-colors"
                       title="Modifier"
                     >
                       <Edit2 size={18} />
@@ -916,7 +1018,6 @@ const DataTableView = ({ title, data, onAdd, onEdit, onDelete, columns, renderMo
       )}
     </div>
 
-    {/* Cards - Mobile */}
     <div className="lg:hidden space-y-4">
       {data.length === 0 ? (
         <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">
@@ -1019,11 +1120,9 @@ const Modal = ({ type, item, formData, setFormData, imagePreview, setImagePrevie
       let headers = {};
 
       if (type === 'city-tour' || type === 'destination' || type === 'ouikenac') {
-        // FormData pour les images
         const formDataToSend = new FormData();
 
         if (type === 'city-tour') {
-          // Mapping pour City Tour
           formDataToSend.append('nom', formData.title || '');
           formDataToSend.append('country_id', formData.country_id || '');
           formDataToSend.append('city_id', formData.city_id || '');
@@ -1052,12 +1151,10 @@ const Modal = ({ type, item, formData, setFormData, imagePreview, setImagePrevie
           formDataToSend.append('title', formData.title || '');
           formDataToSend.append('description', formData.description || '');
           
-          // Grids
           if (grids.length > 0) {
             formDataToSend.append('grids', JSON.stringify(grids));
           }
           
-          // Inclusions
           if (inclusions.length > 0) {
             formDataToSend.append('inclusions', JSON.stringify(inclusions.map(i => i.name || i)));
           }
@@ -1069,7 +1166,6 @@ const Modal = ({ type, item, formData, setFormData, imagePreview, setImagePrevie
 
         body = formDataToSend;
       } else {
-        // JSON pour countries et cities
         headers['Content-Type'] = 'application/json';
         body = JSON.stringify(formData);
       }
@@ -1153,13 +1249,13 @@ const Modal = ({ type, item, formData, setFormData, imagePreview, setImagePrevie
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
       <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto my-8">
-        <div className="sticky top-0 bg-white border-b px-4 lg:px-6 py-4 flex items-center justify-between z-10">
-          <h3 className="text-lg lg:text-xl font-bold">
+        <div className="sticky top-0 bg-white border-b border-primary/20 px-4 lg:px-6 py-4 flex items-center justify-between z-10">
+          <h3 className="text-lg lg:text-xl font-bold text-primary">
             {item ? 'Modifier' : 'Ajouter'} {getModalTitle(type)}
           </h3>
           <button 
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+            className="p-2 hover:bg-primary/10 text-primary rounded-full transition-colors"
           >
             <X size={20} />
           </button>
@@ -1173,14 +1269,13 @@ const Modal = ({ type, item, formData, setFormData, imagePreview, setImagePrevie
             </div>
           )}
 
-          {/* Image Upload pour tous les packages */}
           {(type === 'city-tour' || type === 'destination' || type === 'ouikenac') && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Image
               </label>
               <div className="flex items-center gap-4">
-                <label className="flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-lg cursor-pointer hover:bg-gray-200 transition-colors">
+                <label className="flex items-center gap-2 px-4 py-2 bg-secondary/10 text-secondary rounded-lg cursor-pointer hover:bg-secondary/20 transition-colors font-medium">
                   <Upload size={20} />
                   <span className="text-sm">Choisir une image</span>
                   <input
@@ -1191,7 +1286,7 @@ const Modal = ({ type, item, formData, setFormData, imagePreview, setImagePrevie
                   />
                 </label>
                 {imagePreview && (
-                  <img src={imagePreview} alt="Preview" className="w-20 h-20 object-cover rounded-lg" />
+                  <img src={imagePreview} alt="Preview" className="w-20 h-20 object-cover rounded-lg border-2 border-secondary/20" />
                 )}
               </div>
             </div>
@@ -1203,25 +1298,6 @@ const Modal = ({ type, item, formData, setFormData, imagePreview, setImagePrevie
                 label="Code pays"
                 value={formData.code || ''}
                 onChange={(e) => handleChange('code', e.target.value)}
-                required
-                placeholder="Ex: CG"
-              />
-              <FormField
-                label="Nom du pays"
-                value={formData.name || ''}
-                onChange={(e) => handleChange('name', e.target.value)}
-                required
-                placeholder="Ex: Congo"
-              />
-            </>
-          )}
-
-          {type === 'city' && (
-            <>
-              <FormField
-                label="Nom de la ville"
-                value={formData.name || ''}
-                onChange={(e) => handleChange('name', e.target.value)}
                 required
                 placeholder="Ex: Brazzaville"
               />
@@ -1380,14 +1456,13 @@ const Modal = ({ type, item, formData, setFormData, imagePreview, setImagePrevie
                 rows={4}
               />
 
-              {/* Grilles tarifaires */}
               <div className="border-t pt-4">
                 <div className="flex items-center justify-between mb-3">
-                  <h4 className="font-semibold">Grilles tarifaires</h4>
+                  <h4 className="font-semibold text-primary">Grilles tarifaires</h4>
                   <button
                     type="button"
                     onClick={addGrid}
-                    className="flex items-center gap-2 px-3 py-1 text-sm bg-primary text-white rounded-lg hover:bg-primary/90"
+                    className="flex items-center gap-2 px-3 py-1 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 hover:shadow-primary-lg transition-all duration-200"
                   >
                     <Plus size={16} />
                     Ajouter une grille
@@ -1395,14 +1470,14 @@ const Modal = ({ type, item, formData, setFormData, imagePreview, setImagePrevie
                 </div>
                 <div className="space-y-4">
                   {grids.map((grid, index) => (
-                    <div key={index} className="p-4 bg-gray-50 rounded-lg space-y-3">
+                    <div key={index} className="p-4 bg-primary/5 border border-primary/20 rounded-lg space-y-3">
                       <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium">Grille {index + 1}</span>
+                        <span className="text-sm font-medium text-primary">Grille {index + 1}</span>
                         {grids.length > 1 && (
                           <button
                             type="button"
                             onClick={() => removeGrid(index)}
-                            className="text-red-600 hover:text-red-800"
+                            className="text-red-600 hover:text-red-800 hover:bg-red-50 p-1 rounded transition-colors"
                           >
                             <Trash2 size={16} />
                           </button>
@@ -1483,14 +1558,13 @@ const Modal = ({ type, item, formData, setFormData, imagePreview, setImagePrevie
                 </div>
               </div>
 
-              {/* Inclusions */}
               <div className="border-t pt-4">
                 <div className="flex items-center justify-between mb-3">
-                  <h4 className="font-semibold">Inclusions</h4>
+                  <h4 className="font-semibold text-secondary">Inclusions</h4>
                   <button
                     type="button"
                     onClick={addInclusion}
-                    className="flex items-center gap-2 px-3 py-1 text-sm bg-secondary text-white rounded-lg hover:bg-secondary/90"
+                    className="flex items-center gap-2 px-3 py-1 text-sm bg-secondary text-white rounded-lg hover:bg-secondary/90 hover:shadow-secondary-lg transition-all duration-200"
                   >
                     <Plus size={16} />
                     Ajouter une inclusion
@@ -1504,12 +1578,12 @@ const Modal = ({ type, item, formData, setFormData, imagePreview, setImagePrevie
                         value={typeof inclusion === 'string' ? inclusion : inclusion.name}
                         onChange={(e) => updateInclusion(index, e.target.value)}
                         placeholder="Ex: Hébergement, Transport..."
-                        className="flex-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="flex-1 px-4 py-2 border border-secondary/20 rounded-lg focus:ring-2 focus:ring-secondary focus:border-secondary"
                       />
                       <button
                         type="button"
                         onClick={() => removeInclusion(index)}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                       >
                         <Trash2 size={18} />
                       </button>
@@ -1527,14 +1601,14 @@ const Modal = ({ type, item, formData, setFormData, imagePreview, setImagePrevie
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50 transition-colors"
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium"
             >
               Annuler
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 px-4 py-2 rounded-lg text-white bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="flex-1 px-4 py-2 rounded-lg text-white bg-primary hover:bg-primary/90 hover:shadow-primary-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium"
             >
               {loading ? 'Enregistrement...' : 'Enregistrer'}
             </button>
@@ -1549,7 +1623,7 @@ const Modal = ({ type, item, formData, setFormData, imagePreview, setImagePrevie
 const FormField = ({ label, type = 'text', value, onChange, required, placeholder, min, max }) => (
   <div>
     <label className="block text-sm font-medium text-gray-700 mb-1">
-      {label} {required && <span className="text-red-500">*</span>}
+      {label} {required && <span className="text-secondary">*</span>}
     </label>
     <input
       type={type}
@@ -1559,7 +1633,7 @@ const FormField = ({ label, type = 'text', value, onChange, required, placeholde
       placeholder={placeholder}
       min={min}
       max={max}
-      className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+      className="w-full px-4 py-2 border border-primary/20 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
     />
   </div>
 );
@@ -1567,13 +1641,13 @@ const FormField = ({ label, type = 'text', value, onChange, required, placeholde
 const FormSelect = ({ label, value, onChange, options, required }) => (
   <div>
     <label className="block text-sm font-medium text-gray-700 mb-1">
-      {label} {required && <span className="text-red-500">*</span>}
+      {label} {required && <span className="text-secondary">*</span>}
     </label>
     <select
       value={value}
       onChange={onChange}
       required={required}
-      className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+      className="w-full px-4 py-2 border border-primary/20 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
     >
       <option value="">Sélectionner...</option>
       {options.map((opt, idx) => (
@@ -1588,14 +1662,14 @@ const FormSelect = ({ label, value, onChange, options, required }) => (
 const FormTextarea = ({ label, value, onChange, required, rows = 3 }) => (
   <div>
     <label className="block text-sm font-medium text-gray-700 mb-1">
-      {label} {required && <span className="text-red-500">*</span>}
+      {label} {required && <span className="text-secondary">*</span>}
     </label>
     <textarea
       value={value}
       onChange={onChange}
       required={required}
       rows={rows}
-      className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+      className="w-full px-4 py-2 border border-primary/20 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary resize-none"
     />
   </div>
 );
@@ -1616,4 +1690,4 @@ const getModalTitle = (type) => {
   return titles[type] || '';
 };
 
-export default AdminDashboard;
+export default AdminDashboard; 
