@@ -108,14 +108,27 @@ const CityTourCalendar = () => {
         // Adaptation des données de la DB au format attendu par le calendrier: { date, title, country }
         // ATTENTION : Les champs 'tour_date' et 'country_code' sont des ASSUMPTIONS de votre schéma de DB. 
         // Si les noms des champs sont différents (ex: 'date_debut', 'city'), ajustez-les ici.
-        const formattedEvents = response.data.map(event => ({
-            // Utiliser le champ de date de la DB et le formatter en 'YYYY-MM-DD'
-            date: event.tour_date ? new Date(event.tour_date).toISOString().split('T')[0] : (event.date_start ? new Date(event.date_start).toISOString().split('T')[0] : null), 
-            // Utiliser le titre de la DB
-            title: event.title || event.city_name ? `Tour à ${event.city_name}` : 'City Tour Planifié',
-            // Logique RC/RDC: à ajuster selon le schéma réel de votre DB (ex: country_code)
-            country: event.country_code || (event.city_name?.includes('Kinshasa') ? 'RDC' : 'RC'), 
-        })).filter(event => event.date); // S'assurer que chaque événement a une date valide
+       // Lignes 110-118 (CORRIGÉES)
+const formattedEvents = response.data.map(event => {
+    // 1. Définir la date à partir de 'scheduled_date'
+    const rawDate = event.scheduled_date;
+
+    // 2. Définir le titre du tour
+    const cityName = event.city ? event.city.name : 'Ville inconnue';
+    const tourTitle = event.title && event.title.trim() !== '' ? event.title : `Tour à ${cityName}`;
+
+    // 3. Définir le code pays
+    const countryCode = event.country ? event.country.code : 'N/A';
+    
+    return {
+        // Utiliser le champ 'scheduled_date'
+        date: rawDate ? new Date(rawDate).toISOString().split('T')[0] : null, 
+        // Utiliser le titre ou un titre générique basé sur la ville
+        title: tourTitle,
+        // Utiliser event.country.code pour obtenir 'RC', 'RDC', etc.
+        country: countryCode, 
+    };
+}).filter(event => event.date); // S'assurer que chaque événement a une date valide // S'assurer que chaque événement a une date valide
 
         setTourEvents(formattedEvents);
         showNotification(`Succès : ${formattedEvents.length} tours chargés depuis la BD.`, 'success');
