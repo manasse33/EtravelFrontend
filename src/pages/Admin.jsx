@@ -1,8 +1,6 @@
-// Admin.jsx (Version Corrigée)
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Users, Package, MapPin, TrendingUp, DollarSign, Calendar, Settings, Home, Globe, Building, Plane, Compass, Navigation, Menu, X, Upload, Loader2, CheckCircle, AlertCircle, XCircle, Edit2, Trash2, Plus, CornerDownRight, Info, Map, Zap, Aperture } from 'lucide-react';
+import { Users, Package, MapPin, TrendingUp, DollarSign, Calendar, Settings, Home, Globe, Building, Plane, Compass, Navigation, Menu, X, Upload, Loader2, CheckCircle, AlertCircle, XCircle, Edit2, Trash2, Plus, CornerDownRight, Info, Map, Zap, Aperture, BookOpen, Clock, Users as UsersIcon, List, Eye, Image as ImageIcon } from 'lucide-react';
 import axios from 'axios';
 
 const API_BASE = 'https://etravelbackend-production.up.railway.app/api';
@@ -28,12 +26,28 @@ const formatPrice = (price) => {
   return numPrice.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 };
 
+const getOuikenacPriceDetails = (ouikenac) => {
+    if (!ouikenac.prices || ouikenac.prices.length === 0) {
+        return { display: 'Prix non défini', minPrice: null, minPeople: null };
+    }
+    
+    const sortedPrices = ouikenac.prices.sort((a, b) => parseFloat(a.price) - parseFloat(b.price));
+    const minPriceObj = sortedPrices[0];
+    
+    const minPrice = formatPrice(minPriceObj.price);
+    const currency = minPriceObj.currency || 'CFA';
+    const minPeople = minPriceObj.min_people || 1;
+    
+    return { 
+        display: `${minPrice} ${currency} (Min. ${minPeople} pers.)`,
+        minPrice: minPriceObj.price,
+        minPeople: minPeople
+    };
+};
+
 // --- API CLIENT ---
 const api = axios.create({
   baseURL: API_BASE,
-  headers: {
-    'Content-Type': 'application/json',
-  },
 });
 
 // --- COMPOSANTS RÉUTILISABLES ---
@@ -82,6 +96,45 @@ const LoadingOverlay = () => (
     </div>
 );
 
+const DataTable = ({ columns, data, onAction }) => {
+    if (!data || data.length === 0) {
+        return (
+            <div className="text-center py-10 text-gray-500 bg-white rounded-lg border border-gray-200">
+                <Info size={30} className="mx-auto mb-3 text-gray-400" />
+                <p>Aucune donnée disponible pour l'instant.</p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="overflow-x-auto shadow-lg rounded-xl border border-gray-200">
+            <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                    <tr>
+                        {columns.map(col => (
+                            <th key={col.header} className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                {col.header}
+                            </th>
+                        ))}
+                    </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                    {data.map(row => (
+                        <tr key={row.id} className="hover:bg-gray-50 transition">
+                            {columns.map(col => (
+                                <td key={col.accessor} className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                    {col.render ? col.render(row) : (typeof col.accessor === 'function' ? col.accessor(row) : row[col.accessor])}
+                                </td>
+                            ))}
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+    );
+};
+
+
 // --- COMPOSANT PRINCIPAL ADMIN ---
 
 const AdminDashboard = () => {
@@ -91,6 +144,22 @@ const AdminDashboard = () => {
   const [notification, setNotification] = useState({ show: false, message: '', type: '' });
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); 
   
+  // Modal States
+  const [showModal, setShowModal] = useState(false);
+  const [modalType, setModalType] = useState(null);
+  const [isEdit, setIsEdit] = useState(false);
+  const [editForm, setEditForm] = useState({});
+  const [file, setFile] = useState(null);
+  const [fileName, setFileName] = useState('');
+  
+  // States pour les relations
+  const [editRelations, setEditRelations] = useState({ 
+    prices: [], 
+    additionalCities: [], 
+    inclusions: [],
+    services: [],
+  });
+
   // Data States
   const [countries, setCountries] = useState([]);
   const [cities, setCities] = useState([]);
@@ -99,41 +168,895 @@ const AdminDashboard = () => {
   const [cityTours, setCityTours] = useState([]);
   const [reservations, setReservations] = useState([]);
 
-  // Mock Dashboard Data (Placeholder for real API)
-  const dashboardData = useMemo(() => {
-    // Calcul de base pour le tableau de bord
+  // --- HELPERS ---
+  const showNotification = (message, type) => {
+    setNotification({ show: true, message, type });
+    setTimeout(() => setNotification({ show: false, message: '', type: '' }), 4000);
+  };
+  
+  const defaultForms = {
+    country: { name: '', code: '' },
+    city: { name: '', country_id: '' },
+    destination: { 
+        title: '', 
+        description: '', 
+        departure_country_id: '', 
+        price: '', 
+        currency: 'CFA',
+        image: null
+    },
+    ouikenac: { 
+        title: '', 
+        description: '',
+        image: null
+    },
+    cityTour: { 
+        nom: '', 
+        country_id: '', 
+        city_id: '', 
+        date: '', 
+        places_min: 1, 
+        places_max: 2, 
+        price: '', 
+        currency: 'CFA',
+        description: '',
+        programme: '',
+        image: null
+    }
+  };
+
+  const openModal = (type, data = null) => {
+    setModalType(type);
+    setIsEdit(!!data);
+    setFile(null);
+    setFileName('');
+
+    if (data) {
+        const formData = { 
+            ...data, 
+            nom: data.nom || data.title, 
+            date: data.date ? data.date.split('T')[0] : (data.tour_date ? new Date(data.tour_date).toISOString().split('T')[0] : ''),
+            country_id: data.country_id || data.city?.country_id || '',
+            city_id: data.city_id || '',
+            price: data.prices?.[0]?.price || data.price || '',
+            currency: data.prices?.[0]?.currency || data.currency || 'CFA',
+            places_min: data.min_people || data.places_min || 1,
+            places_max: data.max_people || data.places_max || 2,
+        };
+        
+        setEditForm(formData);
+
+        setEditRelations({
+            prices: data.prices || [],
+            additionalCities: data.additional_cities || [],
+            inclusions: data.inclusions || [],
+            services: data.services || data.inclusions || [],
+        });
+    } else {
+        setEditForm(defaultForms[type] || {});
+        setEditRelations({ prices: [], additionalCities: [], inclusions: [], services: [] });
+    }
+    setShowModal(true);
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    setEditForm({});
+    setEditRelations({ prices: [], additionalCities: [], inclusions: [], services: [] });
+    setFile(null);
+    setFileName('');
+    setModalType(null);
+  };
+
+  const handleFormChange = (e) => {
+    e.persist && e.persist();
+    const { name, value, type } = e.target;
+    
+    if (type === 'file') {
+        const selectedFile = e.target.files[0];
+        if (selectedFile) {
+            setFile(selectedFile);
+            setFileName(selectedFile.name);
+        }
+    } else {
+        setEditForm(prevForm => { 
+            const newForm = {
+                ...prevForm, 
+                [name]: value 
+            };
+            return newForm;
+        });
+    }
+  };
+  
+  // --- RELATION MANAGEMENT ---
+
+  const handleUpdateRelation = (relationType, index, field, value) => {
+    setEditRelations(prev => {
+        const newArray = [...prev[relationType]];
+        newArray[index] = { 
+            ...newArray[index], 
+            [field]: field.includes('_id') || field.includes('price') || field.includes('people') ? (value ? parseInt(value) : null) : value 
+        };
+        return { ...prev, [relationType]: newArray };
+    });
+  };
+
+  const handleAddRelation = (relationType, defaultItem) => {
+    setEditRelations(prev => ({ 
+        ...prev, 
+        [relationType]: [...prev[relationType], defaultItem]
+    }));
+  };
+
+  const handleRemoveRelation = (relationType, index) => {
+    setEditRelations(prev => ({
+        ...prev,
+        [relationType]: prev[relationType].filter((_, i) => i !== index)
+    }));
+  };
+  
+  // --- FETCHING & CRUD OPERATIONS ---
+
+  const fetchAllData = async () => {
+    setLoading(true);
+    try {
+        const [
+            countriesRes,
+            citiesRes,
+            destinationsRes,
+            ouikenacsRes,
+            cityToursRes,
+            reservationsRes
+        ] = await Promise.all([
+            api.get('/countries'),
+            api.get('/cities'),
+            api.get('/destination-packages'),
+            api.get('/ouikenacs'),
+            api.get('/city-tours'),
+            api.get('/reservations')
+        ]);
+        
+        setCountries(countriesRes.data);
+        setCities(citiesRes.data);
+        setDestinations(destinationsRes.data);
+        setOuikenacs(ouikenacsRes.data);
+        setCityTours(cityToursRes.data);
+        setReservations(reservationsRes.data);
+        
+    } catch (error) {
+        console.error('Erreur lors du chargement des données:', error.response?.data || error);
+        showNotification('Erreur lors du chargement des données initiales.', 'error');
+    } finally {
+        setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAllData();
+  }, []); 
+  
+  const getEndpoint = (type) => {
+    switch (type) {
+        case 'country': return 'countries';
+        case 'city': return 'cities';
+        case 'destination': return 'destination-packages';
+        case 'ouikenac': return 'ouikenacs';
+        case 'cityTour': return 'city-tours';
+        default: return '';
+    }
+  };
+
+  const handleCreateUpdate = async (type) => {
+    setSubmitting(true);
+    const isUpdating = isEdit;
+    const endpoint = getEndpoint(type);
+    
+    const formData = new FormData();
+    const dataToSubmit = { ...editForm };
+    
+    Object.keys(dataToSubmit).forEach(key => {
+        if (key !== 'image' && key !== 'cities' && dataToSubmit[key] !== null && dataToSubmit[key] !== '') {
+            formData.append(key, dataToSubmit[key]);
+        }
+    });
+
+    if (file) {
+        formData.append('image', file);
+    }
+
+    if (type === 'ouikenac') {
+        formData.append('grids', JSON.stringify(editRelations.prices.map(p => ({
+            ...p,
+            departure_country_id: p.departure_country_id || null, 
+            arrival_country_id: p.arrival_country_id || null, 
+            min_people: parseInt(p.min_people) || 1, 
+            max_people: parseInt(p.max_people) || 2, 
+            price: parseFloat(p.price) || 0,
+        }))));
+        formData.append('inclusions', JSON.stringify(editRelations.inclusions));
+        formData.append('additional_cities', JSON.stringify(editRelations.additionalCities.map(c => c.id)));
+    } else if (type === 'destination') {
+        formData.append('services', JSON.stringify(editRelations.services));
+        formData.append('price', parseFloat(dataToSubmit.price));
+        formData.append('currency', dataToSubmit.currency);
+    } else if (type === 'cityTour') {
+        formData.append('nom', dataToSubmit.nom);
+        formData.append('price', parseFloat(dataToSubmit.price));
+        formData.append('currency', dataToSubmit.currency);
+        formData.append('places_min', parseInt(dataToSubmit.places_min));
+        formData.append('places_max', parseInt(dataToSubmit.places_max));
+    }
+
+    try {
+        let response;
+        if (isUpdating) {
+            formData.append('_method', 'PUT'); 
+            response = await api.post(`/${endpoint}/${dataToSubmit.id}`, formData);
+        } else {
+            response = await api.post(`/${endpoint}`, formData);
+        }
+        
+        closeModal();
+        await fetchAllData();
+        showNotification(response.data.message || `${type.charAt(0).toUpperCase() + type.slice(1)} ${isUpdating ? 'mis à jour' : 'créé'} avec succès.`, 'success');
+
+    } catch (error) {
+        console.error('Erreur CRUD:', error.response?.data || error);
+        const errorMsg = error.response?.data?.message || error.response?.data?.error || 'Erreur lors de l\'opération.';
+        showNotification(errorMsg, 'error');
+    } finally {
+        setSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (type, id) => {
+    if (!window.confirm(`Êtes-vous sûr de vouloir supprimer ce ${type} (ID: ${id}) ?`)) return;
+
+    setSubmitting(true);
+    const endpoint = getEndpoint(type);
+
+    try {
+        const response = await api.delete(`/${endpoint}/${id}`);
+        await fetchAllData(); 
+        showNotification(response.data.message || `${type.charAt(0).toUpperCase() + type.slice(1)} supprimé avec succès.`, 'success');
+    } catch (error) {
+        console.error('Erreur Suppression:', error.response?.data || error);
+        showNotification(error.response?.data?.message || 'Erreur lors de la suppression.', 'error');
+    } finally {
+        setSubmitting(false);
+    }
+  };
+  
+  // --- RENDERING HELPERS (FORMS) ---
+
+  const getFormTitle = (action) => isEdit ? `Modifier ${action}` : `Créer ${action}`;
+
+  const RelationListManager = ({ relationType, items, itemTemplate, title, emptyMessage }) => (
+    <div className="border border-gray-300 rounded-lg p-4 bg-gray-50 mt-4">
+        <h4 className="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
+            <List size={20} className="text-primary" /> {title}
+        </h4>
+        <div className="space-y-3 max-h-64 overflow-y-auto pr-2">
+            {items.length === 0 ? (
+                <p className="text-sm text-gray-500">{emptyMessage}</p>
+            ) : (
+                items.map((item, index) => (
+                    <div key={index} className="p-3 bg-white rounded-md border border-gray-200 shadow-sm flex items-center justify-between gap-3">
+                        <div className="flex-1 space-y-2">
+                            {itemTemplate(item, index)}
+                        </div>
+                        <button 
+                            type="button" 
+                            onClick={() => handleRemoveRelation(relationType, index)} 
+                            className="text-red-500 hover:text-red-700 p-1"
+                        >
+                            <Trash2 size={20} />
+                        </button>
+                    </div>
+                ))
+            )}
+        </div>
+        <button 
+            type="button" 
+            onClick={() => handleAddRelation(relationType, relationType === 'prices' ? { 
+                departure_country_id: null, 
+                arrival_country_id: null, 
+                min_people: 1, 
+                max_people: 2, 
+                price: 0, 
+                currency: 'CFA' 
+            } : { name: '', description: '' })} 
+            className="mt-4 w-full bg-primary/10 text-primary py-2 rounded-lg font-medium transition hover:bg-primary/20 flex items-center justify-center gap-2"
+        >
+            <Plus size={20} /> Ajouter {title.toLowerCase().includes('prix') ? 'une grille' : 'un élément'}
+        </button>
+    </div>
+  );
+
+  // MODAL CONTENT
+  const ModalContent = () => {
+    // --- DESTINATION ---
+    if (modalType === 'destination') {
+        const itemTemplate = (item, index) => (
+            <input
+                type="text"
+                value={item.name || ''}
+                onChange={(e) => handleUpdateRelation('services', index, 'name', e.target.value)}
+                placeholder="Nom du service (Ex: Assurance Voyage)"
+                className="block w-full border border-gray-300 rounded-md shadow-sm p-2 text-sm focus:border-primary focus:outline-none"
+            />
+        );
+        
+        return (
+            <>
+                <h2 className="text-2xl font-bold text-gray-900 mb-6">{getFormTitle('un Package Destination')}</h2>
+                <div className="space-y-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Titre *</label>
+                            <input 
+                                type="text" 
+                                name="title" 
+                                value={editForm.title || ''} 
+                                onChange={(e) => handleFormChange(e)} 
+                                required 
+                                className="block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" 
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Pays de Départ *</label>
+                            <select 
+                                name="departure_country_id" 
+                                value={editForm.departure_country_id || ''} 
+                                onChange={(e) => handleFormChange(e)} 
+                                required 
+                                className="block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                            >
+                                <option value="">Sélectionnez un Pays</option>
+                                {countries.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                        <textarea 
+                            name="description" 
+                            value={editForm.description || ''} 
+                            onChange={(e) => handleFormChange(e)} 
+                            rows="3" 
+                            className="block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                        />
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Prix de base *</label>
+                            <input 
+                                type="number" 
+                                name="price" 
+                                value={editForm.price || ''} 
+                                onChange={handleFormChange} 
+                                required 
+                                className="block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:border-primary focus:outline-none" 
+                                min="0" 
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Devise *</label>
+                            <select 
+                                name="currency" 
+                                value={editForm.currency || 'CFA'} 
+                                onChange={handleFormChange} 
+                                required 
+                                className="block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:border-primary focus:outline-none"
+                            >
+                                <option value="CFA">CFA</option>
+                                <option value="USD">USD</option>
+                                <option value="EUR">EUR</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-4">
+                        <div className="flex-1">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Image du Package {isEdit && !file && editForm.image && <span className="text-gray-500 text-xs"> (Actuelle)</span>}
+                            </label>
+                            <div className="relative">
+                                <input 
+                                    type="file" 
+                                    name="image" 
+                                    id="destination-image"
+                                    onChange={handleFormChange} 
+                                    accept="image/*"
+                                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20 cursor-pointer" 
+                                />
+                                {fileName && <p className="text-xs text-gray-600 mt-1">Fichier: {fileName}</p>}
+                            </div>
+                        </div>
+                        {isEdit && (file || editForm.image) && (
+                            <div className="w-16 h-16 rounded-lg overflow-hidden border border-gray-300 flex-shrink-0">
+                                <img src={file ? URL.createObjectURL(file) : editForm.image} alt="Image actuelle" className="w-full h-full object-cover" />
+                            </div>
+                        )}
+                    </div>
+
+                    <RelationListManager
+                        relationType="services"
+                        items={editRelations.services}
+                        itemTemplate={itemTemplate}
+                        title="Services Inclus"
+                        emptyMessage="Ajoutez les services offerts dans ce package."
+                    />
+                </div>
+
+                <button 
+                    onClick={() => handleCreateUpdate('destination')} 
+                    disabled={submitting} 
+                    className="w-full mt-6 bg-primary text-white py-2 rounded-lg font-medium transition hover:bg-primary/90 disabled:opacity-50"
+                >
+                    {submitting ? 'Envoi en cours...' : (isEdit ? 'Enregistrer les modifications' : 'Créer le Package')}
+                </button>
+            </>
+        );
+    }
+    
+    // --- OUIKENAC ---
+    if (modalType === 'ouikenac') {
+        const priceItemTemplate = (price, index) => (
+            <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
+                <select 
+                    value={price.departure_country_id || ''} 
+                    onChange={(e) => handleUpdateRelation('prices', index, 'departure_country_id', e.target.value)} 
+                    required 
+                    className="col-span-2 block w-full border border-gray-300 rounded-md p-2 text-sm focus:border-primary focus:outline-none"
+                >
+                    <option value="">Départ *</option>
+                    {countries.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+                <select 
+                    value={price.arrival_country_id || ''} 
+                    onChange={(e) => handleUpdateRelation('prices', index, 'arrival_country_id', e.target.value)} 
+                    required 
+                    className="col-span-2 block w-full border border-gray-300 rounded-md p-2 text-sm focus:border-primary focus:outline-none"
+                >
+                    <option value="">Arrivée *</option>
+                    {countries.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+                <input 
+                    type="number" 
+                    placeholder="Min Pers. *" 
+                    value={price.min_people || 1} 
+                    onChange={(e) => handleUpdateRelation('prices', index, 'min_people', e.target.value)} 
+                    required 
+                    className="col-span-1 block w-full border border-gray-300 rounded-md p-2 text-sm focus:border-primary focus:outline-none" 
+                    min="1" 
+                />
+                <input 
+                    type="number" 
+                    placeholder="Max Pers. *" 
+                    value={price.max_people || 2} 
+                    onChange={(e) => handleUpdateRelation('prices', index, 'max_people', e.target.value)} 
+                    required 
+                    className="col-span-1 block w-full border border-gray-300 rounded-md p-2 text-sm focus:border-primary focus:outline-none" 
+                    min="1" 
+                />
+                <input 
+                    type="number" 
+                    placeholder="Prix *" 
+                    value={price.price || 0} 
+                    onChange={(e) => handleUpdateRelation('prices', index, 'price', e.target.value)} 
+                    required 
+                    className="col-span-2 sm:col-span-1 block w-full border border-gray-300 rounded-md p-2 text-sm focus:border-primary focus:outline-none" 
+                    min="0" 
+                />
+                <select 
+                    value={price.currency || 'CFA'} 
+                    onChange={(e) => handleUpdateRelation('prices', index, 'currency', e.target.value)} 
+                    required 
+                    className="col-span-2 sm:col-span-1 block w-full border border-gray-300 rounded-md p-2 text-sm focus:border-primary focus:outline-none"
+                >
+                    <option value="CFA">CFA</option>
+                    <option value="USD">USD</option>
+                    <option value="EUR">EUR</option>
+                </select>
+            </div>
+        );
+
+        const inclusionItemTemplate = (item, index) => (
+             <input
+                type="text"
+                value={item.name || ''}
+                onChange={(e) => handleUpdateRelation('inclusions', index, 'name', e.target.value)}
+                placeholder="Nom de l'inclusion (Ex: Transport A/R)"
+                className="block w-full border border-gray-300 rounded-md shadow-sm p-2 text-sm focus:border-primary focus:outline-none"
+            />
+        );
+
+        return (
+            <>
+                <h2 className="text-2xl font-bold text-gray-900 mb-6">{getFormTitle('un Package Ouikenac')}</h2>
+                <div className="space-y-6">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Titre *</label>
+                        <input 
+                            type="text" 
+                            name="title" 
+                            value={editForm.title || ''} 
+                            onChange={handleFormChange} 
+                            required 
+                            className="block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:border-primary focus:outline-none" 
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                        <textarea 
+                            name="description" 
+                            value={editForm.description || ''} 
+                            onChange={handleFormChange} 
+                            rows="3" 
+                            className="block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:border-primary focus:outline-none"
+                        />
+                    </div>
+
+                    <div className="flex items-center gap-4">
+                        <div className="flex-1">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Image du Package {isEdit && !file && editForm.image && <span className="text-gray-500 text-xs"> (Actuelle)</span>}
+                            </label>
+                            <div className="relative">
+                                <input 
+                                    type="file" 
+                                    name="image" 
+                                    id="ouikenac-image"
+                                    onChange={handleFormChange} 
+                                    accept="image/*"
+                                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20 cursor-pointer" 
+                                />
+                                {fileName && <p className="text-xs text-gray-600 mt-1">Fichier: {fileName}</p>}
+                            </div>
+                        </div>
+                        {isEdit && (file || editForm.image) && (
+                            <div className="w-16 h-16 rounded-lg overflow-hidden border border-gray-300 flex-shrink-0">
+                                <img src={file ? URL.createObjectURL(file) : editForm.image} alt="Image actuelle" className="w-full h-full object-cover" />
+                            </div>
+                        )}
+                    </div>
+
+                    <RelationListManager
+                        relationType="prices"
+                        items={editRelations.prices}
+                        itemTemplate={priceItemTemplate}
+                        title="Grilles de Prix"
+                        emptyMessage="Ajoutez au moins une grille de prix."
+                    />
+
+                    <RelationListManager
+                        relationType="inclusions"
+                        items={editRelations.inclusions}
+                        itemTemplate={inclusionItemTemplate}
+                        title="Inclusions du Package"
+                        emptyMessage="Ajoutez les inclusions (services/activités)."
+                    />
+
+                    <div className="border border-gray-300 rounded-lg p-4 bg-gray-50 mt-4">
+                        <h4 className="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
+                            <MapPin size={20} className="text-primary" /> Villes Additionnelles
+                        </h4>
+                        <select 
+                            multiple
+                            value={editRelations.additionalCities.map(c => c.id)}
+                            onChange={(e) => {
+                                const selectedOptions = Array.from(e.target.selectedOptions, option => ({ id: parseInt(option.value), name: option.label }));
+                                setEditRelations(prev => ({ ...prev, additionalCities: selectedOptions }));
+                            }} 
+                            className="block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:border-primary focus:outline-none max-h-40"
+                        >
+                            {cities.map(c => <option key={c.id} value={c.id}>{c.name} ({c.country.name})</option>)}
+                        </select>
+                        <p className="text-xs text-gray-500 mt-2">Maintenez CTRL ou CMD pour sélectionner plusieurs villes.</p>
+                    </div>
+                </div>
+
+                <button 
+                    onClick={() => handleCreateUpdate('ouikenac')} 
+                    disabled={submitting} 
+                    className="w-full mt-6 bg-warning text-white py-2 rounded-lg font-medium transition hover:bg-warning/90 disabled:opacity-50"
+                >
+                    {submitting ? 'Envoi en cours...' : (isEdit ? 'Enregistrer les modifications' : 'Créer le Package')}
+                </button>
+            </>
+        );
+    } 
+    
+    // --- CITY TOUR ---
+    if (modalType === 'cityTour') {
+        const selectedCountryCities = cities.filter(c => c.country_id === parseInt(editForm.country_id));
+        return (
+            <>
+                <h2 className="text-2xl font-bold text-gray-900 mb-6">{getFormTitle('un City Tour')}</h2>
+                <div className="space-y-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Titre du Tour *</label>
+                            <input 
+                                type="text" 
+                                name="nom" 
+                                value={editForm.nom || ''} 
+                                onChange={handleFormChange} 
+                                required 
+                                className="block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:border-primary focus:outline-none" 
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Date du Tour *</label>
+                            <input 
+                                type="date" 
+                                name="date" 
+                                value={editForm.date || ''} 
+                                onChange={handleFormChange} 
+                                required 
+                                className="block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:border-primary focus:outline-none" 
+                            />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Pays *</label>
+                            <select 
+                                name="country_id" 
+                                value={editForm.country_id || ''} 
+                                onChange={handleFormChange} 
+                                required 
+                                className="block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:border-primary focus:outline-none"
+                            >
+                                <option value="">Sélectionnez un Pays</option>
+                                {countries.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Ville *</label>
+                            <select 
+                                name="city_id" 
+                                value={editForm.city_id || ''} 
+                                onChange={handleFormChange} 
+                                required 
+                                className="block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:border-primary focus:outline-none" 
+                                disabled={!editForm.country_id}
+                            >
+                                <option value="">Sélectionnez la ville</option>
+                                {selectedCountryCities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-4 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Prix *</label>
+                            <input 
+                                type="number" 
+                                name="price" 
+                                value={editForm.price || ''} 
+                                onChange={handleFormChange} 
+                                required 
+                                className="block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:border-primary focus:outline-none" 
+                                min="0" 
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Devise *</label>
+                            <select 
+                                name="currency" 
+                                value={editForm.currency || 'CFA'} 
+                                onChange={handleFormChange} 
+                                required 
+                                className="block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:border-primary focus:outline-none"
+                            >
+                                <option value="CFA">CFA</option>
+                                <option value="USD">USD</option>
+                                <option value="EUR">EUR</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Min. Places *</label>
+                            <input 
+                                type="number" 
+                                name="places_min" 
+                                value={editForm.places_min || 1} 
+                                onChange={handleFormChange} 
+                                required 
+                                className="block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:border-primary focus:outline-none" 
+                                min="1" 
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Max. Places *</label>
+                            <input 
+                                type="number" 
+                                name="places_max" 
+                                value={editForm.places_max || 2} 
+                                onChange={handleFormChange} 
+                                required 
+                                className="block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:border-primary focus:outline-none" 
+                                min={editForm.places_min || 1} 
+                            />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                        <textarea 
+                            name="description" 
+                            value={editForm.description || ''} 
+                            onChange={handleFormChange} 
+                            rows="3" 
+                            className="block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:border-primary focus:outline-none"
+                        />
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Programme (Détails du Tour)</label>
+                        <textarea 
+                            name="programme" 
+                            value={editForm.programme || ''} 
+                            onChange={handleFormChange} 
+                            rows="5" 
+                            className="block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:border-primary focus:outline-none"
+                        />
+                    </div>
+                    
+                    <div className="flex items-center gap-4">
+                        <div className="flex-1">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Image du Tour {isEdit && !file && editForm.image && <span className="text-gray-500 text-xs"> (Actuelle)</span>}
+                            </label>
+                            <div className="relative">
+                                <input 
+                                    type="file" 
+                                    name="image" 
+                                    id="citytour-image"
+                                    onChange={handleFormChange} 
+                                    accept="image/*"
+                                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20 cursor-pointer" 
+                                />
+                                {fileName && <p className="text-xs text-gray-600 mt-1">Fichier: {fileName}</p>}
+                            </div>
+                        </div>
+                        {isEdit && (file || editForm.image) && (
+                            <div className="w-16 h-16 rounded-lg overflow-hidden border border-gray-300 flex-shrink-0">
+                                <img src={file ? URL.createObjectURL(file) : editForm.image} alt="Image actuelle" className="w-full h-full object-cover" />
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                <button 
+                    onClick={() => handleCreateUpdate('cityTour')} 
+                    disabled={submitting} 
+                    className="w-full mt-6 bg-cyan text-white py-2 rounded-lg font-medium transition hover:bg-cyan/90 disabled:opacity-50"
+                >
+                    {submitting ? 'Envoi en cours...' : (isEdit ? 'Enregistrer les modifications' : 'Créer le Tour')}
+                </button>
+            </>
+        );
+    }
+    
+    // --- COUNTRY ---
+    if (modalType === 'country') {
+        return (
+            <>
+                <h2 className="text-2xl font-bold text-gray-900 mb-6">{getFormTitle('un Pays')}</h2>
+                <div className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Nom du Pays *</label>
+                        <input 
+                            type="text" 
+                            name="name" 
+                            value={editForm.name || ''} 
+                            onChange={handleFormChange} 
+                            required 
+                            className="block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:border-primary focus:outline-none" 
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Code (Ex: CG ou DRC) *</label>
+                        <input 
+                            type="text" 
+                            name="code" 
+                            value={editForm.code || ''} 
+                            onChange={handleFormChange} 
+                            required 
+                            className="block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:border-primary focus:outline-none" 
+                            maxLength="3" 
+                        />
+                    </div>
+                </div>
+                <button 
+                    onClick={() => handleCreateUpdate('country')} 
+                    disabled={submitting} 
+                    className="w-full mt-6 bg-primary text-white py-2 rounded-lg font-medium transition hover:bg-primary/90 disabled:opacity-50"
+                >
+                    {submitting ? 'Envoi en cours...' : (isEdit ? 'Enregistrer les modifications' : 'Créer le Pays')}
+                </button>
+            </>
+        );
+    }
+    
+    // --- CITY ---
+    if (modalType === 'city') {
+        return (
+            <>
+                <h2 className="text-2xl font-bold text-gray-900 mb-6">{getFormTitle('une Ville')}</h2>
+                <div className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Nom de la Ville *</label>
+                        <input 
+                            type="text" 
+                            name="name" 
+                            value={editForm.name || ''} 
+                            onChange={handleFormChange} 
+                            required 
+                            className="block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:border-primary focus:outline-none" 
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Pays *</label>
+                        <select 
+                            name="country_id" 
+                            value={editForm.country_id || ''} 
+                            onChange={handleFormChange} 
+                            required 
+                            className="block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:border-primary focus:outline-none"
+                        >
+                            <option value="">Sélectionnez un Pays</option>
+                            {countries.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                    </div>
+                </div>
+                <button 
+                    onClick={() => handleCreateUpdate('city')} 
+                    disabled={submitting} 
+                    className="w-full mt-6 bg-primary text-white py-2 rounded-lg font-medium transition hover:bg-primary/90 disabled:opacity-50"
+                >
+                    {submitting ? 'Envoi en cours...' : (isEdit ? 'Enregistrer les modifications' : 'Créer la Ville')}
+                </button>
+            </>
+        );
+    }
+    
+    return null;
+  };
+
+  // DASHBOARD DATA
+  const { totalReservations, totalRevenue, totalPackages, reservationChartData, packagesByCountryChartData, monthlyRevenueChartData, conversionScore } = useMemo(() => {
     const totalReservations = reservations.length;
     
-    // Calcul du revenu estimé (basé sur un prix fixe ou une estimation)
     const totalRevenue = reservations.reduce((sum, r) => {
-        // Logique de prix simplifiée
         let price = 0;
         const type = getReservationType(r);
         if (type === 'Destination') price = 500000;
         else if (type === 'Ouikenac') price = 250000;
         else if (type === 'City Tour') price = 50000;
-        
-        // Simuler un prix si le réservable n'a pas de prix direct
         return sum + price; 
     }, 0);
     
     const totalPackages = destinations.length + ouikenacs.length + cityTours.length;
 
-    // Données pour le Pie Chart
     const reservationCounts = reservations.reduce((acc, r) => {
         const type = getReservationType(r);
         acc[type] = (acc[type] || 0) + 1;
         return acc;
     }, {});
 
-    const chartData = Object.keys(reservationCounts).map(key => ({
+    const reservationChartData = Object.keys(reservationCounts).map(key => ({
         name: key,
         value: reservationCounts[key]
     }));
     
-    // Données pour le Bar Chart (Packages par Pays)
     const packagesByCountry = {};
-
     countries.forEach(country => {
         packagesByCountry[country.name] = { destinations: 0, ouikenacs: 0, cityTours: 0 };
     });
@@ -168,939 +1091,462 @@ const AdminDashboard = () => {
             ...packagesByCountry[countryName]
         }));
         
-    // Données pour le Line Chart (Revenus Mensuels - Simulé)
     const monthlyRevenueChartData = [
-        { name: 'Jan', Revenue: 4000000 },
-        { name: 'Fev', Revenue: 3000000 },
-        { name: 'Mar', Revenue: 5500000 },
-        { name: 'Avr', Revenue: 6200000 },
-        { name: 'Mai', Revenue: 7800000 },
-        { name: 'Jui', Revenue: 9500000 },
-        { name: 'Jul', Revenue: 8100000 },
-        { name: 'Aou', Revenue: 11000000 },
-        { name: 'Sep', Revenue: 8800000 },
-        { name: 'Oct', Revenue: 12500000 },
-        { name: 'Nov', Revenue: 10200000 },
-        { name: 'Dec', Revenue: 14000000 },
-    ];
+        { name: 'Jan', Revenue: 4000000 }, { name: 'Fév', Revenue: 3000000 }, { name: 'Mar', Revenue: 5500000 }, 
+        { name: 'Avr', Revenue: 4200000 }, { name: 'Mai', Revenue: 6800000 }, { name: 'Jui', Revenue: 7500000 }, 
+        { name: 'Jul', Revenue: 8100000 }, { name: 'Aou', Revenue: 11000000 }, { name: 'Sep', Revenue: 8800000 }, 
+        { name: 'Oct', Revenue: 12500000 }, { name: 'Nov', Revenue: 10200000 }, { name: 'Dec', Revenue: 14000000 }, 
+    ]; 
     
-    // Calcul du score de conversion
-    const conversionScore = destinations.length > 0 ? (totalReservations / destinations.length).toFixed(1) : 0;
-
-    return { totalReservations, totalRevenue, totalPackages, chartData, packagesByCountryChartData, monthlyRevenueChartData, conversionScore };
+    const conversionScore = destinations.length > 0 ? (totalReservations / totalPackages * 100).toFixed(1) : 0;
+    
+    return { totalReservations, totalRevenue, totalPackages, reservationChartData, packagesByCountryChartData, monthlyRevenueChartData, conversionScore };
   }, [reservations, destinations, ouikenacs, cityTours, countries]);
 
-  // Modal States
-  const [showModal, setShowModal] = useState(false);
-  const [modalType, setModalType] = useState(null); 
-  const [isEdit, setIsEdit] = useState(false);
-  const [editForm, setEditForm] = useState({});
-  const [editRelations, setEditRelations] = useState({ prices: [], additionalCities: [], inclusions: [] }); 
-  const [newCityForm, setNewCityForm] = useState({ name: '', country_id: null });
-
-  const showNotification = (message, type = 'success') => {
-    setNotification({ show: true, message, type });
-    setTimeout(() => setNotification({ show: false, message: '', type: '' }), 5000);
-  };
-
-  const getReservationLabel = useMemo(() => (reservable) => {
-    if (!reservable) return 'N/A';
-    if (reservable.title) return reservable.title;
-    if (reservable.name) return reservable.name;
-    return 'Détails non chargés';
-  }, []);
-
-  // --- DATA FETCHING (EAGER LOADING INCLUS) ---
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      // NOTE: L'API doit retourner les relations nécessaires (ex: with=cities, with=reservable, etc.)
-      const [countriesRes, destinationsRes, ouikenacsRes, toursRes, reservationsRes] = await Promise.all([
-        fetch(`${API_BASE}/countries?with=cities`).then(r => r.ok ? r.json() : Promise.reject(new Error('Erreur pays'))),
-        fetch(`${API_BASE}/destinations?with=departureCountry`).then(r => r.ok ? r.json() : Promise.reject(new Error('Erreur destinations'))),
-        fetch(`${API_BASE}/ouikenac?with=prices.departureCountry,prices.arrivalCountry,prices.departureCity,prices.arrivalCity,additionalCities.city.country,inclusions`).then(r => r.ok ? r.json() : Promise.reject(new Error('Erreur Ouikenac'))),
-        fetch(`${API_BASE}/city-tours?with=city.country`).then(r => r.ok ? r.json() : Promise.reject(new Error('Erreur City Tours'))),
-        fetch(`${API_BASE}/reservations?with=reservable`).then(r => r.ok ? r.json() : Promise.reject(new Error('Erreur réservations')))
-      ]);
-      
-      setCountries(countriesRes);
-      setDestinations(destinationsRes);
-      setOuikenacs(ouikenacsRes);
-      setCityTours(toursRes);
-      setReservations(reservationsRes);
-      
-      const allCities = countriesRes.flatMap(c => c.cities || []);
-      setCities(allCities);
-    } catch (error) {
-      console.error('Erreur chargement:', error);
-      showNotification(error.message || 'Erreur lors du chargement des données', 'error');
-    }
-    setLoading(false);
-  };
-
-  // --- CRUD HANDLERS (GÉNÉRIQUES ET SPÉCIFIQUES) ---
-
-  const handleCreateOrUpdate = async (endpoint, data, successMessage) => {
-    setSubmitting(true);
-    try {
-      const method = isEdit ? 'PUT' : 'POST';
-      const url = isEdit ? `${API_BASE}/${endpoint}/${data.id}` : `${API_BASE}/${endpoint}`;
-      
-      let payload = data;
-      if (modalType === 'ouikenac') {
-        const { duration, ...rest } = data; 
-        
-        payload = {
-            ...rest,
-            // REMARQUE: Les clés 'prices', 'additional_cities', 'inclusions' sont utilisées
-            // pour la cohérence du front, le backend est ajusté en conséquence.
-            prices: editRelations.prices.map(p => ({
-                ...p,
-                departure_country_id: parseInt(p.departure_country_id),
-                arrival_country_id: parseInt(p.arrival_country_id),
-                departure_city_id: parseInt(p.departure_city_id) || null, 
-                arrival_city_id: parseInt(p.arrival_city_id) || null,     
-                min_people: parseInt(p.min_people),
-                max_people: parseInt(p.max_people),
-                price: parseFloat(p.price),
-            })).filter(p => !isNaN(p.departure_country_id) && !isNaN(p.arrival_country_id) && p.price >= 0),
-            additional_cities: editRelations.additionalCities.map(ac => ({
-                ...ac,
-                city_id: parseInt(ac.city_id)
-            })),
-            inclusions: editRelations.inclusions
-        };
-      }
-      
-      await api({ method, url, data: payload });
-      showNotification(successMessage, 'success');
-      
-      if (modalType === 'country' && isEdit) {
-          await loadData();
-          const updatedCountry = countries.find(c => c.id === data.id);
-          if (updatedCountry) {
-              setEditForm(updatedCountry);
-          }
-      } else {
-          closeModal();
-          await loadData();
-      }
-      
-    } catch (error) {
-      console.error('Erreur CRUD:', error.response?.data || error);
-      showNotification(error.response?.data?.message || 'Erreur lors de l\'opération.', 'error');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-  
-  const handleDelete = async (endpoint, id, successMessage) => {
-    if (!window.confirm(`Êtes-vous sûr de vouloir supprimer cet élément (ID: ${id}) ?`)) return;
-
-    setSubmitting(true);
-    try {
-      await api.delete(`${API_BASE}/${endpoint}/${id}`);
-      showNotification(successMessage, 'success');
-      await loadData();
-    } catch (error) {
-      console.error('Erreur Suppression:', error.response?.data || error);
-      showNotification(error.response?.data?.message || 'Erreur lors de la suppression.', 'error');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  // NOUVEAU: Mettre à jour le statut de la réservation (Valider/Rejeter)
-  const handleUpdateReservationStatus = async (id, status, successMessage) => {
-      if (!window.confirm(`Êtes-vous sûr de vouloir passer la réservation ${id} au statut "${status}" ?`)) return;
-
-      setSubmitting(true);
-      try {
-          // Point de terminaison assumé pour la mise à jour du statut
-          await api.put(`${API_BASE}/reservations/${id}/status`, { status });
-          showNotification(successMessage, 'success');
-          await loadData(); // Recharger les données pour mettre à jour la liste
-      } catch (error) {
-          console.error('Erreur mise à jour statut:', error.response?.data || error);
-          showNotification(error.response?.data?.message || `Erreur lors de la mise à jour du statut.`, 'error');
-      } finally {
-          setSubmitting(false);
-      }
-  };
-  
-  // Correction: Utilise l'endpoint /countries/{id}/cities, supporté par le contrôleur mis à jour.
-  const handleAddCity = async (countryId, cityName) => {
-    if (!cityName.trim()) {
-        showNotification('Le nom de la ville est requis.', 'warning');
-        return;
-    }
-    setSubmitting(true);
-    try {
-        await api.post(`${API_BASE}/countries/${countryId}/cities`, { name: cityName });
-        showNotification('Ville ajoutée avec succès.', 'success');
-        
-        await loadData();
-        
-        const updatedCountry = countries.find(c => c.id === countryId);
-        if (updatedCountry) {
-            setEditForm(updatedCountry);
-        }
-        
-        setNewCityForm(prev => ({ ...prev, name: '' })); 
-    } catch (error) {
-        console.error('Erreur Ajout Ville:', error.response?.data || error);
-        showNotification(error.response?.data?.message || 'Erreur lors de l\'ajout de la ville.', 'error');
-    } finally {
-        setSubmitting(false);
-    }
-  };
-
-  const handleDeleteCity = async (cityId) => {
-      if (!window.confirm(`Êtes-vous sûr de vouloir supprimer cette ville (ID: ${cityId}) ?`)) return;
-
-      setSubmitting(true);
-      try {
-          await api.delete(`${API_BASE}/cities/${cityId}`);
-          showNotification('Ville supprimée.', 'success');
-          
-          await loadData();
-          
-          setEditForm(prev => ({
-              ...prev,
-              cities: prev.cities.filter(c => c.id !== cityId)
-          }));
-      } catch (error) {
-          console.error('Erreur Suppression Ville:', error.response?.data || error);
-          showNotification(error.response?.data?.message || 'Erreur lors de la suppression de la ville.', 'error');
-      } finally {
-          setSubmitting(false);
-      }
-  };
-
-  // --- OUICKENAC RELATION MANAGEMENT (Fonctions conservées) ---
-  const handleAddPrice = () => {
-    setEditRelations(prev => ({
-        ...prev,
-        prices: [...prev.prices, { 
-            departure_country_id: '', 
-            arrival_country_id: '', 
-            departure_city_id: '',
-            arrival_city_id: '',     
-            min_people: 1, 
-            max_people: 2, 
-            price: 0, 
-            currency: 'CFA' 
-        }]
-    }));
-  };
-
-  const handleUpdatePrice = (index, field, value) => {
-    const updatedPrices = [...editRelations.prices];
-    updatedPrices[index][field] = value;
-    
-    if (field === 'departure_country_id') {
-        updatedPrices[index].departure_city_id = '';
-    }
-    if (field === 'arrival_country_id') {
-        updatedPrices[index].arrival_city_id = '';
-    }
-    
-    setEditRelations(prev => ({ ...prev, prices: updatedPrices }));
-  };
-
-  const handleRemovePrice = (index) => {
-    setEditRelations(prev => ({
-        ...prev,
-        prices: prev.prices.filter((_, i) => i !== index)
-    }));
-  };
-  
-  const handleAddInclusion = () => {
-    setEditRelations(prev => ({
-        ...prev,
-        inclusions: [...prev.inclusions, { name: '', description: '' }]
-    }));
-  };
-
-  const handleUpdateInclusion = (index, field, value) => {
-    const updatedInclusions = [...editRelations.inclusions];
-    updatedInclusions[index][field] = value;
-    setEditRelations(prev => ({ ...prev, inclusions: updatedInclusions }));
-  };
-
-  const handleRemoveInclusion = (index) => {
-    setEditRelations(prev => ({
-        ...prev,
-        inclusions: prev.inclusions.filter((_, i) => i !== index)
-    }));
-  };
-  
-  const handleAddAdditionalCity = () => {
-    setEditRelations(prev => ({
-        ...prev,
-        additionalCities: [...prev.additionalCities, { city_id: '', type: 'escale' }]
-    }));
-  };
-
-  const handleUpdateAdditionalCity = (index, field, value) => {
-    const updatedCities = [...editRelations.additionalCities];
-    updatedCities[index][field] = value;
-    setEditRelations(prev => ({ ...prev, additionalCities: updatedCities }));
-  };
-
-  const handleRemoveAdditionalCity = (index) => {
-    setEditRelations(prev => ({
-        ...prev,
-        additionalCities: prev.additionalCities.filter((_, i) => i !== index)
-    }));
-  };
-
-
-  // --- MODAL LOGIC & DATA MAPPING ---
-
-  const getFormTitle = (resource) => (isEdit ? `Modifier ${resource}` : `Ajouter ${resource}`);
-  
-  const openModal = (type, data = null) => {
-    setIsSidebarOpen(false); 
-    setModalType(type);
-    setIsEdit(!!data);
-    
-    // Valeurs par défaut cohérentes avec les validations du backend
-    const defaultForms = {
-        country: { name: '', code: '' },
-        destination: { title: '', description: '', departure_country_id: '', price: 0, currency: 'CFA' },
-        ouikenac: { title: '', description: '', active: true },
-        cityTour: { 
-            nom: '', // COHERENCE: Backend validation uses 'nom' 
-            country_id: '', 
-            city_id: '', 
-            description: '', 
-            price: 0, 
-            currency: 'CFA', 
-            date: new Date().toISOString().split('T')[0], // COHERENCE: Backend validation uses 'date'
-            places_min: 1, // COHERENCE: Backend validation uses 'places_min'
-            places_max: 10, // COHERENCE: Backend validation uses 'places_max'
-            programme: '' // COHERENCE: Backend validation uses 'programme'
-        }
-    };
-    
-    if (data) {
-        let form = { ...data };
-        if (type === 'cityTour') {
-            // Mapping des noms des attributs du modèle (title, scheduled_date, min_people, max_people)
-            // vers les noms des champs de formulaire/validation (nom, date, places_min, places_max)
-            form.nom = data.title;
-            form.date = data.scheduled_date ? new Date(data.scheduled_date).toISOString().split('T')[0] : defaultForms.cityTour.date;
-            form.places_min = data.min_people;
-            form.places_max = data.max_people;
-        }
-
-        setEditForm(form);
-        
-        if (type === 'ouikenac') {
-            setEditRelations({
-                prices: data.prices || [],
-                additionalCities: data.additional_cities || [],
-                inclusions: data.inclusions || []
-            });
-        }
-        
-        if (type === 'country') {
-            setNewCityForm(prev => ({ ...prev, country_id: data.id }));
-        }
-
-    } else {
-        setEditForm(defaultForms[type] || {});
-        setEditRelations({ prices: [], additionalCities: [], inclusions: [] });
-        setNewCityForm({ name: '', country_id: null });
-    }
-  };
-
-  const closeModal = () => {
-    setShowModal(false);
-    setEditForm({});
-    setEditRelations({ prices: [], additionalCities: [], inclusions: [] });
-    setNewCityForm({ name: '', country_id: null });
-    setModalType(null);
-  };
-
-  const handleFormChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setEditForm(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
-  };
-
-  // Fonction utilitaire pour trouver le pays/ville associé à un ID
-  const getCountryName = (id) => countries.find(c => c.id === id)?.name || 'N/A';
-  const getCityName = (id) => cities.find(c => c.id === id)?.name || 'Toutes Villes';
-
-  // Fonction pour obtenir le pays/ville de départ/arrivée d'un Ouikenac pour l'affichage
-  const getOuikenacPriceDetails = (o) => {
-    const firstPrice = o.prices?.[0];
-    if (!firstPrice) return { display: 'Aucun tarif', dep: 'N/A', arr: 'N/A', depCity: 'N/A', arrCity: 'N/A' };
-
-    const depCountry = getCountryName(firstPrice.departure_country_id);
-    const arrCountry = getCountryName(firstPrice.arrival_country_id);
-    const display = `${formatPrice(firstPrice.price)} CFA (${depCountry} à ${arrCountry})`;
-
-    return { 
-        display, 
-        dep: depCountry, 
-        arr: arrCountry, 
-        depCity: getCityName(firstPrice.departure_city_id), 
-        arrCity: getCityName(firstPrice.arrival_city_id) 
-    };
-  };
-
-  // --- MODAL CONTENT RENDERER ---
-
-  const renderModalContent = () => {
-    const data = editForm;
-
-    // --- Country & City Management ---
-    if (modalType === 'country') {
-        return (
-            <>
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">{getFormTitle('un Pays')}</h2>
-                <form onSubmit={(e) => { e.preventDefault(); handleCreateOrUpdate('countries', data, isEdit ? 'Pays mis à jour.' : 'Pays créé.'); }}>
-                    <div className="space-y-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Nom du Pays</label>
-                            <input type="text" name="name" value={data.name || ''} onChange={handleFormChange} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:border-primary focus:ring-primary" />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Code (Ex: CI, FR)</label>
-                            <input type="text" name="code" value={data.code || ''} onChange={handleFormChange} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:border-primary focus:ring-primary" />
-                        </div>
-                    </div>
-                    
-                    {/* City Management Section (Only for Edit) */}
-                    {isEdit && (
-                        <div className="mt-8 border-t pt-6">
-                            <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2"><MapPin size={20} className="text-primary" /> Gestion des Villes</h3>
-                            
-                            {/* Liste des villes existantes */}
-                            <div className="space-y-2 mb-4 max-h-40 overflow-y-auto pr-2">
-                                {(editForm.cities || []).length === 0 ? (
-                                    <p className="text-sm text-gray-500">Aucune ville n'est encore associée à ce pays.</p>
-                                ) : (
-                                    (editForm.cities || []).map(city => (
-                                        <div key={city.id} className="flex justify-between items-center p-2 bg-gray-50 rounded-md border border-gray-200">
-                                            <span className="text-gray-700 font-medium">{city.name}</span>
-                                            <button onClick={() => handleDeleteCity(city.id)} disabled={submitting} className="text-red-500 hover:text-red-700 disabled:opacity-50 transition p-1" title="Supprimer la ville">
-                                                <Trash2 size={16} />
-                                            </button>
-                                        </div>
-                                    ))
-                                )}
-                            </div>
-                            
-                            {/* Formulaire pour ajouter une nouvelle ville */}
-                            <div className="flex gap-2">
-                                <input 
-                                    type="text" 
-                                    placeholder="Nom de la nouvelle ville" 
-                                    value={newCityForm.name} 
-                                    onChange={(e) => setNewCityForm(prev => ({ ...prev, name: e.target.value }))} 
-                                    className="flex-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:border-primary focus:ring-primary" 
-                                />
-                                <button 
-                                    type="button" 
-                                    onClick={() => handleAddCity(editForm.id, newCityForm.name)} 
-                                    disabled={submitting || !newCityForm.name}
-                                    className="flex items-center gap-1 bg-green-500 text-white py-2 px-4 rounded-lg font-medium transition hover:bg-green-600 disabled:opacity-50"
-                                >
-                                    <Plus size={18} /> Ajouter
-                                </button>
-                            </div>
-                        </div>
-                    )}
-
-                    <button type="submit" disabled={submitting} className="w-full mt-6 bg-primary text-white py-2 rounded-lg font-medium transition hover:bg-primary/90 disabled:opacity-50">
-                        {submitting ? 'Envoi en cours...' : (isEdit ? 'Enregistrer les modifications' : 'Créer le Pays')}
-                    </button>
-                </form>
-            </>
-        );
-    }
-    
-    // --- Destination Package ---
-    if (modalType === 'destination') {
-        return (
-            <>
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">{getFormTitle('un Package Destination')}</h2>
-                <form onSubmit={(e) => { e.preventDefault(); handleCreateOrUpdate('destinations', data, isEdit ? 'Destination mise à jour.' : 'Package Destination créé.'); }}>
-                    <div className="space-y-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Titre</label>
-                            <input type="text" name="title" value={data.title || ''} onChange={handleFormChange} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:border-primary focus:ring-primary" />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Pays de Départ</label>
-                            <select name="departure_country_id" value={data.departure_country_id || ''} onChange={handleFormChange} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:border-primary focus:ring-primary">
-                                <option value="">Sélectionner un pays</option>
-                                {countries.map(c => (
-                                    <option key={c.id} value={c.id}>{c.name}</option>
-                                ))}
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Description</label>
-                            <textarea name="description" value={data.description || ''} onChange={handleFormChange} rows="3" className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:border-primary focus:ring-primary" />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">Prix</label>
-                                <input type="number" name="price" value={data.price || 0} onChange={handleFormChange} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:border-primary focus:ring-primary" />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">Devise</label>
-                                <select name="currency" value={data.currency || 'CFA'} onChange={handleFormChange} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:border-primary focus:ring-primary">
-                                    <option value="CFA">CFA</option>
-                                    <option value="USD">USD</option>
-                                    <option value="EUR">EUR</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div className="pt-2">
-                             <label className="block text-sm font-medium text-gray-700">Image (non géré ici pour la simplicité, mais le champ existe)</label>
-                             <input type="file" name="image" className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20" />
-                        </div>
-                    </div>
-                    <button type="submit" disabled={submitting} className="w-full mt-6 bg-primary text-white py-2 rounded-lg font-medium transition hover:bg-primary/90 disabled:opacity-50">
-                        {submitting ? 'Envoi en cours...' : (isEdit ? 'Enregistrer les modifications' : 'Créer le Package')}
-                    </button>
-                </form>
-            </>
-        );
-    }
-
-    // --- Ouikenac Package (Complex Form) ---
-    if (modalType === 'ouikenac') {
-        return (
-            <>
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">{getFormTitle('un Package Ouikenac')}</h2>
-                <form onSubmit={(e) => { e.preventDefault(); handleCreateOrUpdate('ouikenac', data, isEdit ? 'Package Ouikenac mis à jour.' : 'Package Ouikenac créé.'); }}>
-                    <div className="space-y-6">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">Titre</label>
-                                <input type="text" name="title" value={editForm.title || ''} onChange={handleFormChange} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:border-primary focus:ring-primary" />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">Statut</label>
-                                <select name="active" value={editForm.active ? 'true' : 'false'} onChange={(e) => setEditForm(prev => ({...prev, active: e.target.value === 'true'}))} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:border-primary focus:ring-primary">
-                                    <option value="true">Actif</option>
-                                    <option value="false">Inactif</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Description</label>
-                            <textarea name="description" value={editForm.description || ''} onChange={handleFormChange} rows="3" required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:border-primary focus:ring-primary" />
-                        </div>
-                        <div className="pt-2">
-                             <label className="block text-sm font-medium text-gray-700">Image (non géré ici pour la simplicité, mais le champ existe)</label>
-                             <input type="file" name="image" className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20" />
-                        </div>
-
-                        {/* GRILLES DE PRIX (PRICES) */}
-                        <div className="border p-4 rounded-xl bg-gray-50">
-                            <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2"><DollarSign size={20} className="text-warning" /> Grilles de Prix</h3>
-                            {editRelations.prices.map((price, index) => (
-                                <div key={index} className="mb-4 p-3 border border-gray-200 rounded-lg bg-white relative">
-                                    <button type="button" onClick={() => handleRemovePrice(index)} className="absolute top-2 right-2 text-red-500 hover:text-red-700 p-1 rounded-full bg-red-100" title="Supprimer le prix">
-                                        <X size={14} />
-                                    </button>
-                                    <p className="font-medium text-sm text-gray-600 mb-2">Tarif #{index + 1} (ID: {price.id || 'Nouveau'})</p>
-                                    <div className="grid grid-cols-12 gap-3">
-                                        
-                                        <div className="col-span-6 sm:col-span-3">
-                                            <label className="block text-xs font-medium text-gray-700">Pays Départ</label>
-                                            <select value={price.departure_country_id || ''} onChange={(e) => handleUpdatePrice(index, 'departure_country_id', e.target.value)} required className="block w-full border border-gray-300 rounded-md p-2 text-sm focus:border-primary">
-                                                <option value="">Pays</option>
-                                                {countries.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                            </select>
-                                        </div>
-                                        <div className="col-span-6 sm:col-span-3">
-                                            <label className="block text-xs font-medium text-gray-700">Ville Départ</label>
-                                            <select value={price.departure_city_id || ''} onChange={(e) => handleUpdatePrice(index, 'departure_city_id', e.target.value)} required className="block w-full border border-gray-300 rounded-md p-2 text-sm focus:border-primary">
-                                                <option value="">Ville</option>
-                                                {cities.filter(c => c.country_id == price.departure_country_id).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                            </select>
-                                        </div>
-
-                                        <div className="col-span-6 sm:col-span-3">
-                                            <label className="block text-xs font-medium text-gray-700">Pays Arrivée</label>
-                                            <select value={price.arrival_country_id || ''} onChange={(e) => handleUpdatePrice(index, 'arrival_country_id', e.target.value)} required className="block w-full border border-gray-300 rounded-md p-2 text-sm focus:border-primary">
-                                                <option value="">Pays</option>
-                                                {countries.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                            </select>
-                                        </div>
-                                        <div className="col-span-6 sm:col-span-3">
-                                            <label className="block text-xs font-medium text-gray-700">Ville Arrivée</label>
-                                            <select value={price.arrival_city_id || ''} onChange={(e) => handleUpdatePrice(index, 'arrival_city_id', e.target.value)} className="block w-full border border-gray-300 rounded-md p-2 text-sm focus:border-primary">
-                                                <option value="">Ville (Optionnel)</option>
-                                                {cities.filter(c => c.country_id == price.arrival_country_id).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                            </select>
-                                        </div>
-
-                                        <input type="number" placeholder="Min Pers." value={price.min_people || 1} onChange={(e) => handleUpdatePrice(index, 'min_people', e.target.value)} required className="col-span-6 sm:col-span-3 block w-full border border-gray-300 rounded-md p-2 text-sm focus:border-primary" />
-                                        <input type="number" placeholder="Max Pers." value={price.max_people || 2} onChange={(e) => handleUpdatePrice(index, 'max_people', e.target.value)} required className="col-span-6 sm:col-span-3 block w-full border border-gray-300 rounded-md p-2 text-sm focus:border-primary" />
-                                        <input type="number" placeholder="Prix" value={price.price || 0} onChange={(e) => handleUpdatePrice(index, 'price', e.target.value)} required className="col-span-6 sm:col-span-3 block w-full border border-gray-300 rounded-md p-2 text-sm focus:border-primary" />
-                                        <select value={price.currency || 'CFA'} onChange={(e) => handleUpdatePrice(index, 'currency', e.target.value)} className="col-span-6 sm:col-span-3 block w-full border border-gray-300 rounded-md p-2 text-sm focus:border-primary">
-                                            <option value="CFA">CFA</option>
-                                            <option value="USD">USD</option>
-                                        </select>
-                                        <div className="col-span-12">
-                                            <textarea placeholder="Programme (HTML ou Markdown)" value={price.programme || ''} onChange={(e) => handleUpdatePrice(index, 'programme', e.target.value)} rows="2" className="block w-full border border-gray-300 rounded-md shadow-sm p-2 text-sm focus:border-primary focus:ring-primary" />
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                            <button type="button" onClick={handleAddPrice} className="flex items-center gap-1 mt-4 text-primary font-medium hover:text-primary/90 transition">
-                                <Plus size={18} /> Ajouter une grille de prix
-                            </button>
-                        </div>
-
-                        {/* VILLES ADDITIONNELLES */}
-                        <div className="border p-4 rounded-xl bg-gray-50">
-                            <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2"><Map size={20} className="text-primary" /> Villes Additionnelles (Escales)</h3>
-                            {editRelations.additionalCities.map((ac, index) => (
-                                <div key={index} className="mb-2 flex gap-3 p-2 border border-gray-200 rounded-lg bg-white items-center">
-                                    <select value={ac.city_id || ''} onChange={(e) => handleUpdateAdditionalCity(index, 'city_id', e.target.value)} required className="flex-1 block border border-gray-300 rounded-md p-2 text-sm focus:border-primary">
-                                        <option value="">Sélectionner une ville</option>
-                                        {cities.map(c => <option key={c.id} value={c.id}>{c.name} ({getCountryName(c.country_id)})</option>)}
-                                    </select>
-                                    <select value={ac.type || 'escale'} onChange={(e) => handleUpdateAdditionalCity(index, 'type', e.target.value)} className="block border border-gray-300 rounded-md p-2 text-sm focus:border-primary">
-                                        <option value="escale">Escale</option>
-                                    </select>
-                                    <button type="button" onClick={() => handleRemoveAdditionalCity(index)} className="text-red-500 hover:text-red-700 p-1" title="Supprimer">
-                                        <Trash2 size={18} />
-                                    </button>
-                                </div>
-                            ))}
-                            <button type="button" onClick={handleAddAdditionalCity} className="flex items-center gap-1 mt-4 text-primary font-medium hover:text-primary/90 transition">
-                                <Plus size={18} /> Ajouter une ville
-                            </button>
-                        </div>
-                        
-                        {/* INCLUSIONS */}
-                        <div className="border p-4 rounded-xl bg-gray-50">
-                            <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2"><CheckCircle size={20} className="text-green" /> Inclusions</h3>
-                            {editRelations.inclusions.map((inc, index) => (
-                                <div key={index} className="mb-2 flex gap-3 p-2 border border-gray-200 rounded-lg bg-white items-center">
-                                    <input type="text" placeholder="Nom de l'inclusion (Ex: Vol A/R)" value={inc.name || ''} onChange={(e) => handleUpdateInclusion(index, 'name', e.target.value)} required className="flex-1 block border border-gray-300 rounded-md p-2 text-sm focus:border-primary" />
-                                    <input type="text" placeholder="Description (Optionnel)" value={inc.description || ''} onChange={(e) => handleUpdateInclusion(index, 'description', e.target.value)} className="flex-1 block border border-gray-300 rounded-md p-2 text-sm focus:border-primary" />
-                                    <button type="button" onClick={() => handleRemoveInclusion(index)} className="text-red-500 hover:text-red-700 p-1" title="Supprimer">
-                                        <Trash2 size={18} />
-                                    </button>
-                                </div>
-                            ))}
-                            <button type="button" onClick={handleAddInclusion} className="flex items-center gap-1 mt-4 text-primary font-medium hover:text-primary/90 transition">
-                                <Plus size={18} /> Ajouter une inclusion
-                            </button>
-                        </div>
-                    </div>
-                    <button type="submit" disabled={submitting} className="w-full mt-6 bg-primary text-white py-2 rounded-lg font-medium transition hover:bg-primary/90 disabled:opacity-50">
-                        {submitting ? 'Envoi en cours...' : (isEdit ? 'Enregistrer les modifications' : 'Créer le Package')}
-                    </button>
-                </form>
-            </>
-        );
-    }
-    
-    // --- City Tour ---
-    if (modalType === 'cityTour') {
-        return (
-            <>
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">{getFormTitle('un City Tour')}</h2>
-                {/* COHERENCE: Utilisation de 'nom', 'date', 'places_min', 'places_max' pour correspondre au contrôleur */}
-                <form onSubmit={(e) => { e.preventDefault(); handleCreateOrUpdate('city-tours', editForm, isEdit ? 'City Tour mis à jour.' : 'City Tour créé.'); }}>
-                    <div className="space-y-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Nom du Tour <span className="text-red-500">*</span></label>
-                            {/* CORRECTION: Renommé 'name' en 'nom' */}
-                            <input type="text" name="nom" value={editForm.nom || ''} onChange={handleFormChange} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:border-primary focus:ring-primary" />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">Pays <span className="text-red-500">*</span></label>
-                                <select name="country_id" value={editForm.country_id || ''} onChange={handleFormChange} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:border-primary focus:ring-primary">
-                                    <option value="">Sélectionner un pays</option>
-                                    {countries.map(c => (
-                                        <option key={c.id} value={c.id}>{c.name}</option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">Ville <span className="text-red-500">*</span></label>
-                                <select name="city_id" value={editForm.city_id || ''} onChange={handleFormChange} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:border-primary focus:ring-primary">
-                                    <option value="">Sélectionner une ville</option>
-                                    {cities.filter(c => c.country_id == editForm.country_id).map(c => (
-                                        <option key={c.id} value={c.id}>{c.name}</option>
-                                    ))}
-                                </select>
-                            </div>
-                        </div>
-                        
-                        {/* CORRECTION: Ajout des champs manquants */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Date Prévue (Validation: 'date') <span className="text-red-500">*</span></label>
-                            <input type="date" name="date" value={editForm.date || ''} onChange={handleFormChange} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:border-primary focus:ring-primary" />
-                        </div>
-                        
-                        <div className="grid grid-cols-3 gap-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">Min. Personnes (Validation: 'places_min') <span className="text-red-500">*</span></label>
-                                <input type="number" name="places_min" value={editForm.places_min || 1} onChange={handleFormChange} required min="1" className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:border-primary focus:ring-primary" />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">Max. Personnes (Validation: 'places_max') <span className="text-red-500">*</span></label>
-                                <input type="number" name="places_max" value={editForm.places_max || 10} onChange={handleFormChange} required min={editForm.places_min || 1} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:border-primary focus:ring-primary" />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">Prix <span className="text-red-500">*</span></label>
-                                <input type="number" name="price" value={editForm.price || 0} onChange={handleFormChange} required min="0" className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:border-primary focus:ring-primary" />
-                            </div>
-                        </div>
-                        
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Description (Détails)</label>
-                            <textarea name="description" value={editForm.description || ''} onChange={handleFormChange} rows="3" className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:border-primary focus:ring-primary" />
-                        </div>
-                        
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Programme (Validation: 'programme')</label>
-                            <textarea name="programme" value={editForm.programme || ''} onChange={handleFormChange} rows="3" className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:border-primary focus:ring-primary" />
-                        </div>
-
-                        <div className="pt-2">
-                             <label className="block text-sm font-medium text-gray-700">Image (non géré ici pour la simplicité, mais le champ existe)</label>
-                             <input type="file" name="image" className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20" />
-                        </div>
-                    </div>
-                    <button type="submit" disabled={submitting} className="w-full mt-6 bg-primary text-white py-2 rounded-lg font-medium transition hover:bg-primary/90 disabled:opacity-50">
-                        {submitting ? 'Envoi en cours...' : (isEdit ? 'Enregistrer les modifications' : 'Créer le City Tour')}
-                    </button>
-                </form>
-            </>
-        );
-    }
-    
-    // ... Other Modal content (Not modified as they seem correct or are non-core)
-
-    return null;
-  };
-
-  // --- RENDU PRINCIPAL DU DASHBOARD (Contient les vues) ---
-  const StatCard = ({ icon: Icon, title, value, unit, color }) => (
-    <div className="bg-white p-5 rounded-xl shadow-lg border border-gray-100 flex items-center justify-between transition-shadow hover:shadow-xl">
-        <div className="flex flex-col">
-            <p className="text-sm font-medium text-gray-500">{title}</p>
-            <p className="text-3xl font-bold text-gray-900 mt-1">{value} <span className="text-base font-normal text-gray-500">{unit}</span></p>
-        </div>
-        <div className={`p-3 rounded-full ${color}/20 text-white`}>
-            <Icon size={24} className={`text-primary`} style={{ color: color }} />
-        </div>
-    </div>
-  );
-  
-  const DataTable = ({ columns, data }) => {
-    if (data.length === 0) {
-        return <p className="mt-4 p-4 text-center text-gray-500 bg-gray-50 rounded-lg">Aucune donnée à afficher pour le moment.</p>;
-    }
-
-    return (
-        <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                    <tr>
-                        {columns.map(col => (
-                            <th key={col.header} className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                {col.header}
-                            </th>
-                        ))}
-                    </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                    {data.map(row => (
-                        <tr key={row.id} className="hover:bg-gray-50 transition">
-                            {columns.map(col => (
-                                <td key={col.header} className="px-4 sm:px-6 py-4 text-sm text-gray-900 align-top">
-                                    {col.render ? col.render(row) : (typeof col.accessor === 'function' ? col.accessor(row) : row[col.accessor])}
-                                </td>
-                            ))}
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-        </div>
+  const PIE_COLORS = ['#1b5e8e', '#f18f13', '#007335', '#40bcd5', '#f7b406'];
+  const RADIAN = Math.PI / 180;
+  const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, index, name }) => {
+    const radius = innerRadius + (outerRadius - innerRadius) * 0.5; 
+    const x = cx + radius * Math.cos(-midAngle * RADIAN); 
+    const y = cy + radius * Math.sin(-midAngle * RADIAN); 
+    return ( 
+        <text x={x} y={y} fill="white" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" style={{ fontSize: '10px' }}>
+            {`${name} (${(percent * 100).toFixed(0)}%)`}
+        </text>
     );
   };
+    
+  // --- JSX TEMPLATE ---
 
-  const NavItem = ({ icon: Icon, label, tab }) => (
-    <button 
-        onClick={() => { setActiveTab(tab); setIsSidebarOpen(false); }} 
-        className={`w-full flex items-center p-3 rounded-xl transition-all duration-200 ${
-            activeTab === tab ? 'bg-primary text-white font-bold shadow-lg shadow-primary/30' : 'text-gray-600 hover:bg-gray-100'
-        }`}
-    >
-        <Icon size={20} className="mr-3" />
-        <span className="text-sm">{label}</span>
-    </button>
-  );
-
-  // --- VUES DU DASHBOARD ---
-  // ... (dashboard, reservations, countries, destinations, ouikenac) ...
-
-  if (loading) return <LoadingOverlay />;
-
-
-  // --- MAIN RENDER ---
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      
+    <div className="min-h-screen bg-light-bg flex">
+      {loading && <LoadingOverlay />}
+      {submitting && <LoadingOverlay />}
+      <Notification show={notification.show} message={notification.message} type={notification.type} onClose={() => setNotification({ show: false, message: '', type: '' })} />
+
       {/* Sidebar */}
-      <div className={`fixed inset-y-0 left-0 transform ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:relative lg:translate-x-0 transition-transform duration-300 ease-in-out bg-white w-64 p-4 border-r border-gray-100 z-50`}>
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-extrabold text-primary flex items-center">
-            <Navigation size={24} className="mr-2" /> eTravel Admin
-          </h1>
-          <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden text-gray-500 hover:text-gray-700">
+      <aside className={`fixed z-40 lg:relative ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 transition-transform duration-300 w-64 bg-gray-900 flex flex-col h-screen`}>
+        <div className="flex items-center justify-between p-6 bg-gray-800">
+          <h2 className="text-xl font-bold text-white">e-TRAVEL ADMIN</h2>
+          <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden text-white hover:text-primary transition-colors">
             <X size={24} />
           </button>
         </div>
-        <nav className="space-y-2">
-          <NavItem icon={Home} label="Tableau de Bord" tab="dashboard" />
-          <NavItem icon={Users} label="Réservations" tab="reservations" />
-          <hr className="my-2 border-gray-100" />
-          <NavItem icon={Globe} label="Pays & Villes" tab="countries" />
-          <NavItem icon={Building} label="Destinations" tab="destinations" />
-          <NavItem icon={Plane} label="Packages Ouikenac" tab="ouikenac" />
-          <NavItem icon={Compass} label="City Tours" tab="cityTours" />
+        
+        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+          <button 
+            onClick={() => setActiveTab('dashboard')} 
+            className={`flex items-center w-full p-3 rounded-lg font-medium transition-colors ${activeTab === 'dashboard' ? 'bg-primary text-white shadow-md' : 'text-gray-300 hover:bg-gray-800 hover:text-white'}`}
+          >
+            <Home size={20} className="mr-3" /> Tableau de Bord
+          </button>
+          
+          <h3 className="text-xs uppercase text-gray-500 font-semibold mt-4 mb-2 pt-2 border-t border-gray-700">Gestion des Packages</h3>
+          
+          <button 
+            onClick={() => setActiveTab('destinations')} 
+            className={`flex items-center w-full p-3 rounded-lg font-medium transition-colors ${activeTab === 'destinations' ? 'bg-primary text-white shadow-md' : 'text-gray-300 hover:bg-gray-800 hover:text-white'}`}
+          >
+            <Plane size={20} className="mr-3" /> Destinations
+          </button>
+          
+          <button 
+            onClick={() => setActiveTab('ouikenacs')} 
+            className={`flex items-center w-full p-3 rounded-lg font-medium transition-colors ${activeTab === 'ouikenacs' ? 'bg-primary text-white shadow-md' : 'text-gray-300 hover:bg-gray-800 hover:text-white'}`}
+          >
+            <Zap size={20} className="mr-3" /> Ouikenac
+          </button>
+
+          <button 
+            onClick={() => setActiveTab('city-tours')} 
+            className={`flex items-center w-full p-3 rounded-lg font-medium transition-colors ${activeTab === 'city-tours' ? 'bg-primary text-white shadow-md' : 'text-gray-300 hover:bg-gray-800 hover:text-white'}`}
+          >
+            <Map size={20} className="mr-3" /> City Tours
+          </button>
+          
+          <h3 className="text-xs uppercase text-gray-500 font-semibold mt-4 mb-2 pt-2 border-t border-gray-700">Paramètres</h3>
+
+          <button 
+            onClick={() => setActiveTab('countries')} 
+            className={`flex items-center w-full p-3 rounded-lg font-medium transition-colors ${activeTab === 'countries' ? 'bg-primary text-white shadow-md' : 'text-gray-300 hover:bg-gray-800 hover:text-white'}`}
+          >
+            <Globe size={20} className="mr-3" /> Pays
+          </button>
+          
+          <button 
+            onClick={() => setActiveTab('cities')} 
+            className={`flex items-center w-full p-3 rounded-lg font-medium transition-colors ${activeTab === 'cities' ? 'bg-primary text-white shadow-md' : 'text-gray-300 hover:bg-gray-800 hover:text-white'}`}
+          >
+            <Building size={20} className="mr-3" /> Villes
+          </button>
+
         </nav>
-      </div>
+      </aside>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-y-auto">
-        {/* Top Bar */}
-        <header className="sticky top-0 bg-white shadow-sm p-4 flex items-center justify-between z-40 lg:hidden">
-          <button onClick={() => setIsSidebarOpen(true)} className="text-gray-600 hover:text-gray-800">
-            <Menu size={24} />
+      <main className="flex-1 overflow-x-hidden overflow-y-auto p-4 sm:p-8">
+        
+        <header className="flex items-center justify-between lg:hidden mb-6">
+          <h1 className="text-2xl font-bold text-gray-900">Admin</h1>
+          <button onClick={() => setIsSidebarOpen(true)} className="text-gray-900 p-2">
+            <Menu size={28} />
           </button>
-          <h2 className="text-xl font-bold text-gray-800">{activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}</h2>
-          <div></div> {/* Placeholder for right-side items */}
         </header>
 
-        {/* Page Content */}
-        <main className="p-4 sm:p-6 lg:p-8 flex-1">
-          {activeTab === 'dashboard' && renderDashboard()}
-          {activeTab === 'reservations' && renderReservations()}
-          {activeTab === 'countries' && renderCountries()}
-          {activeTab === 'destinations' && renderDestinations()}
-          {activeTab === 'ouikenac' && renderOuikenac()}
-          {activeTab === 'cityTours' && renderCityTours()}
-        </main>
-        
-        <footer className="p-4 text-center text-sm text-gray-500 border-t mt-auto">
-            © {new Date().getFullYear()} eTravel Admin Dashboard - Tous droits réservés.
-        </footer>
-      </div>
+        {/* --- 1. DASHBOARD --- */}
+        {activeTab === 'dashboard' && (
+          <div>
+            <h2 className="text-3xl font-bold text-gray-900 mb-8">Tableau de Bord</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+              <DashboardCard 
+                icon={Users} 
+                title="Réservations" 
+                value={totalReservations} 
+                color="primary" 
+                detail="Total Clients" 
+              />
+              <DashboardCard 
+                icon={DollarSign} 
+                title="Revenu Estimé" 
+                value={`${formatPrice(totalRevenue)} XAF`} 
+                color="secondary" 
+                detail="Total Annuel Simulé" 
+              />
+              <DashboardCard 
+                icon={Package} 
+                title="Packages Actifs" 
+                value={totalPackages} 
+                color="green" 
+                detail="Destination, Ouikenac, City Tour" 
+              />
+              <DashboardCard 
+                icon={TrendingUp} 
+                title="Score de Conversion" 
+                value={`${conversionScore}%`} 
+                color="warning" 
+                detail="Réservations / Packages" 
+              />
+            </div>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                <div className="lg:col-span-1 bg-white p-6 rounded-2xl shadow-xl border border-gray-200">
+                    <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2"><MapPin size={20} className="text-primary" /> Réservations par Type</h3>
+                    <ResponsiveContainer width="100%" height={300}>
+                        <PieChart>
+                            <Pie
+                                data={reservationChartData}
+                                cx="50%"
+                                cy="50%"
+                                outerRadius={100}
+                                fill="#8884d8"
+                                dataKey="value"
+                                labelLine={false}
+                                label={renderCustomizedLabel}
+                            >
+                                {reservationChartData.map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                                ))}
+                            </Pie>
+                            <Tooltip formatter={(value) => `${value} réservations`} />
+                            <Legend layout="vertical" align="right" verticalAlign="middle" wrapperStyle={{ paddingLeft: '20px' }} />
+                        </PieChart>
+                    </ResponsiveContainer>
+                </div>
+                
+                <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-xl border border-gray-200">
+                    <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2"><Globe size={20} className="text-primary" /> Packages par Pays</h3>
+                    <ResponsiveContainer width="100%" height={300}>
+                        <BarChart data={packagesByCountryChartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                            <XAxis dataKey="name" stroke="#4b5563" style={{ fontSize: '12px' }} />
+                            <YAxis stroke="#4b5563" style={{ fontSize: '12px' }} />
+                            <Tooltip />
+                            <Legend />
+                            <Bar dataKey="destinations" fill="#1b5e8e" name="Destinations" />
+                            <Bar dataKey="ouikenacs" fill="#f18f13" name="Ouikenac" />
+                            <Bar dataKey="cityTours" fill="#40bcd5" name="City Tours" />
+                        </BarChart>
+                    </ResponsiveContainer>
+                </div>
+                
+                <div className="lg:col-span-3 bg-white p-6 rounded-2xl shadow-xl border border-gray-200">
+                    <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2"><Aperture size={20} className="text-primary" /> Évolution des Revenus Mensuels (Estimé)</h3>
+                    <ResponsiveContainer width="100%" height={300}>
+                        <LineChart data={monthlyRevenueChartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                            <XAxis dataKey="name" stroke="#4b5563" style={{ fontSize: '12px' }} />
+                            <YAxis tickFormatter={val => formatPrice(val)} stroke="#4b5563" style={{ fontSize: '12px' }} />
+                            <Tooltip formatter={(value) => [`${formatPrice(value)} XAF`, 'Revenu']} />
+                            <Legend />
+                            <Line type="monotone" dataKey="Revenue" stroke="#007335" strokeWidth={2} activeDot={{ r: 8 }} />
+                        </LineChart>
+                    </ResponsiveContainer>
+                </div>
 
-      {/* Modals */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={closeModal}>
-          <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl relative animate-scale-in mx-4" onClick={e => e.stopPropagation()}>
-            <button onClick={closeModal} className="absolute top-4 right-4 bg-gray-100 p-2 rounded-full hover:bg-gray-200 z-10 text-gray-700" aria-label="Fermer"><X size={24} /></button>
-            <div className="p-8">
-              {renderModalContent()}
             </div>
           </div>
-        </div>
+        )}
+
+        {/* --- 2. DESTINATIONS --- */}
+        {activeTab === 'destinations' && (
+            <div>
+                <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-3xl font-bold text-gray-900">Gestion des Destinations</h2>
+                    <button onClick={() => openModal('destination')} className="bg-primary text-white px-4 py-2 rounded-full font-medium flex items-center gap-2 hover:bg-primary/90 transition-colors">
+                        <Plus size={20} /> Nouvelle Destination
+                    </button>
+                </div>
+                <DataTable 
+                    data={destinations}
+                    columns={[
+                        { header: 'ID', accessor: 'id' },
+                        { header: 'Titre', accessor: 'title' },
+                        { header: 'Départ', accessor: (d) => d.departure_country?.name || 'N/A' },
+                        { header: 'Prix Min', accessor: (d) => `${formatPrice(d.prices?.[0]?.price || d.price)} ${d.prices?.[0]?.currency || d.currency || 'CFA'}` },
+                        { header: 'Actions', accessor: 'actions', render: (d) => (
+                            <div className="flex gap-2 min-w-[60px]">
+                                <button onClick={() => openModal('destination', d)} className="text-primary hover:text-primary/90 transition" title="Modifier le package">
+                                    <Edit2 size={20} />
+                                </button>
+                                <button onClick={() => handleDelete('destination', d.id)} className="text-red-500 hover:text-red-700 transition" title="Supprimer">
+                                    <Trash2 size={20} />
+                                </button>
+                            </div>
+                        )},
+                    ]}
+                />
+            </div>
+        )}
+
+        {/* --- 3. OUIKENAC --- */}
+        {activeTab === 'ouikenacs' && (
+            <div>
+                <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-3xl font-bold text-gray-900">Gestion des Packages Ouikenac</h2>
+                    <button onClick={() => openModal('ouikenac')} className="bg-warning text-white px-4 py-2 rounded-full font-medium flex items-center gap-2 hover:bg-warning/90 transition-colors">
+                        <Plus size={20} /> Nouveau Ouikenac
+                    </button>
+                </div>
+                <DataTable 
+                    data={ouikenacs}
+                    columns={[
+                        { header: 'ID', accessor: 'id' },
+                        { header: 'Titre', accessor: 'title' },
+                        { header: 'Prix', accessor: (o) => {
+                            const details = getOuikenacPriceDetails(o); 
+                            return <span className="font-medium text-secondary">{details.display.split('(')[0].trim()}</span>;
+                        }},
+                        { header: 'Grilles', accessor: (o) => o.prices?.length || 0 },
+                        { header: 'Actions', accessor: 'actions', render: (o) => (
+                            <div className="flex gap-2 min-w-[60px]">
+                                <button onClick={() => openModal('ouikenac', o)} className="text-warning hover:text-warning/90 transition" title="Modifier le package">
+                                    <Edit2 size={20} />
+                                </button>
+                                <button onClick={() => handleDelete('ouikenac', o.id)} className="text-red-500 hover:text-red-700 transition" title="Supprimer">
+                                    <Trash2 size={20} />
+                                </button>
+                            </div>
+                        )},
+                    ]}
+                />
+            </div>
+        )}
+
+        {/* --- 4. CITY TOURS --- */}
+        {activeTab === 'city-tours' && (
+            <div>
+                <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-3xl font-bold text-gray-900">Gestion des City Tours</h2>
+                    <button onClick={() => openModal('cityTour')} className="bg-cyan text-white px-4 py-2 rounded-full font-medium flex items-center gap-2 hover:bg-cyan/90 transition-colors">
+                        <Plus size={20} /> Nouveau City Tour
+                    </button>
+                </div>
+                <DataTable 
+                    data={cityTours}
+                    columns={[
+                        { header: 'ID', accessor: 'id' },
+                        { header: 'Titre', accessor: 'title' },
+                        { header: 'Ville/Pays', accessor: (t) => `${t.city?.name || 'N/A'} (${t.country?.code || 'N/A'})` },
+                        { header: 'Date', accessor: (t) => t.date ? new Date(t.date).toLocaleDateString('fr-FR') : 'N/A' },
+                        { header: 'Prix', accessor: (t) => `${formatPrice(t.price)} ${t.currency || 'CFA'}` },
+                        { header: 'Actions', accessor: 'actions', render: (t) => (
+                            <div className="flex gap-2 min-w-[60px]">
+                                <button onClick={() => openModal('cityTour', t)} className="text-cyan hover:text-cyan/90 transition" title="Modifier le tour">
+                                    <Edit2 size={20} />
+                                </button>
+                                <button onClick={() => handleDelete('cityTour', t.id)} className="text-red-500 hover:text-red-700 transition" title="Supprimer">
+                                    <Trash2 size={20} />
+                                </button>
+                            </div>
+                        )},
+                    ]}
+                />
+            </div>
+        )}
+        
+        {/* --- 5. PAYS --- */}
+        {activeTab === 'countries' && (
+            <div>
+                <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-3xl font-bold text-gray-900">Gestion des Pays</h2>
+                    <button onClick={() => openModal('country')} className="bg-primary text-white px-4 py-2 rounded-full font-medium flex items-center gap-2 hover:bg-primary/90 transition-colors">
+                        <Plus size={20} /> Nouveau Pays
+                    </button>
+                </div>
+                 <DataTable 
+                    data={countries}
+                    columns={[
+                        { header: 'ID', accessor: 'id' },
+                        { header: 'Nom', accessor: 'name' },
+                        { header: 'Code', accessor: 'code' },
+                        { header: 'Villes', accessor: (c) => c.cities?.length || 0 },
+                        { header: 'Actions', accessor: 'actions', render: (c) => ( 
+                            <div className="flex gap-2 min-w-[60px]">
+                                <button onClick={() => openModal('country', c)} className="text-primary hover:text-primary/90 transition" title="Modifier le pays">
+                                    <Edit2 size={20} />
+                                </button>
+                                <button onClick={() => handleDelete('country', c.id)} className="text-red-500 hover:text-red-700 transition" title="Supprimer">
+                                    <Trash2 size={20} />
+                                </button>
+                            </div>
+                        )},
+                    ]}
+                />
+            </div>
+        )}
+        
+        {/* --- 6. VILLES --- */}
+        {activeTab === 'cities' && (
+            <div>
+                <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-3xl font-bold text-gray-900">Gestion des Villes</h2>
+                    <button onClick={() => openModal('city')} className="bg-primary text-white px-4 py-2 rounded-full font-medium flex items-center gap-2 hover:bg-primary/90 transition-colors">
+                        <Plus size={20} /> Nouvelle Ville
+                    </button>
+                </div>
+                 <DataTable 
+                    data={cities}
+                    columns={[
+                        { header: 'ID', accessor: 'id' },
+                        { header: 'Nom', accessor: 'name' },
+                        { header: 'Pays', accessor: (c) => c.country?.name || 'N/A' },
+                        { header: 'Actions', accessor: 'actions', render: (c) => ( 
+                            <div className="flex gap-2 min-w-[60px]">
+                                <button onClick={() => openModal('city', c)} className="text-primary hover:text-primary/90 transition" title="Modifier la ville">
+                                    <Edit2 size={20} />
+                                </button>
+                                <button onClick={() => handleDelete('city', c.id)} className="text-red-500 hover:text-red-700 transition" title="Supprimer">
+                                    <Trash2 size={20} />
+                                </button>
+                            </div>
+                        )},
+                    ]}
+                />
+            </div>
+        )}
+
+      </main>
+
+      {/* MODAL */}
+      {showModal && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={closeModal}>
+              <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl relative animate-scale-in" onClick={e => e.stopPropagation()}>
+                  <button onClick={closeModal} className="absolute top-4 right-4 text-gray-400 hover:text-gray-900 p-2 z-10 bg-white rounded-full transition-colors">
+                      <X size={24} />
+                  </button>
+                  <div className="p-6 sm:p-8">
+                      <ModalContent />
+                  </div>
+              </div>
+          </div>
       )}
 
-      {/* Notifications */}
-      <Notification 
-        show={notification.show} 
-        message={notification.message} 
-        type={notification.type} 
-        onClose={() => setNotification({ show: false, message: '', type: '' })}
-      />
-      
-      {/* Loading (for submitting) */}
-      {submitting && (
-        <div className="fixed inset-0 bg-black/20 z-[90] pointer-events-none"></div>
-      )}
+      <style jsx global>{`
+        :root { 
+          --primary: #1b5e8e;
+          --secondary: #f18f13;
+          --green: #007335;
+          --warning: #f7b406;
+          --cyan: #40bcd5;
+          --light-bg: #f5f7f9;
+        }
 
-      {/* Styles for animations */}
-      <style jsx>{`
+        .text-primary { color: var(--primary) !important; }
+        .bg-primary { background-color: var(--primary) !important; }
+        .border-primary { border-color: var(--primary) !important; }
+        .hover\\:bg-primary\\/90:hover { background-color: rgba(27, 94, 142, 0.9) !important; }
+        .hover\\:text-primary:hover { color: var(--primary) !important; }
+        .hover\\:text-primary\\/90:hover { color: rgba(27, 94, 142, 0.9) !important; }
+        .bg-primary\\/10 { background-color: rgba(27, 94, 142, 0.1) !important; }
+        .bg-primary\\/20 { background-color: rgba(27, 94, 142, 0.2) !important; }
+        .border-primary\\/20 { border-color: rgba(27, 94, 142, 0.2) !important; }
+
+        .text-secondary { color: var(--secondary) !important; }
+        
+        .text-green { color: var(--green) !important; }
+        .bg-green { background-color: var(--green) !important; }
+
+        .text-warning { color: var(--warning) !important; }
+        .bg-warning { background-color: var(--warning) !important; }
+        .hover\\:bg-warning\\/90:hover { background-color: rgba(247, 180, 6, 0.9) !important; }
+        .hover\\:text-warning:hover { color: var(--warning) !important; }
+        .hover\\:text-warning\\/90:hover { color: rgba(247, 180, 6, 0.9) !important; }
+        .bg-warning\\/20 { background-color: rgba(247, 180, 6, 0.2) !important; }
+        .border-warning\\/50 { border-color: rgba(247, 180, 6, 0.5) !important; }
+
+        .text-cyan { color: var(--cyan) !important; }
+        .bg-cyan { background-color: var(--cyan) !important; }
+        .hover\\:bg-cyan\\/90:hover { background-color: rgba(64, 188, 213, 0.9) !important; }
+        .hover\\:text-cyan:hover { color: var(--cyan) !important; }
+        .hover\\:text-cyan\\/90:hover { color: rgba(64, 188, 213, 0.9) !important; }
+
+        .bg-light-bg { background-color: var(--light-bg) !important; }
+
         @keyframes slide-in {
           from { transform: translateX(100%); opacity: 0; }
           to { transform: translateX(0); opacity: 1; }
         }
         @keyframes scale-in {
-          from { transform: scale(0.95); opacity: 0; }
+          from { transform: scale(0.9); opacity: 0; }
           to { transform: scale(1); opacity: 1; }
         }
         @keyframes progress {
-            0% { width: 0%; }
-            50% { width: 75%; }
-            100% { width: 100%; }
+          0% { width: 0%; }
+          100% { width: 100%; }
         }
-
-        .animate-slide-in {
-          animation: slide-in 0.3s ease-out forwards;
-        }
-        .animate-scale-in {
-            animation: scale-in 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-        }
-        .animate-progress {
-            animation: progress 5s infinite alternate;
-        }
-
-        /* Utility classes (pour la robustesse) */
-        
-        .text-primary { color: #1b5e8e; }
-        .bg-primary { background-color: #1b5e8e; }
-        .hover\\:bg-primary\\/90:hover { background-color: rgba(27, 94, 142, 0.9); }
-        .focus\\:border-primary:focus { border-color: #1b5e8e; }
-        .focus\\:ring-primary:focus { --tw-ring-color: #1b5e8e; }
-
-        .text-warning { color: #f18f13; }
-        .bg-warning\\/20 { background-color: rgba(247, 180, 6, 0.2); }
-        .border-warning\\/50 { border-color: rgba(247, 180, 6, 0.5); }
-        
-        .text-green { color: #007335; }
-        .bg-green-100 { background-color: #d1fae5; }
-        .border-green { border-color: #007335; }
-        .text-green-800 { color: #065f46; }
-
-        /* Utility pour les couleurs primaires du front */
-        .bg-primary\\/10 { background-color: rgba(27, 94, 142, 0.1); }
-        .border-primary\\/20 { border-color: rgba(27, 94, 142, 0.2); }
-        .shadow-primary\\/30 { --tw-shadow-color: rgba(27, 94, 142, 0.3); --tw-shadow: var(--tw-shadow-color) 0 10px 15px -3px, var(--tw-shadow-color) 0 4px 6px -4px; box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow); }
-        .text-primary\\/60 { color: rgba(27, 94, 142, 0.6); }
-
-        .bg-green\\/10 { background-color: rgba(0, 115, 53, 0.1); }
-        .border-green\\/20 { border-color: rgba(0, 115, 53, 0.2); }
-        
-        .bg-warning\\/20 { background-color: rgba(247, 180, 6, 0.2); }
-        .border-warning\\/50 { border-color: rgba(247, 180, 6, 0.5); }
+        .animate-slide-in { animation: slide-in 0.3s ease-out; }
+        .animate-scale-in { animation: scale-in 0.2s ease-out; }
+        .animate-progress { animation: progress 1.5s infinite linear; }
       `}</style>
     </div>
   );
 };
 
-// Vues restantes (simulées pour l'exhaustivité)
-const renderDashboard = () => { /* ... dashboard implementation ... */ return (<div>Dashboard Content...</div>); };
-const renderReservations = () => { /* ... reservations implementation ... */ return (<div>Reservations Content...</div>); };
-const renderCountries = () => { /* ... countries implementation ... */ return (<div>Countries Content...</div>); };
-const renderDestinations = () => { /* ... destinations implementation ... */ return (<div>Destinations Content...</div>); };
-const renderOuikenac = () => { /* ... ouikenac implementation ... */ return (<div>Ouikenac Content...</div>); };
-const renderCityTours = () => { /* ... cityTours implementation ... */ return (<div>CityTours Content...</div>); };
+const DashboardCard = ({ icon: Icon, title, value, color, detail }) => {
+    const colorClasses = {
+        primary: { bg: 'bg-primary/10', text: 'text-primary', iconBg: 'bg-primary' },
+        secondary: { bg: 'bg-secondary/10', text: 'text-secondary', iconBg: 'bg-secondary' },
+        green: { bg: 'bg-green/10', text: 'text-green', iconBg: 'bg-green' },
+        warning: { bg: 'bg-warning/20', text: 'text-warning', iconBg: 'bg-warning' },
+    };
+
+    const c = colorClasses[color] || colorClasses.primary;
+
+    return (
+        <div className={`p-6 bg-white rounded-2xl shadow-xl border border-gray-200 transition-all hover:shadow-2xl`}>
+            <div className="flex items-center justify-between">
+                <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-500">{title}</p>
+                    <p className="text-3xl font-black text-gray-900 mt-1">{value}</p>
+                </div>
+                <div className={`p-3 rounded-full ${c.iconBg} text-white shadow-lg flex-shrink-0`}>
+                    <Icon size={24} />
+                </div>
+            </div>
+            <p className="text-xs mt-3 text-gray-400">{detail}</p>
+        </div>
+    );
+};
 
 export default AdminDashboard;
