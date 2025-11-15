@@ -191,7 +191,7 @@ const AdminDashboard = () => {
         image: null
     },
     cityTour: { 
-        nom: '', 
+        nom: '', // Use 'nom' as per form definition
         country_id: '', 
         city_id: '', 
         date: '', 
@@ -214,14 +214,17 @@ const AdminDashboard = () => {
     if (data) {
         const formData = { 
             ...data, 
+            // Ensures 'nom' is set for cityTour form if API returns 'title'
             nom: data.nom || data.title, 
             date: data.date ? data.date.split('T')[0] : (data.tour_date ? new Date(data.tour_date).toISOString().split('T')[0] : ''),
             country_id: data.country_id || data.city?.country_id || '',
             city_id: data.city_id || '',
+            // Handle inconsistent price/prices fields for initial load
             price: data.prices?.[0]?.price || data.price || '',
             currency: data.prices?.[0]?.currency || data.currency || 'CFA',
-            places_min: data.min_people || data.places_min || 1,
-            places_max: data.max_people || data.places_max || 2,
+            // Handle inconsistent people fields for initial load
+            places_min: data.places_min || data.min_people || 1,
+            places_max: data.places_max || data.max_people || 2,
         };
         
         setEditForm(formData);
@@ -310,11 +313,11 @@ const AdminDashboard = () => {
             reservationsRes
         ] = await Promise.all([
             api.get('/countries'),
-            api.get('/cities'),
-            api.get('/destination-packages'),
-            api.get('/ouikenacs'),
-            api.get('/city-tours'),
-            api.get('/reservations')
+            api.get('/countries?with=cities'),
+            api.get('/destinations?with=departureCountry'),
+            api.get('/ouikenac?with=prices.departureCountry,prices.arrivalCountry,prices.departureCity,prices.arrivalCity,additionalCities.city.country,inclusions'),
+            api.get('/city-tours?with=city.country'),
+            api.get('/reservations?with=reservable')
         ]);
         
         setCountries(countriesRes.data);
@@ -356,6 +359,7 @@ const AdminDashboard = () => {
     const dataToSubmit = { ...editForm };
     
     Object.keys(dataToSubmit).forEach(key => {
+        // Exclude image, cities (handled by relations or FormData), and empty/null values
         if (key !== 'image' && key !== 'cities' && dataToSubmit[key] !== null && dataToSubmit[key] !== '') {
             formData.append(key, dataToSubmit[key]);
         }
@@ -381,7 +385,7 @@ const AdminDashboard = () => {
         formData.append('price', parseFloat(dataToSubmit.price));
         formData.append('currency', dataToSubmit.currency);
     } else if (type === 'cityTour') {
-        formData.append('nom', dataToSubmit.nom);
+        // Ligne 'formData.append('nom', dataToSubmit.nom);' retirée car elle est redondante avec la boucle Object.keys initiale
         formData.append('price', parseFloat(dataToSubmit.price));
         formData.append('currency', dataToSubmit.currency);
         formData.append('places_min', parseInt(dataToSubmit.places_min));
@@ -1037,6 +1041,7 @@ const AdminDashboard = () => {
     const totalRevenue = reservations.reduce((sum, r) => {
         let price = 0;
         const type = getReservationType(r);
+        // NOTE: La logique de revenu utilise des prix hardcodés pour la simulation du tableau de bord.
         if (type === 'Destination') price = 500000;
         else if (type === 'Ouikenac') price = 250000;
         else if (type === 'City Tour') price = 50000;
@@ -1098,7 +1103,7 @@ const AdminDashboard = () => {
         { name: 'Oct', Revenue: 12500000 }, { name: 'Nov', Revenue: 10200000 }, { name: 'Dec', Revenue: 14000000 }, 
     ]; 
     
-    const conversionScore = destinations.length > 0 ? (totalReservations / totalPackages * 100).toFixed(1) : 0;
+    const conversionScore = totalPackages > 0 ? (totalReservations / totalPackages * 100).toFixed(1) : 0;
     
     return { totalReservations, totalRevenue, totalPackages, reservationChartData, packagesByCountryChartData, monthlyRevenueChartData, conversionScore };
   }, [reservations, destinations, ouikenacs, cityTours, countries]);
@@ -1366,7 +1371,8 @@ const AdminDashboard = () => {
                     data={cityTours}
                     columns={[
                         { header: 'ID', accessor: 'id' },
-                        { header: 'Titre', accessor: 'title' },
+                        // CORRECTION: Utilise une fonction pour s'assurer que le titre s'affiche correctement (API peut utiliser 'title' ou 'nom')
+                        { header: 'Titre', accessor: (t) => t.title || t.nom || 'N/A' },
                         { header: 'Ville/Pays', accessor: (t) => `${t.city?.name || 'N/A'} (${t.country?.code || 'N/A'})` },
                         { header: 'Date', accessor: (t) => t.date ? new Date(t.date).toLocaleDateString('fr-FR') : 'N/A' },
                         { header: 'Prix', accessor: (t) => `${formatPrice(t.price)} ${t.currency || 'CFA'}` },
