@@ -1,7 +1,24 @@
 import React, { useState } from 'react';
+// 🚀 Nouveaux imports nécessaires pour la navigation et le contexte
+import { useNavigate, useLocation } from 'react-router-dom'; 
+import { useApp } from '../context/AppContext'; 
 import { Globe, Mail, Lock, Eye, EyeOff, Loader, AlertCircle, CheckCircle, LogIn, Shield } from 'lucide-react';
 
+/* * CHARTE GRAPHIQUE E-TRAVEL WORLD AGENCY
+ * Couleurs utilisées (d'après la Charte Graphique et les autres composants):
+ * --primary: #1B5E8E (Pantone 647 C - Bleu foncé)
+ * --warning: #F7B406 (Pantone 124 C - Jaune/Orange)
+ */
+
 const AdminLogin = () => {
+  // 🚀 Initialisation des hooks de navigation et du contexte
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { setIsAuthenticated, setCurrentUser } = useApp(); // <-- Fonctions de mise à jour du contexte
+
+  // Récupère le chemin d'origine stocké par ProtectedRoute, ou par défaut /admin
+  const from = location.state?.from?.pathname || "/admin"; 
+
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -37,206 +54,180 @@ const AdminLogin = () => {
         body: JSON.stringify({
           email: loginForm.email,
           password: loginForm.password
-        })
+        }),
       });
 
       const data = await response.json();
-
+      
       if (!response.ok) {
-        throw new Error(data.message || 'Erreur de connexion');
+        throw new Error(data.message || 'Échec de la connexion. Email ou mot de passe incorrect.');
       }
+      
+      // 🚀 MISE À JOUR CRUCIALE DU CONTEXTE ET DU STORAGE
+      // 1. Stockage du token sous la clé "token" (vérifiée par AppContext)
+      localStorage.setItem('token', data.token); 
+      
+      // 2. Stockage des infos utilisateur (à adapter selon la réponse de votre API)
+    const user = data.admin;                     // au lieu de data.user
+    localStorage.setItem('user', JSON.stringify(user));
 
-      console.log('Login response:', data);
-
-      localStorage.setItem('admin_token', data.token);
-      localStorage.setItem('admin_user', JSON.stringify(data.admin));
-
-      setSuccess('Connexion réussie ! Redirection...');
-
+      // 3. Mise à jour de l'état global du contexte pour débloquer ProtectedRoute
+      setIsAuthenticated(true); 
+      setCurrentUser(user);
+      
+      setSuccess('Connexion réussie ! Redirection en cours...');
+      
+      // 4. Redirection vers la route qui a été bloquée
       setTimeout(() => {
-        window.location.href = '/admin';
-      }, 1000);
+        navigate(from, { replace: true });
+      }, 1500);
 
     } catch (err) {
-      console.error('Erreur de connexion:', err);
-      
-      if (err.message.includes('401') || err.message.includes('Identifiants')) {
-        setError('Email ou mot de passe incorrect');
-      } else {
-        setError(err.message || 'Erreur de connexion. Veuillez réessayer.');
-      }
+      setError(err.message || 'Une erreur est survenue lors de la connexion');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-600 via-blue-700 to-blue-900 flex items-center justify-center p-4">
-      {/* Animated Background Elements */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-20 left-10 w-72 h-72 bg-white/10 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-20 right-10 w-96 h-96 bg-white/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
-      </div>
-
-      {/* Login Card */}
-      <div className="relative w-full max-w-md z-10">
-        {/* Logo & Title */}
+    <div className="min-h-screen flex items-center justify-center p-4" style={{ backgroundColor: '#1B5E8E' }}>
+      
+      {/* Container principal (Carte de connexion) */}
+      <div className="w-full max-w-md bg-white rounded-xl shadow-2xl p-8 sm:p-10">
+        
+        {/* 1. Zone du LOGO et Slogan */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-white rounded-2xl shadow-2xl mb-4">
-            <Globe className="text-blue-600" size={40} />
+          <div className="mx-auto w-20 h-20 flex items-center justify-center rounded-full mb-3 shadow-lg" style={{ backgroundColor: '#1B5E8E' }}>
+            <Shield className="text-white" size={40} />
           </div>
-          <h1 className="text-4xl font-black text-white mb-2">e-TRAVEL WORLD</h1>
-          <p className="text-blue-200 text-lg">Espace Administration</p>
+          
+          <h1 className="text-2xl font-extrabold text-gray-900">
+            E-TRAVEL WORLD AGENCY
+          </h1>
+          <p className="text-gray-500 text-sm mt-1">
+            VOTRE AGENCE, PARTOUT AVEC VOUS
+          </p>
         </div>
 
-        {/* Login Form Card */}
-        <div className="bg-white rounded-2xl shadow-2xl p-8 backdrop-blur-sm">
-          <div className="mb-8">
-            <h2 className="text-2xl font-black text-gray-900 mb-2">Connexion Admin</h2>
-            <p className="text-gray-600">Connectez-vous pour accéder au tableau de bord</p>
+        <h2 className="text-xl font-semibold text-center text-gray-800 mb-6">
+          Connexion Espace Administrateur
+        </h2>
+
+        {/* Messages d'Alerte */}
+        {(error || success) && (
+          <div className={`p-4 rounded-lg mb-6 ${error ? 'bg-red-50 border border-red-300' : 'bg-green-50 border border-green-300'}`}>
+            <div className="flex items-start">
+              <div className={`flex-shrink-0 ${error ? 'text-red-500' : 'text-green-500'}`}>
+                {error ? <AlertCircle size={20} /> : <CheckCircle size={20} />}
+              </div>
+              <div className="ml-3">
+                <p className={`text-sm font-medium ${error ? 'text-red-800' : 'text-green-800'}`}>
+                  {error ? 'Erreur' : 'Succès'}
+                </p>
+                <p className={`mt-1 text-sm ${error ? 'text-red-700' : 'text-green-700'}`}>
+                  {error || success}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Formulaire de Connexion */}
+        <form onSubmit={handleLogin} className="space-y-6">
+          
+          {/* Champ Email */}
+          <div>
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">Adresse Email</label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+              <input
+                id="email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                value={loginForm.email}
+                onChange={handleInputChange}
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1B5E8E] focus:border-[#1B5E8E] transition"
+                placeholder="votre.email@admin.com"
+              />
+            </div>
           </div>
 
-          {/* Success Message */}
-          {success && (
-            <div className="mb-6 bg-green-50 border-l-4 border-green-500 p-4 rounded-r-lg animate-pulse">
-              <div className="flex items-center gap-3">
-                <CheckCircle className="text-green-500 flex-shrink-0" size={24} />
-                <p className="text-green-800 font-medium">{success}</p>
-              </div>
+          {/* Champ Mot de passe */}
+          <div>
+            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">Mot de passe</label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+              <input
+                id="password"
+                name="password"
+                type={showPassword ? 'text' : 'password'}
+                autoComplete="current-password"
+                required
+                value={loginForm.password}
+                onChange={handleInputChange}
+                className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1B5E8E] focus:border-[#1B5E8E] transition"
+                placeholder="••••••••"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-[#1B5E8E] focus:outline-none transition"
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
             </div>
-          )}
-
-          {/* Error Message */}
-          {error && (
-            <div className="mb-6 bg-red-50 border-l-4 border-red-500 p-4 rounded-r-lg">
-              <div className="flex items-center gap-3">
-                <AlertCircle className="text-red-500 flex-shrink-0" size={24} />
-                <p className="text-red-800 font-medium">{error}</p>
-              </div>
-            </div>
-          )}
-
-          {/* Login Form */}
-          <div className="space-y-6">
-            {/* Email Field */}
-            <div>
-              <label htmlFor="email" className="block text-sm font-bold text-gray-700 mb-2">
-                Adresse Email
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <Mail className="text-gray-400" size={20} />
-                </div>
-                <input
-                  type="email"
-                  id="email"
-                  name="email"
-                  value={loginForm.email}
-                  onChange={handleInputChange}
-                  placeholder="admin@etravel.com"
-                  disabled={loading}
-                  className="w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:border-blue-600 focus:ring-4 focus:ring-blue-100 focus:outline-none transition-all disabled:bg-gray-100 disabled:cursor-not-allowed"
-                  required
-                />
-              </div>
-            </div>
-
-            {/* Password Field */}
-            <div>
-              <label htmlFor="password" className="block text-sm font-bold text-gray-700 mb-2">
-                Mot de passe
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <Lock className="text-gray-400" size={20} />
-                </div>
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  id="password"
-                  name="password"
-                  value={loginForm.password}
-                  onChange={handleInputChange}
-                  placeholder="••••••••"
-                  disabled={loading}
-                  className="w-full pl-12 pr-12 py-4 border-2 border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:border-blue-600 focus:ring-4 focus:ring-blue-100 focus:outline-none transition-all disabled:bg-gray-100 disabled:cursor-not-allowed"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  disabled={loading}
-                  className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-600 transition-colors disabled:cursor-not-allowed"
-                >
-                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                </button>
-              </div>
-            </div>
-
-            {/* Remember Me & Forgot Password */}
-            <div className="flex items-center justify-between">
-              <label className="flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                />
-                <span className="ml-2 text-sm text-gray-600">Se souvenir de moi</span>
-              </label>
-              <a href="#" className="text-sm font-bold text-blue-600 hover:text-blue-700 transition-colors">
-                Mot de passe oublié ?
-              </a>
-            </div>
-
-            {/* Login Button */}
-            <button
-              onClick={handleLogin}
-              disabled={loading}
-              className="w-full py-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold text-lg rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed flex items-center justify-center gap-3"
-            >
-              {loading ? (
-                <>
-                  <Loader className="animate-spin" size={24} />
-                  Connexion en cours...
-                </>
-              ) : (
-                <>
-                  <LogIn size={24} />
-                  Se connecter
-                </>
-              )}
-            </button>
           </div>
 
-          {/* Divider */}
-          <div className="my-8 flex items-center">
-            <div className="flex-1 border-t border-gray-200"></div>
-            <span className="px-4 text-sm text-gray-500 font-medium">OU</span>
-            <div className="flex-1 border-t border-gray-200"></div>
-          </div>
-
-          {/* Back to Website */}
-          <a
-            href="/"
-            className="block w-full py-4 bg-gray-100 text-gray-700 font-bold text-center rounded-xl hover:bg-gray-200 transition-all"
+          {/* Bouton de Connexion */}
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full flex justify-center items-center gap-3 py-3 rounded-lg text-white font-bold transition-all shadow-md hover:shadow-lg focus:outline-none focus:ring-4 focus:ring-[#1B5E8E]/50 disabled:opacity-70 disabled:cursor-not-allowed"
+            style={{ backgroundColor: '#1B5E8E' }}
           >
-            Retour au site web
-          </a>
+            {loading ? (
+              <>
+                <Loader size={20} className="animate-spin" />
+                Connexion en cours...
+              </>
+            ) : (
+              <>
+                <LogIn size={20} />
+                Se connecter
+              </>
+            )}
+          </button>
+        </form>
+
+        {/* Séparateur */}
+        <div className="my-8 flex items-center">
+          <div className="flex-1 border-t border-gray-200"></div>
+          <span className="px-4 text-sm text-gray-500 font-medium">OU</span>
+          <div className="flex-1 border-t border-gray-200"></div>
         </div>
 
-        {/* Footer Info */}
-        <div className="mt-8 text-center">
-          <p className="text-white/80 text-sm">
-            © 2025 e-TRAVEL WORLD AGENCY. Tous droits réservés.
-          </p>
-          <p className="text-white/60 text-xs mt-2">
-            Accès réservé aux administrateurs uniquement
-          </p>
-        </div>
+        {/* Retour au site web */}
+        <a
+          href="/"
+          className="block w-full py-3 bg-gray-100 text-gray-700 font-bold text-center rounded-lg hover:bg-gray-200 transition-all"
+        >
+          <Globe size={20} className="inline-block mr-2" /> Retour au site web
+        </a>
       </div>
 
-      {/* Security Badge */}
-      <div className="absolute bottom-6 left-6 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2 flex items-center gap-2">
-        <Shield className="text-white" size={16} />
-        <span className="text-white text-sm font-medium">Connexion sécurisée</span>
+      {/* Infos du pied de page */}
+      <div className="absolute bottom-4 text-center">
+        <p className="text-white/80 text-sm">
+          © 2025 e-TRAVEL WORLD AGENCY. Tous droits réservés.
+        </p>
+      </div>
+
+      {/* Badge de sécurité */}
+      <div className="absolute top-6 right-6 bg-white/20 backdrop-blur-sm rounded-full px-4 py-2 text-white flex items-center gap-2 text-xs font-medium border border-white/30">
+        <Shield size={16} className="text-white" />
+        Accès Administrateur
       </div>
     </div>
   );
